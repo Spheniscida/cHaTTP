@@ -18,7 +18,9 @@ enum class connectionType { UNIX, UDP };
  */
 struct connectionInformation
 {
+    /// The socket address
     string address;
+    /// The connection type
     connectionType type;
 };
 
@@ -30,17 +32,17 @@ struct connectionInformation
  */
 class brokerSettings
 {
-    public:
-        brokerSettings(void);
+public:
+    brokerSettings(void);
 
-	connectionInformation getMessageRelayAddress(void);
-	connectionInformation getPersistenceLayerAddress(void);
-    private:
-        string message_relay_address;
-	connectionType message_relay_connection_type;
+    connectionInformation getMessageRelayAddress(void);
+    connectionInformation getPersistenceLayerAddress(void);
+private:
+    string message_relay_address;
+    connectionType message_relay_connection_type;
 
-	string persistence_layer_address;
-	connectionType persistence_layer_connection_type;
+    string persistence_layer_address;
+    connectionType persistence_layer_connection_type;
 
 };
 
