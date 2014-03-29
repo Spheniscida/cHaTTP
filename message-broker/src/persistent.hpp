@@ -3,9 +3,11 @@
 
 # include <string>
 # include <vector>
+# include <sstream>
 
 using std::string;
 using std::vector;
+using std::istringstream;
 
 /*
 enum class persistentLayerCommands {
@@ -73,5 +75,7 @@ struct persistenceLayerMessagesResponse : public persistenceLayerResponse
 };
 
 persistenceLayerResponse* parsePersistenceResponse(const string&);
+
+istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code);
 
 # endif

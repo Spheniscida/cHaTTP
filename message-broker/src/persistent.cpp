@@ -1,6 +1,5 @@
 # include "persistent.hpp"
 # include "error.hpp"
-# include <sstream>
 # include <string>
 # include <iostream>
 
@@ -50,6 +49,8 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
 	code = persistenceLayerResponseCode::savedMessage;
     else if ( code_string == "MSGS" )
 	code = persistenceLayerResponseCode::messages;
+    else
+	throw brokerError(errorType::persistenceLayerError,"Received unknown response code: " + code_string);
 
     return stream;
 }
@@ -84,28 +85,45 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	string ok;
 	response >> ok;
 
-	if ( ok != "OK" )
-	    throw brokerError(errorType::persistenceLayerError,string("Persistence layer returned FAIL for user lookup: ") + r);
-
 	persistenceLayerLookupResponse* response_obj = new persistenceLayerLookupResponse;
+
+	if ( ok == "OK" )
+	    response_obj->status = true;
+	else if ( ok == "FAIL" )
+	    response_obj->status = false;
+	else
+	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
 	response_obj->sequence_number = seq_num;
 
-	response >> response_obj->broker_name;
-	response >> response_obj->channel_name;
-
-	if ( response_obj->broker_name.empty() || response_obj->channel_name.empty() )
+	if ( response_obj->status ) // Additional information is only present when status is "OK"
 	{
-	    throw brokerError(errorType::protocolError,"Response type was ULKDUP; however, broker and/or channel could not be retrieved");
-	    delete response_obj;
+	    response >> response_obj->broker_name;
+	    response >> response_obj->channel_name;
+
+	    if ( response_obj->broker_name.empty() || response_obj->channel_name.empty() )
+	    {
+		throw brokerError(errorType::protocolError,"Response type was ULKDUP; however, broker and/or channel could not be retrieved");
+		delete response_obj;
+	    }
+
 	}
 
-	response_obj->status = true;
 	return response_obj;
     } else if ( response_type == persistenceLayerResponseCode::messages )
     {
 	persistenceLayerMessagesResponse* response_obj = new persistenceLayerMessagesResponse;
 	response_obj->sequence_number = seq_num;
+
+	string ok;
+	response >> ok;
+
+	if ( ok == "FAIL" )
+	    response_obj->status = false;
+	else if ( ok == "OK" )
+	    response_obj->status = true;
+	else
+	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
 	string single_message;
 
@@ -124,18 +142,16 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	response_obj->response_type = response_type;
 	response_obj->sequence_number = seq_num;
 
-	string okfail;
+	string ok;
 
-	response >> okfail;
+	response >> ok;
 
-	if ( okfail == "OK" )
+	if ( ok == "OK" )
 	    response_obj->status = true;
-	else if ( okfail == "FAIL" )
+	else if ( ok == "FAIL" )
 	    response_obj->status = false;
 	else
-	    throw brokerError(errorType::protocolError,"The status returned from the persistence layer was neither OK nor FAIL.");
-
-	response_obj->status = true;
+	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
 	return response_obj;
     }
