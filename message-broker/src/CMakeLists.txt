@@ -4,6 +4,7 @@ set(src
 conf.cpp
 error.cpp
 main.cpp
+persistent.cpp
 )
 
 add_executable(msg-broker ${src})
