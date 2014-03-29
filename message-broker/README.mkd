@@ -1,0 +1,17 @@
+# message-broker
+
+This is the asynchronous cHaTTP message broker.
+
+## Build process
+
+Build this application using these commands:
+
+    cmake CMakeLists.txt
+    make [-jx] # with x build processes in parallel
+
+## Documentation
+
+Build the documentation (if you have graphviz available) using doxygen and the `doxyconf`
+configuration file.
+
+Otherwise, there should be a current version available [Here](http://lbo.spheniscida.de/doc/cHaTTP/message-broker/).
