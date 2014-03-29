@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 	brokerSettings b;
     } catch (brokerError e)
     {
-	std::cerr << e.error_message;
+	std::cerr << e.toString();
     }
     return 0;
 }
