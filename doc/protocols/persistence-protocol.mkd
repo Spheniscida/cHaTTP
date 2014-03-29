@@ -18,11 +18,14 @@ The persistence layer is configured using the following environment variables:
 
 ## Commands
 
-(the command tokens are not permanent yet, as well as the actual message format)
+The fields of the commands are delimited by newlines (LF). The specification below uses
+spaces solely for better readability.
+
+The command tokens are not permanent yet, as well as the actual message format.
 
     <sequence number> UREG <user name> <password>
     [answer:]
-    <sequence number> UREGD
+    <sequence number> UREGD {OK|FAIL}
 
 Register a new user with the specified password.
 
@@ -42,7 +45,7 @@ be a valid FQDN or an IP address.
 
     <sequence number> ULKUP <user name>
     [answer:]
-    <sequence number> ULKDUP <message broker name> <channel name>
+    <sequence number> ULKDUP <message broker name>
 
 Look up where a certain user may be reached; if cHaTTP runs on a cluster, two communicating users may be logged in
 on two different web servers and therefore message brokers. The information is stored in a central Redis database.
@@ -55,7 +58,7 @@ Save a message for a user who is currently not online.
 
     <sequence number> MSGGT <user name>
     [answer:]
-    <sequence number> MSGS <user name> <message 1> <message 2> <...>
+    <sequence number> MSGS <message 1> <message 2> <...>
 
 Get saved messages for a certain user.
 
