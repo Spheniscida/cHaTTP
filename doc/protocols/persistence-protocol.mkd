@@ -13,15 +13,20 @@ both sides to reference it at later times.
 ## Configuration
 
 The persistence layer is configured using the following environment variables:
-* CHATTP_PERSISTENCE_SOCK: the unix domain socket on which the persistence layer listens
-* CHATTP_PERSISTENCE_REDIS_SOCK: the unix domain socket of the redis instance to be used
+
+* `CHATTP_MESG_RELAY_ADDR` - The socket address of the message relay daemon
+* `CHATTP_MESG_RELAY_CONN_TYPE` - ("UNIX"/"UDP") How to connect to that daemon.
+* `CHATTP_PERSISTENCE_LAYER_ADDRESS` - The socket address of the persistence layer daemon
+* `CHATTP_PERSISTENCE_LAYER_CONN_TYPE` - ("UNIX"/"UDP") How to connect to that daemon.
+* `CHATTP_REDIS_SOCK`: the socket of the redis instance to be used
+* `CHATTP_REDIS_CONN_TYP`: whether the redis socket is in the UNIX ("UNIX") or INET ("UDP") domain.
 
 ## Commands
 
 The fields of the commands are delimited by newlines (LF). The specification below uses
 spaces solely for better readability.
 
-The command tokens are not permanent yet, as well as the actual message format.
+The command tokens are not fixed yet, as well as the actual message format.
 
     <sequence number> UREG <user name> <password>
     [answer:]
@@ -60,5 +65,5 @@ Save a message for a user who is currently not online.
     [answer:]
     <sequence number> MSGS <message 1> <message 2> <...>
 
-Get saved messages for a certain user.
+Retrieve saved messages for a certain user.
 
