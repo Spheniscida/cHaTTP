@@ -14,12 +14,10 @@ both sides to reference it at later times.
 
 The persistence layer is configured using the following environment variables:
 
-* `CHATTP_MESG_RELAY_ADDR` - The socket address of the message relay daemon
-* `CHATTP_MESG_RELAY_CONN_TYPE` - ("UNIX"/"UDP") How to connect to that daemon.
 * `CHATTP_PERSISTENCE_LAYER_ADDRESS` - The socket address of the persistence layer daemon
 * `CHATTP_PERSISTENCE_LAYER_CONN_TYPE` - ("UNIX"/"UDP") How to connect to that daemon.
 * `CHATTP_REDIS_SOCK`: the socket of the redis instance to be used
-* `CHATTP_REDIS_CONN_TYP`: whether the redis socket is in the UNIX ("UNIX") or INET ("UDP") domain.
+* `CHATTP_REDIS_CONN_TYPE`: whether the redis socket is in the UNIX ("UNIX") or INET ("TCP") domain.
 
 ## Commands
 
