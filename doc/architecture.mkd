@@ -1,0 +1,13 @@
+# Architecture overview
+
+![Architecture diagram](architecture.png)
+
+cHaTTP uses many individual daemon processes ensuring flexibility, scalability and
+extensibility. The processes communicate with each other using specified
+protocols over sockets; processes on one machine, for example message relay and message
+broker may use UNIX domain datagram sockets; multiple message brokers in a cluster
+can use UDP sockets to send messages to each other. That is, the daemons may run on
+completely different machines.
+
+The protocol specifications can be found in the protocols/ directory.
+

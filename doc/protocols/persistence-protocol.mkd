@@ -1,0 +1,55 @@
+# The message-broker/persistence-layer protocol
+
+The message broker uses the persistence layer to obtain information
+on users and other (remote) message brokers. Another purpose is saving messages
+for users which are currently off-line.
+
+This protocol is stateless and should normally use UNIX datagram sockets. The path of
+the socket is specified in an environment variable.
+
+The sequence number (or string) has to be a unique identifier for a command, allowing
+both sides to reference it at later times.
+
+## Commands
+
+(the command tokens are not permanent yet, as well as the actual message format)
+
+    UREG <sequence number> <user name> <password>
+    [answer:]
+    UREGD <sequence number>
+
+Register a new user with the specified password.
+
+    CHKPASS <sequence number> <user name> <submitted password>
+    [answer:]
+    CHKDPASS <sequence number> {OK|FAIL}
+
+
+Check if the submitted password is correct. This command is used when logging in a already registered user.
+
+    LOGIN <sequence number> <user name> <message broker name>
+    [answer:]
+    LGDIN <sequence number> {OK|FAIL}
+
+Log the specified user in and specify which message broker has to be used to send messages to that user. This should
+be a valid FQDN or an IP address.
+
+    ULKUP <sequence number> <user name>
+    [answer:]
+    ULKDUP <sequence number> <message broker name> <channel name>
+
+Look up where a certain user may be reached; if cHaTTP runs on a cluster, two communicating users may be logged in
+on two different web servers and therefore message brokers. The information is stored in a central Redis database.
+
+    MSGSV <sequence number> <user name> <message text/information>
+    [answer:]
+    MSGSVD <sequence number> {OK|FAIL}
+
+Save a message for a user who is currently not online.
+
+    MSGGT <sequence number> <user name>
+    [answer:]
+    MSGS <sequence number> <user name> <message 1> <message 2> <...>
+
+Get saved messages for a certain user.
+
