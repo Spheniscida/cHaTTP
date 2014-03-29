@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(src
+set(libsrc
 conf.cpp
 error.cpp
-main.cpp
 persistent.cpp
 )
 
-add_executable(msg-broker ${src})
+set(execsrc
+main.cpp
+)
 
-target_link_libraries(msg-broker socket pthread)
+add_library(msg_broker_lib STATIC ${libsrc})
+add_executable(msg-broker ${execsrc})
+
+target_link_libraries(msg-broker socket pthread msg_broker_lib)

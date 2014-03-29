@@ -6,3 +6,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g3")
 
 add_subdirectory("src/")
 
+if(unit_test)
+    add_subdirectory("tests/")
+endif()
