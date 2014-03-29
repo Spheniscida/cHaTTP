@@ -7,8 +7,8 @@ for users which are currently off-line.
 This protocol is stateless and should normally use UNIX datagram sockets. The path of
 the socket is specified in an environment variable.
 
-The sequence number (or string) has to be a unique identifier for a command, allowing
-both sides to reference it at later times.
+The sequence number *n* is a unique number fulfilling `0 < n < 2^64` and may
+be used to refer to individual transactions.
 
 ## Configuration
 
@@ -39,7 +39,7 @@ Register a new user with the specified password.
 
 Check if the submitted password is correct. This command is used when logging in a already registered user.
 
-    <sequence number> LOGIN <user name> <message broker name>
+    <sequence number> LOGIN <user name> <message broker name> <channel id>
     [answer:]
     <sequence number> LGDIN {OK|FAIL}
 
@@ -48,7 +48,7 @@ be a valid FQDN or an IP address.
 
     <sequence number> ULKUP <user name>
     [answer:]
-    <sequence number> ULKDUP {OK <message broker name>|FAIL}
+    <sequence number> ULKDUP {OK <message broker name> <channel id>|FAIL}
 
 Look up where a certain user may be reached; if cHaTTP runs on a cluster, two communicating users may be logged in
 on two different web servers and therefore message brokers. The information is stored in a central Redis database.
