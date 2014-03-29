@@ -9,6 +9,11 @@ Build this application using these commands:
     cmake CMakeLists.txt
     make [-jx] # with x build processes in parallel
 
+### Dependencies
+
+You will need the `pthread` and the `libsocket` library. The former should already exist on your
+system, the latter may be obtained from [github](https://github.com/dermesser/libsocket)
+
 ## Documentation
 
 Build the documentation (if you have graphviz available) using doxygen and the `doxyconf`
