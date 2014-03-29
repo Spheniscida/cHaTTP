@@ -1,0 +1,42 @@
+# Nginx configuration
+
+## Module
+
+A compilation of the most important source files needed to compile nginx in combination with
+the essential "Nginx HTTP push module" ([website](https://pushmodule.slact.net/)) can be found
+[here.](http://cdn.spheniscida.de/lbo/chattp/nginx-push-src.txz)
+
+## Configuration example
+
+    server {
+            listen 0.0.0.0:80;
+            listen [::]:80;
+            server_name <server domain>;
+            
+            root /home/user/public_html;
+            index index.html index.htm index.php;
+            try_files $uri $uri/;
+
+            location / {
+                autoindex on;
+            }
+            if ($request_uri ~ " ") {
+              return 444;
+            }
+
+            location /sub {
+                set $push_channel_id $arg_id;
+                push_subscriber long-poll;
+                default_type text/plain;
+            }
+            location /pub {
+                set $push_channel_id $arg_id;
+                push_publisher;
+                push_authorized_channels_only on;
+                push_store_messages on;
+                default_type text/plain;
+                push_message_buffer_length 1;
+            }
+    }
+
+
