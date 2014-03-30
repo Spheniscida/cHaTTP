@@ -12,9 +12,9 @@ import Network.Socket hiding (recvFrom)
 import Network.Socket.ByteString (recvFrom, sendAllTo)
 
 
-initSocket :: SockAddr -> IO Socket
-initSocket addr = do
-    sock <- socket AF_UNIX Datagram defaultProtocol
+initSocket :: Family -> SockAddr -> IO Socket
+initSocket fam addr = do
+    sock <- socket fam Datagram defaultProtocol
     bind sock addr
     return sock
 

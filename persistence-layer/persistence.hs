@@ -9,7 +9,7 @@ import Database.Redis
 
 main :: IO ()
 main = do
-    sock <- initSocket =<< getInterfaceSockAddr
+    sock <- uncurry initSocket =<< getInterfaceSockAddr
     conn <- connect =<< getRedisConnInfo
     loop sock conn
 
