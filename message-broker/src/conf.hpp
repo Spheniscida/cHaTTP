@@ -8,7 +8,7 @@ using std::string;
 /**
  * @brief Enumeration for connection type: UNIX/UDP
  */
-enum class connectionType { UNIX, UDP };
+enum class connectionType { UNIX, INET };
 
 /**
  * @brief connection information structure
@@ -18,10 +18,12 @@ enum class connectionType { UNIX, UDP };
  */
 struct connectionInformation
 {
-    /// The socket address
-    string address;
     /// The connection type
     connectionType type;
+    /// The socket address
+    string address;
+    /// for inet sockets
+    string port;
 };
 
 /**
@@ -38,12 +40,8 @@ public:
     connectionInformation getMessageRelayAddress(void);
     connectionInformation getPersistenceLayerAddress(void);
 private:
-    string message_relay_address;
-    connectionType message_relay_connection_type;
-
-    string persistence_layer_address;
-    connectionType persistence_layer_connection_type;
-
+    connectionInformation message_relay_info;
+    connectionInformation persistence_layer_info;
 };
 
 # endif

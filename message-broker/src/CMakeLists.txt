@@ -5,6 +5,7 @@ conf.cpp
 error.cpp
 persistent.cpp
 sequence-number.cpp
+broker-util.cpp
 )
 
 set(execsrc

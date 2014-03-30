@@ -77,9 +77,9 @@ struct PersistenceLayerMessagesResponse : public PersistenceLayerResponse
     vector<string> messages;
 };
 
-PersistenceLayerResponse* parsePersistenceResponse(const string&);
+extern PersistenceLayerResponse* parsePersistenceResponse(const string&);
 
-istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code);
+extern istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code);
 
 /************************************* Creating protocol messages **************************************/
 
