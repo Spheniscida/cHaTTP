@@ -24,6 +24,7 @@ enum class persistenceLayerResponseCode {
     userRegistered,
     passwordChecked,
     loggedIn,
+    loggedOut,
     lookedUpUser,
     savedMessage,
     messages
@@ -58,6 +59,8 @@ struct persistenceLayerLookupResponse : public persistenceLayerResponse
 {
     persistenceLayerLookupResponse(void);
 
+    // status may be `true` if the user is offline.
+    bool online;
     string broker_name;
     string channel_name;
 };

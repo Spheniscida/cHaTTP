@@ -43,10 +43,12 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
 	code = persistenceLayerResponseCode::passwordChecked;
     else if ( code_string == "UREGD" )
 	code = persistenceLayerResponseCode::userRegistered;
-    else if ( code_string == "LGDIN" )
-	code = persistenceLayerResponseCode::loggedIn;
     else if ( code_string == "MSGS" )
 	code = persistenceLayerResponseCode::messages;
+    else if ( code_string == "LGDIN" )
+	code = persistenceLayerResponseCode::loggedIn;
+    else if ( code_string == "LGDOUT" )
+	code = persistenceLayerResponseCode::loggedOut;
     else
 	throw brokerError(errorType::persistenceLayerError,"Received unknown response code: " + code_string);
 
@@ -86,15 +88,26 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	persistenceLayerLookupResponse* response_obj = new persistenceLayerLookupResponse;
 
 	if ( ok == "OK" )
+	{
 	    response_obj->status = true;
+	    response_obj->online = true;
+	}
 	else if ( ok == "FAIL" )
+	{
 	    response_obj->status = false;
+	    response_obj->online = false;
+	}
+	else if ( ok == "OFFLINE" )
+	{
+	    response_obj->status = true;
+	    response_obj->online = false;
+	}
 	else
-	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
+	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL|OFFLINE): " + ok);
 
 	response_obj->sequence_number = seq_num;
 
-	if ( response_obj->status ) // Additional information is only present when status is "OK"
+	if ( response_obj->status && response_obj->online ) // Additional information is only present when status is "OK"
 	{
 	    response >> response_obj->broker_name;
 	    response >> response_obj->channel_name;
