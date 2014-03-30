@@ -25,8 +25,6 @@ persistenceLayerMessagesResponse::persistenceLayerMessagesResponse(void)
 
 /**
  * @brief Stream operator to parse persistence layer response codes.
- *
- * @todo Re-order the `if`s for better performance?
  */
 istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code)
 {
@@ -37,16 +35,16 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
     if ( code_string.empty() )
 	throw brokerError(errorType::protocolError,string("The response code could not be parsed: ") + stream.str());
 
-    if ( code_string == "UREGD" )
-	code = persistenceLayerResponseCode::userRegistered;
-    else if ( code_string == "CHKDPASS" )
-	code = persistenceLayerResponseCode::passwordChecked;
-    else if ( code_string == "ULKDUP" )
+    if ( code_string == "ULKDUP" )
 	code = persistenceLayerResponseCode::lookedUpUser;
-    else if ( code_string == "LGDIN" )
-	code = persistenceLayerResponseCode::loggedIn;
     else if ( code_string == "MSGSVD" )
 	code = persistenceLayerResponseCode::savedMessage;
+    else if ( code_string == "CHKDPASS" )
+	code = persistenceLayerResponseCode::passwordChecked;
+    else if ( code_string == "UREGD" )
+	code = persistenceLayerResponseCode::userRegistered;
+    else if ( code_string == "LGDIN" )
+	code = persistenceLayerResponseCode::loggedIn;
     else if ( code_string == "MSGS" )
 	code = persistenceLayerResponseCode::messages;
     else

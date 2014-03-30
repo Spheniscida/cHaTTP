@@ -41,6 +41,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse1)
     try {
 	response = parsePersistenceResponse("1234 LGDIN OK");
 	BOOST_CHECK(response->status);
+	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedIn);
 	BOOST_CHECK_EQUAL(response->sequence_number,1234);
     } catch (brokerError e)
     {
@@ -55,6 +56,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse2)
     try {
 	response = parsePersistenceResponse("3372112 CHKDPASS FAIL");
 	BOOST_CHECK(!response->status);
+	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::passwordChecked);
 	BOOST_CHECK_EQUAL(response->sequence_number,3372112);
     } catch (brokerError e)
     {
@@ -68,6 +70,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
     try {
 	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23987 ULKDUP OK prod.spheniscida.de 776ae45c"));
 	BOOST_CHECK(response->status);
+	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23987);
 	BOOST_CHECK_EQUAL(response->broker_name,"prod.spheniscida.de");
 	BOOST_CHECK_EQUAL(response->channel_name,"776ae45c");
@@ -84,6 +87,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
     try {
 	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23988 ULKDUP FAIL"));
 	BOOST_CHECK(! response->status);
+	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23988);
     } catch (brokerError e)
     {
