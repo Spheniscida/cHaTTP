@@ -7,8 +7,11 @@ for users which are currently off-line.
 This protocol is stateless and should normally use UNIX datagram sockets. The path of
 the socket is specified in an environment variable.
 
-The sequence number *n* is a unique number fulfilling `0 < n < 2^64` and may
-be used to refer to individual transactions.
+The sequence number *n* is a unique number fulfilling `0 < n < 2^64` (fitting in an `unsigned long long`
+value) and may be used to refer to individual transactions. A sequence number SHOULD be unique; otherwise undefined
+behavior may arise.
+
+This specification uses the keywords indicated by RFC 2119.
 
 ## Configuration
 
@@ -21,30 +24,35 @@ The persistence layer is configured using the following environment variables:
 
 ## Commands
 
-The fields of the commands are delimited by newlines (LF). The specification below uses
-spaces solely for better readability.
+The fields of the commands SHOULD be delimited by newlines (LF). The specification below uses
+spaces solely for better readability. In practice, spaces MAY also be used (exception: The `MSGS` protocol
+message).
 
-The command tokens are not fixed yet, as well as the actual message format.
+The answer MUST contain a status stating if an operation failed or succeeded. This status MUST be indicated
+by the keywords `OK` and `FAIL`.
+
+The command tokens are not fixed yet and may change in future, as well as the actual message format.
 
     <sequence number> UREG <user name> <password>
     [answer:]
     <sequence number> UREGD {OK|FAIL}
 
-Register a new user with the specified password.
+Register a new user with the specified password. This operation MUST fail if there's already a user registered
+with this name. A protocol message type for changing the password may come in the near future.
 
     <sequence number> CHKPASS <user name> <submitted password>
     [answer:]
     <sequence number> CHKDPASS {OK|FAIL}
 
-
-Check if the submitted password is correct. This command is used when logging in a already registered user.
+Check if the submitted password is correct. This command is used when logging in a already registered user. This command
+MUST fail if the password is not correct or the user doesn't exist.
 
     <sequence number> LOGIN <user name> <message broker name> <channel id>
     [answer:]
     <sequence number> LGDIN {OK|FAIL}
 
-Log the specified user in and specify which message broker has to be used to send messages to that user. This should
-be a valid FQDN or an IP address.
+Log the specified user in and specify which message broker has to be used to send messages to that user. This SHOULD
+be a valid FQDN. It also MAY be an IP address.
 
     <sequence number> ULKUP <user name>
     [answer:]
@@ -61,7 +69,8 @@ Save a message for a user who is currently not online.
 
     <sequence number> MSGGT <user name>
     [answer:]
-    <sequence number> MSGS <message 1> <message 2> <...>
+    <sequence number> MSGS {OK <message 1> <message 2> <...>|FAIL}
 
-Retrieve saved messages for a certain user. Always OK, can be empty.
+Retrieve saved messages for a certain user. This operation SHALL fail if there is no user registered with the given name.
+The spaces between the messages are to be replaced by LF characters. The messages itself MUST NOT contain newline characters.
 
