@@ -38,7 +38,8 @@ brokerSettings::brokerSettings(void)
 	    message_relay_connection_type = connectionType::UDP;
 	else
 	    throw brokerError(errorType::configurationError,"There's something wrong with the CHATTP_MESG_RELAY_CONN_TYPE environment variable");
-    }
+    } else
+	throw brokerError(errorType::configurationError,"There is no CHATTP_MESG_RELAY_CONN_TYPE environment variable");
 
     // Persistence layer (data source) configuration
     if ( getenv(persistence_addr_env_var) )
