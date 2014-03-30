@@ -33,16 +33,15 @@ a given response type.
 
 The persistence layer is configured using the following environment variables:
 
-* `CHATTP_PERSISTENCE_LAYER_ADDRESS` - The socket address of the persistence layer daemon
-* `CHATTP_PERSISTENCE_LAYER_CONN_TYPE` - ("UNIX"/"UDP") How to connect to that daemon.
-* `CHATTP_REDIS_SOCK`: the socket of the redis instance to be used
-* `CHATTP_REDIS_CONN_TYPE`: whether the redis socket is in the UNIX ("UNIX") or INET ("TCP") domain.
+* `CHATTP_PERSISTENCE_LAYER_ADDR` - The socket address of the persistence layer daemon
+* `CHATTP_PERSISTENCE_LAYER_FAMILY` - ("UNIX"/"INET") How to connect to that daemon.
+* `CHATTP_REDIS_ADDR` - The socket of the redis instance to be used
+* `CHATTP_REDIS_FAMILY` - Whether the redis socket is in the "UNIX" or "INET" domain.
 
 ## Commands
 
-The fields of the commands SHOULD be delimited by newlines (LF). The specification below uses
-spaces solely for better readability. In practice, spaces MAY also be used (exception: The `MSGS` protocol
-message). However, it is recommended not to use spaces.
+The fields of the commands MUST be delimited by newlines (LF). The specification below uses
+spaces solely for better readability.
 
 The answer MUST contain a status stating if an operation failed or succeeded. This status MUST be indicated
 by the keywords `OK` and `FAIL`.
@@ -97,7 +96,7 @@ Save a message for a user who is currently not online.
     <sequence number> MSGS {OK <message 1> <message 2> <...>|FAIL}
 
 Retrieve saved messages for a certain user. This operation SHALL fail if there is no user registered with the given name.
-The spaces between the messages are to be replaced by LF characters. The messages itself MUST NOT contain newline characters.
+The messages itself MUST NOT contain newline characters.
 
 The persistence implementation SHOULD delete the retrieved messages or mark them as delivered.
 
