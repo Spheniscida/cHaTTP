@@ -6,8 +6,8 @@ int main(int argc, char** argv)
 {
     // This is only testing yet.
     try {
-	brokerSettings b;
-    } catch (brokerError e)
+	BrokerSettings b;
+    } catch (BrokerError e)
     {
 	std::cerr << e.toString();
     }

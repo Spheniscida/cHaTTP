@@ -5,28 +5,28 @@
 # include <vector>
 # include <sstream>
 
+# include "sequence-number.hpp"
+
 using std::string;
 using std::vector;
 using std::istringstream;
 
-/*
-enum class persistentLayerCommands {
-    registerUser,
-    checkPassword,
-    logIn,
-    lookUpUser,
-    saveMessage,
-    getMessages
-};
-*/
+/*********************** Parsing and representing protocol responses ***************************/
 
 enum class persistenceLayerResponseCode {
+    /// User has been registered (or not...)
     userRegistered,
+    /// Password was checked.
     passwordChecked,
+    /// User has been marked as online
     loggedIn,
+    /// User has been marked as offline
     loggedOut,
+    /// User lookup results
     lookedUpUser,
+    /// Message has been saved.
     savedMessage,
+    /// Retained messages.
     messages
 };
 
@@ -41,11 +41,11 @@ enum class persistenceLayerResponseCode {
  * if the `response_type` says so.
  *
  */
-struct persistenceLayerResponse
+struct PersistenceLayerResponse
 {
     persistenceLayerResponseCode response_type;
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
-    unsigned long long sequence_number;
+    sequence_t sequence_number;
     /// Success?
     bool status;
 };
@@ -55,9 +55,9 @@ struct persistenceLayerResponse
  *
  * Additional fields contain the name of the broker and the channel of the user on that broker.
  */
-struct persistenceLayerLookupResponse : public persistenceLayerResponse
+struct PersistenceLayerLookupResponse : public PersistenceLayerResponse
 {
-    persistenceLayerLookupResponse(void);
+    PersistenceLayerLookupResponse(void);
 
     // status may be `true` if the user is offline.
     bool online;
@@ -70,15 +70,61 @@ struct persistenceLayerLookupResponse : public persistenceLayerResponse
  *
  * If the broker asked for old messages, this class is used, containing the messages sent by the persistence layer.
  */
-struct persistenceLayerMessagesResponse : public persistenceLayerResponse
+struct PersistenceLayerMessagesResponse : public PersistenceLayerResponse
 {
-    persistenceLayerMessagesResponse(void);
+    PersistenceLayerMessagesResponse(void);
 
     vector<string> messages;
 };
 
-persistenceLayerResponse* parsePersistenceResponse(const string&);
+PersistenceLayerResponse* parsePersistenceResponse(const string&);
 
 istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code);
 
+/************************************* Creating protocol messages **************************************/
+
+/**
+ * @brief Possible command types.
+ */
+enum class PersistenceLayerCommandCode {
+    /// Register a user
+    registerUser,
+    /// Check if a certain password is valid for a user
+    checkPassword,
+    /// Mark a user as online
+    logIn,
+    /// Mark a user as offline
+    logOut,
+    /// Get information on a user (broker location, channel id)
+    lookUpUser,
+    /// Save a message for a user who's offline
+    saveMessage,
+    /// Get saved messages for a user
+    getMessages
+};
+
+class PersistenceLayerCommand
+{
+public:
+    /// For ULKUP, LOGOUT, MSGGT
+    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name);
+    /// For UREG, CHKPASS, MSGSV
+    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string password_or_message);
+    /// For LOGIN
+    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string broker_name, string channel_id);
+
+    string toString(void);
+private:
+    sequence_t sequence_number;
+    PersistenceLayerCommandCode type;
+
+    string user_name;
+
+    // Those are mutually exclusive. {
+    string password_or_message;
+    string broker_name;
+    // }
+
+    string channel_id;
+};
 # endif

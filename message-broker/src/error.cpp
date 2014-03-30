@@ -8,7 +8,7 @@
  * @param t Takes the kind of error which occurred.
  * @param message An arbitrary, human-readable message with details about the error.
  */
-brokerError::brokerError(errorType t, const string& message)
+BrokerError::BrokerError(ErrorType t, const string& message)
     : type(t), error_message(message)
 {
 }
@@ -18,20 +18,20 @@ brokerError::brokerError(errorType t, const string& message)
  *
  * @returns A string describing the error, terminated by '\n'. It can be immediately sent to `cerr`.
  */
-string brokerError::toString(void)
+string BrokerError::toString(void)
 {
     string error_type_str;
     string full_message;
 
     switch ( type )
     {
-	case errorType::configurationError
+	case ErrorType::configurationError
 	    : error_type_str = "configurationError: ";
 	    break;
-	case errorType::persistenceLayerError
-	    : error_type_str = "persistentLayerError: ";
+	case ErrorType::argumentError
+	    : error_type_str = "argumentError: ";
 	    break;
-	case errorType::protocolError
+	case ErrorType::protocolError
 	    : error_type_str = "protocolError: ";
     }
 

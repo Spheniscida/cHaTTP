@@ -8,21 +8,24 @@ using std::string;
 /**
  * @brief enum class containing possible errors.
  */
-enum class errorType {
-    configurationError, /// There has been some sort of configuration error. Detailed information is in `error_message`.
-    protocolError, /// An error in a response the broker received from another daemon
-    persistenceLayerError /// Some error in the persistence layer
+enum class ErrorType {
+    /// There has been some sort of configuration error. Detailed information is in `error_message`.
+    configurationError,
+    /// An error in a response the broker received from another daemon
+    protocolError,
+    /// An error caused by wrong parameters to a function which is specialized depending on an argument (i.e. PersistenceLayerCommand's ctor)
+    argumentError
 };
 
 /**
  * @brief class representing any error somewhere in the broker. Intended to be thrown.
  */
-struct brokerError
+struct BrokerError
 {
-    brokerError(errorType t, const string& message);
+    BrokerError(ErrorType t, const string& message);
     string toString(void);
 
-    errorType type;
+    ErrorType type;
     string error_message;
 };
 

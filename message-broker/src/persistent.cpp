@@ -4,12 +4,13 @@
 # include <iostream>
 
 using std::istringstream;
+using std::ostringstream;
 using std::string;
 
 /**
  * @brief Construct a response object for a user look-up response from the persistence layer.
  */
-persistenceLayerLookupResponse::persistenceLayerLookupResponse(void)
+PersistenceLayerLookupResponse::PersistenceLayerLookupResponse(void)
 {
     response_type = persistenceLayerResponseCode::lookedUpUser;
 }
@@ -17,7 +18,7 @@ persistenceLayerLookupResponse::persistenceLayerLookupResponse(void)
 /**
  * @brief Construct a response containing multiple messages
  */
-persistenceLayerMessagesResponse::persistenceLayerMessagesResponse(void)
+PersistenceLayerMessagesResponse::PersistenceLayerMessagesResponse(void)
 {
     response_type = persistenceLayerResponseCode::messages;
 }
@@ -33,7 +34,7 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
     stream >> code_string;
 
     if ( code_string.empty() )
-	throw brokerError(errorType::protocolError,string("The response code could not be parsed: ") + stream.str());
+	throw BrokerError(ErrorType::protocolError,string("The response code could not be parsed: ") + stream.str());
 
     if ( code_string == "ULKDUP" )
 	code = persistenceLayerResponseCode::lookedUpUser;
@@ -50,7 +51,7 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
     else if ( code_string == "LGDOUT" )
 	code = persistenceLayerResponseCode::loggedOut;
     else
-	throw brokerError(errorType::persistenceLayerError,"Received unknown response code: " + code_string);
+	throw BrokerError(ErrorType::protocolError,"Received unknown response code: " + code_string);
 
     return stream;
 }
@@ -66,9 +67,9 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
  * **ATTENTION: The pointer returned by this function must be freed (using `delete`) to avoid memory leaks. In this application,
  * it probably wouldn't even make sense to use `unique_ptr`s.**
  */
-persistenceLayerResponse* parsePersistenceResponse(const string& r)
+PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 {
-    unsigned long long seq_num;
+    sequence_t seq_num;
 
     persistenceLayerResponseCode response_type;
     istringstream response(r);
@@ -76,7 +77,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
     response >> seq_num;
 
     if ( seq_num == 0 )
-	throw brokerError(errorType::protocolError,"The sequence number could not be read or it was 0, violating proto-specs.");
+	throw BrokerError(ErrorType::protocolError,"The sequence number could not be read or it was 0, violating proto-specs.");
 
     response >> response_type;
 
@@ -85,7 +86,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	string ok;
 	response >> ok;
 
-	persistenceLayerLookupResponse* response_obj = new persistenceLayerLookupResponse;
+	PersistenceLayerLookupResponse* response_obj = new PersistenceLayerLookupResponse;
 
 	if ( ok == "OK" )
 	{
@@ -103,7 +104,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	    response_obj->online = false;
 	}
 	else
-	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL|OFFLINE): " + ok);
+	    throw BrokerError(ErrorType::protocolError,"Unknown response status (expected OK|FAIL|OFFLINE): " + ok);
 
 	response_obj->sequence_number = seq_num;
 
@@ -114,7 +115,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 
 	    if ( response_obj->broker_name.empty() || response_obj->channel_name.empty() )
 	    {
-		throw brokerError(errorType::protocolError,"Response type was ULKDUP; however, broker and/or channel could not be retrieved");
+		throw BrokerError(ErrorType::protocolError,"Response type was ULKDUP; however, broker and/or channel could not be retrieved");
 		delete response_obj;
 	    }
 
@@ -123,7 +124,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	return response_obj;
     } else if ( response_type == persistenceLayerResponseCode::messages )
     {
-	persistenceLayerMessagesResponse* response_obj = new persistenceLayerMessagesResponse;
+	PersistenceLayerMessagesResponse* response_obj = new PersistenceLayerMessagesResponse;
 	response_obj->sequence_number = seq_num;
 
 	string ok;
@@ -134,7 +135,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	else if ( ok == "OK" )
 	    response_obj->status = true;
 	else
-	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
+	    throw BrokerError(ErrorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
 	char* single_message = new char[32768];
 
@@ -152,7 +153,7 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	return response_obj;
     } else
     {
-	persistenceLayerResponse* response_obj = new persistenceLayerResponse;
+	PersistenceLayerResponse* response_obj = new PersistenceLayerResponse;
 	response_obj->response_type = response_type;
 	response_obj->sequence_number = seq_num;
 
@@ -165,11 +166,101 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	else if ( ok == "FAIL" )
 	    response_obj->status = false;
 	else
-	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
+	    throw BrokerError(ErrorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
 	return response_obj;
     }
 
 
     return nullptr;
+}
+
+/*********************************** Persistence layer commands *************************************/
+
+/**
+ *
+ * @param code The actual type of command.
+ * @param user_name The user name wanted by the specified command
+ *
+ * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
+ */
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user)
+    : sequence_number(getNewSequenceNumber()),
+    type(code),
+    user_name(user)
+{
+    switch ( code )
+    {
+	case PersistenceLayerCommandCode::lookUpUser: // falls through
+	case PersistenceLayerCommandCode::getMessages: // falls through
+	case PersistenceLayerCommandCode::logOut: break;
+	default: throw BrokerError(ErrorType::argumentError,"Expected ULKUP, MSGGT or LOGOUT, but got other command type.");
+    }
+}
+
+/**
+ *
+ * @param code The command type
+ * @param user The user name
+ * @param data Either a password (UREG, CHKPASS) or a message (MSGSV).
+ *
+ * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
+ */
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string data)
+    : sequence_number(getNewSequenceNumber()),
+    type(code),
+    user_name(user)
+{
+    switch ( code )
+    {
+	case PersistenceLayerCommandCode::registerUser: // falls through
+	case PersistenceLayerCommandCode::checkPassword: password_or_message = data; break;
+	case PersistenceLayerCommandCode::saveMessage: password_or_message = data; break;
+	default: throw BrokerError(ErrorType::argumentError,"Expected UREG, CHKPASS or MSGSV, but got other command type.");
+    }
+}
+
+/**
+ *
+ * @param code The command type.
+ * @param user The user name.
+ * @param broker The broker handling that user.
+ * @param channel The channel of the user.
+ *
+ * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
+ */
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string broker, string channel)
+    : sequence_number(getNewSequenceNumber()),
+    type(code),
+    user_name(user),
+    broker_name(broker),
+    channel_id(channel)
+{
+    if ( code != PersistenceLayerCommandCode::logIn )
+	throw BrokerError(ErrorType::argumentError,"Expected LOGIN, but got other command type.");
+}
+
+/**
+ * @brief Convert a command object to a string according to the persistence protocol.
+ *
+ * @returns A string ready to be sent to the persistence layer.
+ */
+string PersistenceLayerCommand::toString(void)
+{
+    ostringstream out;
+
+    out << sequence_number << '\n';
+
+    switch ( type )
+    {
+	case PersistenceLayerCommandCode::lookUpUser : out << "ULKUP\n" << user_name; break;
+	case PersistenceLayerCommandCode::getMessages : out << "MSGGT\n" << user_name; break;
+	case PersistenceLayerCommandCode::logOut : out << "LOGOUT\n" << user_name; break;
+	case PersistenceLayerCommandCode::registerUser : out << "UREG\n" << user_name << '\n' << password_or_message; break;
+	case PersistenceLayerCommandCode::checkPassword: out << "CHKPASS\n" << user_name << '\n' << password_or_message; break;
+	case PersistenceLayerCommandCode::saveMessage : out << "MSGSV\n" << user_name << '\n' << password_or_message; break;
+	case PersistenceLayerCommandCode::logIn : out << "LOGIN\n" << user_name << '\n' << broker_name << '\n' << channel_id; break;
+    }
+
+    return out.str();
 }

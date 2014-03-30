@@ -4,6 +4,7 @@ set(libsrc
 conf.cpp
 error.cpp
 persistent.cpp
+sequence-number.cpp
 )
 
 set(execsrc

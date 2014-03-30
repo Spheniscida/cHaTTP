@@ -1,5 +1,5 @@
 # define BOOST_ALL_DYN_LINK
-# define BOOST_TEST_MODULE MessageBrokerTest
+# define BOOST_TEST_MODULE PersistenceProtocolTest
 
 # include <boost/test/unit_test.hpp>
 
@@ -10,7 +10,9 @@
 # include <persistent.hpp>
 # include <error.hpp>
 
-BOOST_AUTO_TEST_SUITE(Broker)
+BOOST_AUTO_TEST_SUITE(PersistenceProtocolTest)
+
+/************************************ Persistence protocol - message parsing ***************************************/
 
 BOOST_AUTO_TEST_CASE(persistent_response_code_stream1)
 {
@@ -28,8 +30,9 @@ BOOST_AUTO_TEST_CASE(persistent_response_code_stream1)
     {
 	try {
 	    s >> code;
-	} catch (brokerError e)
+	} catch (BrokerError e)
 	{
+	BOOST_ERROR("An exception has been thrown:\n");
 	    std::cerr << e.toString();
 	}
 	BOOST_CHECK(code == should_be_codes[i]);
@@ -38,114 +41,157 @@ BOOST_AUTO_TEST_CASE(persistent_response_code_stream1)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse1)
 {
-    persistenceLayerResponse* response;
+    PersistenceLayerResponse* response;
 
     try {
 	response = parsePersistenceResponse("1234\nLGDIN\nOK");
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedIn);
 	BOOST_CHECK_EQUAL(response->sequence_number,1234);
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 };
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse2)
 {
-    persistenceLayerResponse* response;
+    PersistenceLayerResponse* response;
 
     try {
 	response = parsePersistenceResponse("3372112\nCHKDPASS\nFAIL");
 	BOOST_CHECK(!response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::passwordChecked);
 	BOOST_CHECK_EQUAL(response->sequence_number,3372112);
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 }
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 {
-    persistenceLayerLookupResponse* response;
+    PersistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c"));
+	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->online);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23987);
 	BOOST_CHECK_EQUAL(response->broker_name,"prod.spheniscida.de");
 	BOOST_CHECK_EQUAL(response->channel_name,"776ae45c");
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 }
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 {
-    persistenceLayerLookupResponse* response;
+    PersistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("77129\nULKDUP\nOFFLINE"));
+	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("77129\nULKDUP\nOFFLINE"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(! response->online);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,77129);
 	BOOST_CHECK(response->broker_name.empty());
 	BOOST_CHECK(response->channel_name.empty());
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 }
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 {
-    persistenceLayerLookupResponse* response;
+    PersistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23988\nULKDUP\nFAIL"));
+	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23988\nULKDUP\nFAIL"));
 	BOOST_CHECK(! response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23988);
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 }
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
 {
-    persistenceLayerMessagesResponse* response;
+    PersistenceLayerMessagesResponse* response;
 
     try {
-	response = static_cast<persistenceLayerMessagesResponse*>(parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n"));
+	response = static_cast<PersistenceLayerMessagesResponse*>(parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::messages);
 	BOOST_CHECK_EQUAL(response->sequence_number,11712393297);
 	BOOST_CHECK_EQUAL(response->messages.size(),2);
 	BOOST_CHECK_EQUAL(response->messages[0],"Hello world 1.");
 	BOOST_CHECK_EQUAL(response->messages[1],"cHaTTP is awesome");
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
 }
 
 BOOST_AUTO_TEST_CASE(persistent_response_logged_out)
 {
-    persistenceLayerResponse* response;
+    PersistenceLayerResponse* response;
     try {
 	response = parsePersistenceResponse("26623723672908\nLGDOUT\nOK");
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedOut);
 	BOOST_CHECK_EQUAL(response->sequence_number,26623723672908);
-    } catch (brokerError e)
+    } catch (BrokerError e)
     {
+	BOOST_ERROR("An exception has been thrown:\n");
 	std::cerr << e.toString();
     }
+}
+
+/************************* Persistence protocol - message creation ****************************/
+
+BOOST_AUTO_TEST_CASE(persistent_create_lookup_message)
+{
+    initializeGlobalSequenceNumber();
+
+    try {
+	PersistenceLayerCommand c(PersistenceLayerCommandCode::lookUpUser,"user_name");
+
+	BOOST_CHECK_EQUAL(c.toString(), "1\nULKUP\nuser_name");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+
+}
+
+BOOST_AUTO_TEST_CASE(persistent_create_login_message)
+{
+    initializeGlobalSequenceNumber();
+
+    try {
+	PersistenceLayerCommand c(PersistenceLayerCommandCode::logIn,"test_user","prod-brok-1.spheniscida.de","5e66c71da");
+
+	BOOST_CHECK_EQUAL(c.toString(), "1\nLOGIN\ntest_user\nprod-brok-1.spheniscida.de\n5e66c71da");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

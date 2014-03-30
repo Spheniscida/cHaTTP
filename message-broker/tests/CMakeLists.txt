@@ -6,18 +6,25 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
 
 include_directories("../src/")
 
-set(testsrc
-protocols.cpp
+set(persistsrc
+persistence-protocol.cpp
 )
 
-#add_library(boost_test_lib SHARED IMPORTED)
-#set_property(TARGET boost_test_lib PROPERTY IMPORTED_LOCATION "/usr/lib64/libboost_unit_test_framework.so.1.54.0")
+set(miscsrc
+misc-test.cpp
+)
 
 find_library(boost_test_lib "boost_unit_test_framework")
 
-add_executable(protocols ${testsrc})
+add_executable(persistence-protocol ${persistsrc})
+target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib})
 
-target_link_libraries(protocols msg_broker_lib ${boost_test_lib})
- 
-add_test(NAME msg_broker_test_main COMMAND protocols)
+add_executable(misc-test ${miscsrc})
+target_link_libraries(misc-test msg_broker_lib ${boost_test_lib})
 
+# Tests
+
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} "--output-on-failure")
+
+add_test(NAME msg_broker_test_persist_protocol COMMAND persistence-protocol)
+add_test(NAME msg_broker_test_misc COMMAND misc-test)

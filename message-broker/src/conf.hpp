@@ -30,10 +30,10 @@ struct connectionInformation
  * This class fetches various settings from environment variables and provides
  * them to other parts of the program.
  */
-class brokerSettings
+class BrokerSettings
 {
 public:
-    brokerSettings(void);
+    BrokerSettings(void);
 
     connectionInformation getMessageRelayAddress(void);
     connectionInformation getPersistenceLayerAddress(void);
