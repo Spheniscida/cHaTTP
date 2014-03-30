@@ -33,10 +33,12 @@ a given response type.
 
 The persistence layer is configured using the following environment variables:
 
-* `CHATTP_PERSISTENCE_LAYER_ADDR` - The socket address of the persistence layer daemon
-* `CHATTP_PERSISTENCE_LAYER_FAMILY` - ("UNIX"/"INET") How to connect to that daemon.
-* `CHATTP_REDIS_ADDR` - The socket of the redis instance to be used
-* `CHATTP_REDIS_FAMILY` - Whether the redis socket is in the "UNIX" or "INET" domain.
+* `CHATTP_PERSISTENCE_LAYER_FAMILY` - ("UNIX"/"INET") How to connect to the persistence layer.
+* `CHATTP_PERSISTENCE_LAYER_ADDR` - The hostname / socket path of the persistence layer daemon.
+* `CHATTP_PERSISTENCE_LAYER_PORT` - The port of the persistence layer daemon, empty if using UNIX domain.
+* `CHATTP_REDIS_FAMILY` - ("UNIX"/"INET") How to connect to redis.
+* `CHATTP_REDIS_ADDR` - Redis' hostname / socket path.
+* `CHATTP_REDIS_PORT` - Redis' port,  mpty if using UNIX domain.
 
 ## Commands
 
