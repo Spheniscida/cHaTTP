@@ -4,14 +4,30 @@ The message broker uses the persistence layer to obtain information
 on users and other (remote) message brokers. Another purpose is saving messages
 for users which are currently off-line.
 
-This protocol is stateless and should normally use UNIX datagram sockets. The path of
+This protocol is stateless and will probably use UNIX datagram sockets. The path of
 the socket is specified in an environment variable.
 
-The sequence number *n* is a unique number fulfilling `0 < n < 2^64` (fitting in an `unsigned long long`
-value) and may be used to refer to individual transactions. A sequence number SHOULD be unique; otherwise undefined
-behavior may arise.
-
 This specification uses the keywords indicated by RFC 2119.
+
+This protocol works like the other one (the one between persistence layer and message broker):
+
+    <sequence number> <REQUEST TYPE> [additional information]
+
+    <sequence number> <RESPONSE TYPE> {OK [additional information]|FAIL [additional information]}
+
+The sequence number (`<seqn>`) *n* SHALL be smaller than 2^64 and SHALL be greater than 0. 0 is reserved (for parsing failures).
+The sequence number MUST be a base-10 number written in ASCII.
+
+The sequence number SHOULD be unique. If one sequence number is used twice, participating applications may show
+undefined behavior. Applications SHOULD be safe against a non-unique sequence number if that number is used
+twice with an interval of, say, 30 minutes or more, between the two uses.
+
+Two message referring to the same operation MUST bear the same sequence number.
+
+The response type MUST be uppercase and SHOULD give a hint on the operation (e.g. register user: UREG).
+
+The keywords `OK` and `FAIL` may be followed by arbitrary information having the same format for all messages with
+a given response type.
 
 ## Configuration
 
@@ -26,7 +42,7 @@ The persistence layer is configured using the following environment variables:
 
 The fields of the commands SHOULD be delimited by newlines (LF). The specification below uses
 spaces solely for better readability. In practice, spaces MAY also be used (exception: The `MSGS` protocol
-message).
+message). However, it is recommended not to use spaces.
 
 The answer MUST contain a status stating if an operation failed or succeeded. This status MUST be indicated
 by the keywords `OK` and `FAIL`.
@@ -54,12 +70,21 @@ MUST fail if the password is not correct or the user doesn't exist.
 Log the specified user in and specify which message broker has to be used to send messages to that user. This SHOULD
 be a valid FQDN. It also MAY be an IP address.
 
+    <sequence number> LOGOUT <user name>
+    [answer:]
+    <sequence number> LGDOUT
+
+This command MUST not fail. It tells the persistence layer that it shall mark the user as offline, so following ULKUP
+queries will return OFFLINE.
+
     <sequence number> ULKUP <user name>
     [answer:]
-    <sequence number> ULKDUP {OK <message broker name> <channel id>|FAIL}
+    <sequence number> ULKDUP {OK <message broker name> <channel id>|OFFLINE|FAIL}
 
 Look up where a certain user may be reached; if cHaTTP runs on a cluster, two communicating users may be logged in
 on two different web servers and therefore message brokers. The information is stored in a central Redis database.
+
+In case of OFFLINE, the message broker will save the received message with the following message type.
 
     <sequence number> MSGSV <user name> <message text/information>
     [answer:]
@@ -73,4 +98,6 @@ Save a message for a user who is currently not online.
 
 Retrieve saved messages for a certain user. This operation SHALL fail if there is no user registered with the given name.
 The spaces between the messages are to be replaced by LF characters. The messages itself MUST NOT contain newline characters.
+
+The persistence implementation SHOULD delete the retrieved messages or mark them as delivered.
 

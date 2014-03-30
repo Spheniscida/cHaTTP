@@ -1,0 +1,83 @@
+# Protocol for the web application to communicate with the message broker
+
+As you may see in the architecture overview, the (a) "User registration/log-in management/Message receiver"
+and (b) "Message relay" daemons have to speak to the message broker. For this purpose, we need a protocol.
+
+We're using the keywords specified by RFC 2119.
+
+## Protocol syntax
+
+This protocol works like the other one (the one between persistence layer and message broker):
+
+    <sequence number> <REQUEST TYPE> [additional information]
+
+    <sequence number> <RESPONSE TYPE> {OK [additional information]|FAIL [additional information]}
+
+The sequence number (`<seqn>`) *n* SHALL be smaller than 2^64 and SHALL be greater than 0. 0 is reserved (for parsing failures).
+The sequence number MUST be a base-10 number written in ASCII.
+
+The sequence number SHOULD be unique. If one sequence number is used twice, participating applications may show
+undefined behavior. Applications SHOULD be safe against a non-unique sequence number if that number is used
+twice with an interval of, say, 30 minutes or more, between the two uses.
+
+Two message referring to the same operation MUST bear the same sequence number.
+
+The response type MUST be uppercase and SHOULD give a hint on the operation (e.g. register user: UREG).
+
+The keywords `OK` and `FAIL` may be followed by arbitrary information having the same format for all messages with
+a given response type.
+
+Individual fields of such a message SHOULD be separated by newline characters (LF, ASCII: 0x0a). The information
+fields MUST NOT contain newline characters.
+
+## User registration
+
+    # Request
+    <seqn> UREG <user name> <password>
+    # Response
+    <seqn> UREGD {OK|FAIL}
+
+If the FastCGI application (a) receives a registration, it will send an according request to the message broker so
+it may relay it to the persistence layer and possibly fill its cache with provided information.
+
+This operation SHALL fail if a user with the same name exists in the underlying storage.
+
+    # Request
+    <seqn> LOGIN <user name> <password>
+    # Response
+    <seqn> LGDIN {OK|FAIL}
+
+This operation marks a user as "online" in the underlying message handling applications.
+
+It SHALL fail in two cases: (i) if the user doesn't exist, and (ii) if the supplied password is not identical with the one stored
+in the database. A future extension may include the actual reason for an error in this message.
+
+    # Request
+    <seqn> LOGOUT <user name>
+    # Response
+    <seqn> LGDOUT
+
+Marks a user as offline. This command SHALL succeed in any case.
+
+    # Request
+    <seqn> SNDMSG <destination user name> <message>
+    # Response
+    <seqn> ACCMSG {OK|FAIL}
+
+Request delivery of a message `<message>` to the user `<destination user name>`. Both fields MUST NOT contain LF characters.
+
+It is recommended that the message text contain a time stamp and the user name of the sender. However, this is not required.
+These pieces of information are not included in the protocol message because they are of no use to the message broker. They are
+only essential to the client applications.
+
+The message broker SHOULD refuse to accept a message if the specified user is not registered. In any other case, it should accept
+the message.
+
+    # Request
+    <seqn> UONLQ <user name>
+    # Response
+    <seqn> UONL {Y|N}
+
+Using this query, the front-end application may ask if a certain user is marked as online (User ONLine Query). May be extended with
+timestamp information etc.
+
