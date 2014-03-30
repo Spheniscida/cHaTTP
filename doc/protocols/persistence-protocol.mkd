@@ -72,10 +72,10 @@ be a valid FQDN. It also MAY be an IP address.
 
     <sequence number> LOGOUT <user name>
     [answer:]
-    <sequence number> LGDOUT
+    <sequence number> LGDOUT OK
 
 This command MUST not fail. It tells the persistence layer that it shall mark the user as offline, so following ULKUP
-queries will return OFFLINE.
+queries will return OFFLINE. If a user is already marked as offline, do nothing.
 
     <sequence number> ULKUP <user name>
     [answer:]
