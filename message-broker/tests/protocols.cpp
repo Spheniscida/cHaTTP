@@ -3,10 +3,12 @@
 
 # include <boost/test/unit_test.hpp>
 
-# include <persistent.hpp>
-# include <error.hpp>
 # include <sstream>
 # include <iostream>
+# include <cstdlib>
+
+# include <persistent.hpp>
+# include <error.hpp>
 
 BOOST_AUTO_TEST_SUITE(Broker)
 
@@ -39,7 +41,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse1)
     persistenceLayerResponse* response;
 
     try {
-	response = parsePersistenceResponse("1234 LGDIN OK");
+	response = parsePersistenceResponse("1234\nLGDIN\nOK");
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedIn);
 	BOOST_CHECK_EQUAL(response->sequence_number,1234);
@@ -54,7 +56,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse2)
     persistenceLayerResponse* response;
 
     try {
-	response = parsePersistenceResponse("3372112 CHKDPASS FAIL");
+	response = parsePersistenceResponse("3372112\nCHKDPASS\nFAIL");
 	BOOST_CHECK(!response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::passwordChecked);
 	BOOST_CHECK_EQUAL(response->sequence_number,3372112);
@@ -68,7 +70,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
     persistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23987 ULKDUP OK prod.spheniscida.de 776ae45c"));
+	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23987);
@@ -85,7 +87,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
     persistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23988 ULKDUP FAIL"));
+	response = static_cast<persistenceLayerLookupResponse*>(parsePersistenceResponse("23988\nULKDUP\nFAIL"));
 	BOOST_CHECK(! response->status);
 	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23988);
@@ -95,6 +97,23 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
     }
 }
 
+BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
+{
+    persistenceLayerMessagesResponse* response;
+
+    try {
+	response = static_cast<persistenceLayerMessagesResponse*>(parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n"));
+	BOOST_CHECK(response->status);
+	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::messages);
+	BOOST_CHECK_EQUAL(response->sequence_number,11712393297);
+	BOOST_CHECK_EQUAL(response->messages.size(),2);
+	BOOST_CHECK_EQUAL(response->messages[0],"Hello world 1.");
+	BOOST_CHECK_EQUAL(response->messages[1],"cHaTTP is awesome");
+    } catch (brokerError e)
+    {
+	std::cerr << e.toString();
+    }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

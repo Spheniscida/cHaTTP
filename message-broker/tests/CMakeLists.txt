@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
 include_directories("../src/")
 
 set(testsrc
-test-main.cpp
+protocols.cpp
 )
 
 #add_library(boost_test_lib SHARED IMPORTED)
@@ -15,7 +15,9 @@ test-main.cpp
 
 find_library(boost_test_lib "boost_unit_test_framework")
 
-add_executable(test-main ${testsrc})
+add_executable(protocols ${testsrc})
 
-target_link_libraries(test-main msg_broker_lib ${boost_test_lib})
+target_link_libraries(protocols msg_broker_lib ${boost_test_lib})
+ 
+add_test(NAME msg_broker_test_main COMMAND protocols)
 

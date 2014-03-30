@@ -123,13 +123,16 @@ persistenceLayerResponse* parsePersistenceResponse(const string& r)
 	else
 	    throw brokerError(errorType::protocolError,"Unknown response status (expected OK|FAIL): " + ok);
 
-	string single_message;
+	char* single_message = new char[32768];
+
+	response.getline(single_message,0); // Remove the remaining newline character from the previous stream read.
 
 	while ( response.good() )
 	{
-	    response >> single_message;
-	    if ( ! single_message.empty() )
+	    response.getline(single_message,32767);
+	    if ( response.fail() )
 		break;
+	    response_obj->messages.push_back(string(single_message));
 	}
 
 	response_obj->status = true;
