@@ -3,6 +3,10 @@
 As you may see in the architecture overview, the (a) "User registration/log-in management/Message receiver"
 and (b) "Message relay" daemons have to speak to the message broker. For this purpose, we need a protocol.
 
+The channel id is generally used for two purposes; firstly, it's the handle identifying the user in the web
+server's push mechanism. But secondly, and more important in the scope of this document, it is also a session
+id needed to authenticate a user.
+
 We're using the keywords specified by RFC 2119.
 
 ## Protocol syntax
@@ -45,7 +49,7 @@ This operation SHALL fail if a user with the same name exists in the underlying 
     # Request
     <seqn> LOGIN <user name> <password>
     # Response
-    <seqn> LGDIN {OK|FAIL}
+    <seqn> LGDIN {OK <channel id>|FAIL}
 
 This operation marks a user as "online" in the underlying message handling applications.
 
@@ -60,18 +64,20 @@ in the database. A future extension may include the actual reason for an error i
 Marks a user as offline. This command SHALL succeed in any case.
 
     # Request
-    <seqn> SNDMSG <destination user name> <message>
+    <seqn> SNDMSG <sender's user name> <sender's channel id> <destination user name> <message>
     # Response
     <seqn> ACCMSG {OK|FAIL}
 
 Request delivery of a message `<message>` to the user `<destination user name>`. Both fields MUST NOT contain LF characters.
 
-It is recommended that the message text contain a time stamp and the user name of the sender. However, this is not required.
-These pieces of information are not included in the protocol message because they are of no use to the message broker. They are
-only essential to the client applications.
+It is recommended that the message text contain a time stamp. However, this is not required.
 
 The message broker SHOULD refuse to accept a message if the specified user is not registered. In any other case, it should accept
 the message.
+
+The channel id is used to authenticate the sender. *Implementation details: Both the sender and the receiver as ULKUP'd in the
+persistence layer. The message is only accepted with OK if the receiver exists and the sender's returned channel id is identical
+with the supplied one.*
 
     # Request
     <seqn> UONLQ <user name>
