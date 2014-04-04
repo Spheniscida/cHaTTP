@@ -6,6 +6,7 @@ error.cpp
 persistent.cpp
 sequence-number.cpp
 broker-util.cpp
+webapp-proto.cpp
 )
 
 set(execsrc
