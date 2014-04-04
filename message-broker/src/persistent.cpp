@@ -12,7 +12,7 @@ using std::string;
  */
 PersistenceLayerLookupResponse::PersistenceLayerLookupResponse(void)
 {
-    response_type = persistenceLayerResponseCode::lookedUpUser;
+    response_type = PersistenceLayerResponseCode::lookedUpUser;
 }
 
 /**
@@ -20,14 +20,14 @@ PersistenceLayerLookupResponse::PersistenceLayerLookupResponse(void)
  */
 PersistenceLayerMessagesResponse::PersistenceLayerMessagesResponse(void)
 {
-    response_type = persistenceLayerResponseCode::messages;
+    response_type = PersistenceLayerResponseCode::messages;
 }
 
 
 /**
  * @brief Stream operator to parse persistence layer response codes.
  */
-istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code)
+istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code)
 {
     string code_string;
 
@@ -37,19 +37,19 @@ istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& c
 	throw BrokerError(ErrorType::protocolError,string("The response code could not be parsed: ") + stream.str());
 
     if ( code_string == "ULKDUP" )
-	code = persistenceLayerResponseCode::lookedUpUser;
+	code = PersistenceLayerResponseCode::lookedUpUser;
     else if ( code_string == "MSGSVD" )
-	code = persistenceLayerResponseCode::savedMessage;
+	code = PersistenceLayerResponseCode::savedMessage;
     else if ( code_string == "CHKDPASS" )
-	code = persistenceLayerResponseCode::passwordChecked;
+	code = PersistenceLayerResponseCode::passwordChecked;
     else if ( code_string == "UREGD" )
-	code = persistenceLayerResponseCode::userRegistered;
+	code = PersistenceLayerResponseCode::userRegistered;
     else if ( code_string == "MSGS" )
-	code = persistenceLayerResponseCode::messages;
+	code = PersistenceLayerResponseCode::messages;
     else if ( code_string == "LGDIN" )
-	code = persistenceLayerResponseCode::loggedIn;
+	code = PersistenceLayerResponseCode::loggedIn;
     else if ( code_string == "LGDOUT" )
-	code = persistenceLayerResponseCode::loggedOut;
+	code = PersistenceLayerResponseCode::loggedOut;
     else
 	throw BrokerError(ErrorType::protocolError,"Received unknown response code: " + code_string);
 
@@ -71,7 +71,7 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 {
     sequence_t seq_num;
 
-    persistenceLayerResponseCode response_type;
+    PersistenceLayerResponseCode response_type;
     istringstream response(r);
 
     response >> seq_num;
@@ -81,7 +81,7 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 
     response >> response_type;
 
-    if ( response_type == persistenceLayerResponseCode::lookedUpUser )
+    if ( response_type == PersistenceLayerResponseCode::lookedUpUser )
     {
 	string ok;
 	response >> ok;
@@ -122,7 +122,7 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 	}
 
 	return response_obj;
-    } else if ( response_type == persistenceLayerResponseCode::messages )
+    } else if ( response_type == PersistenceLayerResponseCode::messages )
     {
 	PersistenceLayerMessagesResponse* response_obj = new PersistenceLayerMessagesResponse;
 	response_obj->sequence_number = seq_num;

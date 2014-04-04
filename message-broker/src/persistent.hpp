@@ -13,7 +13,7 @@ using std::istringstream;
 
 /*********************** Parsing and representing protocol responses ***************************/
 
-enum class persistenceLayerResponseCode {
+enum class PersistenceLayerResponseCode {
     /// User has been registered (or not...)
     userRegistered,
     /// Password was checked.
@@ -43,7 +43,7 @@ enum class persistenceLayerResponseCode {
  */
 struct PersistenceLayerResponse
 {
-    persistenceLayerResponseCode response_type;
+    PersistenceLayerResponseCode response_type;
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
     sequence_t sequence_number;
     /// Success?
@@ -79,7 +79,7 @@ struct PersistenceLayerMessagesResponse : public PersistenceLayerResponse
 
 extern PersistenceLayerResponse* parsePersistenceResponse(const string&);
 
-extern istringstream& operator>>(istringstream& stream, persistenceLayerResponseCode& code);
+extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 
 /************************************* Creating protocol messages **************************************/
 

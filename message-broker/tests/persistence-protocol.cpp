@@ -20,11 +20,11 @@ BOOST_AUTO_TEST_CASE(persistent_response_code_stream1)
 
     istringstream s("UREGD\nULKDUP\nCHKDPASS\nLGDIN\nMSGS\nMSGSVD");
 
-    persistenceLayerResponseCode code;
-    vector<persistenceLayerResponseCode> should_be_codes{persistenceLayerResponseCode::userRegistered,
-	persistenceLayerResponseCode::lookedUpUser, persistenceLayerResponseCode::passwordChecked,
-	persistenceLayerResponseCode::loggedIn, persistenceLayerResponseCode::messages,
-	persistenceLayerResponseCode::savedMessage };
+    PersistenceLayerResponseCode code;
+    vector<PersistenceLayerResponseCode> should_be_codes{PersistenceLayerResponseCode::userRegistered,
+	PersistenceLayerResponseCode::lookedUpUser, PersistenceLayerResponseCode::passwordChecked,
+	PersistenceLayerResponseCode::loggedIn, PersistenceLayerResponseCode::messages,
+	PersistenceLayerResponseCode::savedMessage };
 
     for ( int i = 0; i < 6; i++ )
     {
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse1)
     try {
 	response = parsePersistenceResponse("1234\nLGDIN\nOK");
 	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedIn);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::loggedIn);
 	BOOST_CHECK_EQUAL(response->sequence_number,1234);
     } catch (BrokerError e)
     {
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse2)
     try {
 	response = parsePersistenceResponse("3372112\nCHKDPASS\nFAIL");
 	BOOST_CHECK(!response->status);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::passwordChecked);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::passwordChecked);
 	BOOST_CHECK_EQUAL(response->sequence_number,3372112);
     } catch (BrokerError e)
     {
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->online);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23987);
 	BOOST_CHECK_EQUAL(response->broker_name,"prod.spheniscida.de");
 	BOOST_CHECK_EQUAL(response->channel_name,"776ae45c");
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("77129\nULKDUP\nOFFLINE"));
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(! response->online);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,77129);
 	BOOST_CHECK(response->broker_name.empty());
 	BOOST_CHECK(response->channel_name.empty());
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
     try {
 	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23988\nULKDUP\nFAIL"));
 	BOOST_CHECK(! response->status);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23988);
     } catch (BrokerError e)
     {
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
     try {
 	response = static_cast<PersistenceLayerMessagesResponse*>(parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n"));
 	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::messages);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::messages);
 	BOOST_CHECK_EQUAL(response->sequence_number,11712393297);
 	BOOST_CHECK_EQUAL(response->messages.size(),2);
 	BOOST_CHECK_EQUAL(response->messages[0],"Hello world 1.");
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_logged_out)
     try {
 	response = parsePersistenceResponse("26623723672908\nLGDOUT\nOK");
 	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == persistenceLayerResponseCode::loggedOut);
+	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::loggedOut);
 	BOOST_CHECK_EQUAL(response->sequence_number,26623723672908);
     } catch (BrokerError e)
     {
