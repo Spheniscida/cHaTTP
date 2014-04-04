@@ -8,21 +8,19 @@ using std::ostringstream;
 using std::string;
 
 /**
- * @brief Construct a response object for a user look-up response from the persistence layer.
+ * @brief Initialize class with the values extracted from `response`.
+ *
+ * @param response A string containing a response sent from the persistence layer.
  */
-PersistenceLayerLookupResponse::PersistenceLayerLookupResponse(void)
+PersistenceLayerResponse::PersistenceLayerResponse(const string& response)
 {
-    response_type = PersistenceLayerResponseCode::lookedUpUser;
+    parsePersistenceResponse(response,this);
 }
 
-/**
- * @brief Construct a response containing multiple messages
- */
-PersistenceLayerMessagesResponse::PersistenceLayerMessagesResponse(void)
+PersistenceLayerResponse::PersistenceLayerResponse(void)
 {
-    response_type = PersistenceLayerResponseCode::messages;
+    // void
 }
-
 
 /**
  * @brief Stream operator to parse persistence layer response codes.
@@ -67,11 +65,14 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
  * **ATTENTION: The pointer returned by this function must be freed (using `delete`) to avoid memory leaks. In this application,
  * it probably wouldn't even make sense to use `unique_ptr`s.**
  */
-PersistenceLayerResponse* parsePersistenceResponse(const string& r)
+PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceLayerResponse* response_obj)
 {
     sequence_t seq_num;
 
     PersistenceLayerResponseCode response_type;
+
+    if ( response_obj == nullptr )
+	response_obj = new PersistenceLayerResponse;
     istringstream response(r);
 
     response >> seq_num;
@@ -83,10 +84,10 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 
     if ( response_type == PersistenceLayerResponseCode::lookedUpUser )
     {
+	response_obj->response_type = response_type;
+
 	string ok;
 	response >> ok;
-
-	PersistenceLayerLookupResponse* response_obj = new PersistenceLayerLookupResponse;
 
 	if ( ok == "OK" )
 	{
@@ -124,8 +125,8 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 	return response_obj;
     } else if ( response_type == PersistenceLayerResponseCode::messages )
     {
-	PersistenceLayerMessagesResponse* response_obj = new PersistenceLayerMessagesResponse;
 	response_obj->sequence_number = seq_num;
+	response_obj->response_type = response_type;
 
 	string ok;
 	response >> ok;
@@ -153,7 +154,6 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r)
 	return response_obj;
     } else
     {
-	PersistenceLayerResponse* response_obj = new PersistenceLayerResponse;
 	response_obj->response_type = response_type;
 	response_obj->sequence_number = seq_num;
 

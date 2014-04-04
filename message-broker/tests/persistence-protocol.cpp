@@ -72,16 +72,15 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse2)
 }
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 {
-    PersistenceLayerLookupResponse* response;
 
     try {
-	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c"));
-	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->online);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
-	BOOST_CHECK_EQUAL(response->sequence_number,23987);
-	BOOST_CHECK_EQUAL(response->broker_name,"prod.spheniscida.de");
-	BOOST_CHECK_EQUAL(response->channel_name,"776ae45c");
+	PersistenceLayerResponse response("23987\nULKDUP\nOK\nprod.spheniscida.de\n776ae45c");
+	BOOST_CHECK(response.status);
+	BOOST_CHECK(response.online);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK_EQUAL(response.sequence_number,23987);
+	BOOST_CHECK_EQUAL(response.broker_name,"prod.spheniscida.de");
+	BOOST_CHECK_EQUAL(response.channel_name,"776ae45c");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -91,10 +90,10 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 {
-    PersistenceLayerLookupResponse* response;
+    PersistenceLayerResponse* response;
 
     try {
-	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("77129\nULKDUP\nOFFLINE"));
+	response = parsePersistenceResponse("77129\nULKDUP\nOFFLINE");
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(! response->online);
 	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
@@ -110,10 +109,10 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 {
-    PersistenceLayerLookupResponse* response;
+    PersistenceLayerResponse* response;
 
     try {
-	response = static_cast<PersistenceLayerLookupResponse*>(parsePersistenceResponse("23988\nULKDUP\nFAIL"));
+	response = parsePersistenceResponse("23988\nULKDUP\nFAIL");
 	BOOST_CHECK(! response->status);
 	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response->sequence_number,23988);
@@ -126,10 +125,10 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
 {
-    PersistenceLayerMessagesResponse* response;
+    PersistenceLayerResponse* response;
 
     try {
-	response = static_cast<PersistenceLayerMessagesResponse*>(parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n"));
+	response = parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n");
 	BOOST_CHECK(response->status);
 	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::messages);
 	BOOST_CHECK_EQUAL(response->sequence_number,11712393297);

@@ -33,51 +33,36 @@ enum class PersistenceLayerResponseCode {
 /**
  * @brief A generic response from the persistence layer
  *
- * An object of this class is used for the responses `userRegistered`, `passwordChecked`,
- * `loggedIn`, `savedMessage`.
+ * Most fields are only filled for specific response types:
  *
- * There are specialized classes for `lookedUpUser` and `messages`. The parser function returns
- * a pointer to the base class persistenceLayerResponse which may be casted to the special classes
- * if the `response_type` says so.
+ * - sequence_number exists in any instance.
+ * - status too.
+ * - online, broker_name, channel_name: only for ULKDUP
+ * - messages only for MSGS
  *
  */
 struct PersistenceLayerResponse
 {
+    PersistenceLayerResponse(const string&);
+    PersistenceLayerResponse(void);
+
     PersistenceLayerResponseCode response_type;
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
     sequence_t sequence_number;
     /// Success?
     bool status;
-};
 
-/**
- * @brief Response class for user look-up operations.
- *
- * Additional fields contain the name of the broker and the channel of the user on that broker.
- */
-struct PersistenceLayerLookupResponse : public PersistenceLayerResponse
-{
-    PersistenceLayerLookupResponse(void);
-
-    // status may be `true` if the user is offline.
+    // Fields for Lookup Responses.
     bool online;
     string broker_name;
     string channel_name;
-};
 
-/**
- * @brief Response class for message retrieval
- *
- * If the broker asked for old messages, this class is used, containing the messages sent by the persistence layer.
- */
-struct PersistenceLayerMessagesResponse : public PersistenceLayerResponse
-{
-    PersistenceLayerMessagesResponse(void);
-
+    // Field for message retrieval responses.
     vector<string> messages;
 };
 
-extern PersistenceLayerResponse* parsePersistenceResponse(const string&);
+
+extern PersistenceLayerResponse* parsePersistenceResponse(const string&, PersistenceLayerResponse* = nullptr);
 
 extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 
