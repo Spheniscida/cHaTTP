@@ -2,8 +2,10 @@
 # define WEBAPP_PROTO_HPP
 
 # include <string>
+# include <sstream>
 
 using std::string;
+using std::istringstream;
 
 /**
  * @file webapp-proto.hpp
@@ -25,7 +27,7 @@ typedef string channel_id_t;
 /**
  * @brief Command types available for communication with us.
  */
-enum class WebappCommandCode {
+enum class WebappRequestCode {
     /// UREG - register a user
     registerUser,
     /// LOGIN - mark user as online
@@ -57,16 +59,33 @@ enum class WebappResponseCode {
 /******************************** Process incoming requests ********************************/
 
 /**
- * @brief Class for web application requests to the message broker.
+ * @brief Class for web application requests to the message broker (that is, us).
+ *
  */
 struct WebappRequest
 {
-public:
+    WebappRequest(void),
+    WebappRequest(const string&);
 
+    WebappRequestCode type;
+ 
+    /// for UREG, LOGIN, LOGOUT, UONLQ, SNDMSG (sender's user name)
+    string user;
+    /// for UREG, LOGIN
+    string password;
 
-
-private:
+    /// for SNDMSG
+    channel_id_t channel_id;
+    /// for SNDMSG
+    string dest_user;
+    /// for SNDMSG
+    string message;
 };
+
+extern istringstream& operator>>(istringstream&, WebappRequestCode&);
+
+/****************************** Create outgoing responses ********************************/
+
 
 
 # endif
