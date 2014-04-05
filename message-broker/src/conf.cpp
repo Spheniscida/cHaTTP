@@ -5,15 +5,18 @@
 
 using std::getenv;
 
-const char* unix_family = "UNIX";
-const char* inet_family = "INET";
+namespace
+{
+    const char* unix_family = "UNIX";
+    const char* inet_family = "INET";
 
-const char* mesg_relay_addr_env_var   = "CHATTP_MESG_RELAY_ADDR";
-const char* mesg_relay_family_env_var = "CHATTP_MESG_RELAY_FAMILY";
-const char* mesg_relay_port_env_var   = "CHATTP_MESG_RELAY_PORT";
-const char* persistence_addr_env_var  = "CHATTP_PERSISTENCE_LAYER_ADDR";
-const char* persistence_family_env_var= "CHATTP_PERSISTENCE_LAYER_FAMILY";
-const char* persistence_port_env_var  = "CHATTP_PERSISTENCE_LAYER_PORT";
+    const char* mesg_relay_addr_env_var   = "CHATTP_MESG_RELAY_ADDR";
+    const char* mesg_relay_family_env_var = "CHATTP_MESG_RELAY_FAMILY";
+    const char* mesg_relay_port_env_var   = "CHATTP_MESG_RELAY_PORT";
+    const char* persistence_addr_env_var  = "CHATTP_PERSISTENCE_LAYER_ADDR";
+    const char* persistence_family_env_var= "CHATTP_PERSISTENCE_LAYER_FAMILY";
+    const char* persistence_port_env_var  = "CHATTP_PERSISTENCE_LAYER_PORT";
+}
 
 const unsigned int max_message_size = 8192;
 
