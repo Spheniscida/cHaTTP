@@ -16,6 +16,8 @@ using std::istringstream;
  * application; it's described in /doc/protocols/webapp-message-broker.mkd.
  */
 
+extern void initWebapp(void);
+
 /**
  * @brief Channel ID type
  *

@@ -1,5 +1,22 @@
 # include "webapp-proto.hpp"
 # include "error.hpp"
+# include "conf.hpp"
+
+namespace
+{
+    thread_local char* current_message;
+}
+
+/**
+ * @brief Initialize WebApp subsystem for current thread.
+ *
+ * This function's main purpose is allocating a larger block of memory to
+ * store incoming messages.
+ */
+void initWebapp(void)
+{
+    current_message = new char[max_message_size];
+}
 
 /**
  * @brief Stream input operator overloaded for WebappRequestCode objects. Used for parsing requests.
@@ -44,7 +61,12 @@ WebappRequest::WebappRequest(const string& request)
 	rqstream >> user;
 	rqstream >> channel_id;
 	rqstream >> dest_user;
-	rqstream >> message;
+
+	// Message
+	rqstream.getline(current_message,0);
+	rqstream.getline(current_message,max_message_size);
+
+	message = current_message;
 
 	return;
     } else if ( request_type == WebappRequestCode::registerUser || request_type == WebappRequestCode::logIn )

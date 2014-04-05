@@ -5,6 +5,9 @@
 
 using std::string;
 
+/// Maximum message size accepted by this program.
+extern const unsigned int max_message_size;
+
 /**
  * @brief Enumeration for connection type: UNIX/UDP
  */
