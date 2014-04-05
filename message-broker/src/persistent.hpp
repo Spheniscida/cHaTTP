@@ -101,7 +101,7 @@ public:
     string toString(void);
 private:
     sequence_t sequence_number;
-    PersistenceLayerCommandCode type;
+    PersistenceLayerCommandCode request_type;
 
     string user_name;
 
