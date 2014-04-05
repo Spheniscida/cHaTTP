@@ -39,6 +39,27 @@ WebappRequest::WebappRequest(const string& request)
 
     rqstream >> request_type;
 
+    if ( request_type == WebappRequestCode::sendMessage )
+    {
+	rqstream >> user;
+	rqstream >> channel_id;
+	rqstream >> dest_user;
+	rqstream >> message;
+
+	return;
+    } else if ( request_type == WebappRequestCode::registerUser || request_type == WebappRequestCode::logIn )
+    {
+	rqstream >> user;
+	rqstream >> password;
+
+	return;
+    } else if ( request_type == WebappRequestCode::isOnline || request_type == WebappRequestCode::logOut )
+    {
+	rqstream >> user;
+
+	return;
+    }
+
     throw BrokerError(ErrorType::unimplemented,"WebappRequest");
 }
 

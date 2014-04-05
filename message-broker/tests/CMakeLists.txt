@@ -14,6 +14,10 @@ set(miscsrc
 misc-test.cpp
 )
 
+set(wasrc
+web-app.cpp
+)
+
 find_library(boost_test_lib "boost_unit_test_framework")
 
 add_executable(persistence-protocol ${persistsrc})
@@ -22,9 +26,13 @@ target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib})
 add_executable(misc-test ${miscsrc})
 target_link_libraries(misc-test msg_broker_lib ${boost_test_lib})
 
+add_executable(webapp-test ${wasrc})
+target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib})
+
 # Tests
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} "--output-on-failure")
 
 add_test(NAME msg_broker_test_persist_protocol COMMAND persistence-protocol)
 add_test(NAME msg_broker_test_misc COMMAND misc-test)
+add_test(NAME msg_broker_test_wa COMMAND webapp-test)
