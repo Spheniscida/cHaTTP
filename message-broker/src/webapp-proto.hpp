@@ -4,6 +4,8 @@
 # include <string>
 # include <sstream>
 
+# include "sequence-number.hpp"
+
 using std::string;
 using std::istringstream;
 
@@ -64,11 +66,11 @@ enum class WebappResponseCode {
  */
 struct WebappRequest
 {
-    WebappRequest(void),
     WebappRequest(const string&);
 
-    WebappRequestCode type;
- 
+    WebappRequestCode request_type;
+    sequence_t sequence_number;
+
     /// for UREG, LOGIN, LOGOUT, UONLQ, SNDMSG (sender's user name)
     string user;
     /// for UREG, LOGIN
