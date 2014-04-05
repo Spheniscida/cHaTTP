@@ -33,8 +33,7 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
 
     if ( code_string.empty() )
 	throw BrokerError(ErrorType::protocolError,string("The response code could not be parsed: ") + stream.str());
-
-    if ( code_string == "ULKDUP" )
+    else if ( code_string == "ULKDUP" )
 	code = PersistenceLayerResponseCode::lookedUpUser;
     else if ( code_string == "MSGSVD" )
 	code = PersistenceLayerResponseCode::savedMessage;
@@ -49,7 +48,7 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
     else if ( code_string == "LGDOUT" )
 	code = PersistenceLayerResponseCode::loggedOut;
     else
-	throw BrokerError(ErrorType::protocolError,"Received unknown response code: " + code_string);
+	throw BrokerError(ErrorType::protocolError,"Received unknown response code from persistence: " + code_string);
 
     return stream;
 }
