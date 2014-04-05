@@ -14,7 +14,9 @@ enum class ErrorType {
     /// An error in a response the broker received from another daemon
     protocolError,
     /// An error caused by wrong parameters to a function which is specialized depending on an argument (i.e. PersistenceLayerCommand's ctor)
-    argumentError
+    argumentError,
+    /// Hit an unimplemented area
+    unimplemented
 };
 
 /**

@@ -33,6 +33,11 @@ string BrokerError::toString(void)
 	    break;
 	case ErrorType::protocolError
 	    : error_type_str = "protocolError: ";
+	    break;
+	case ErrorType::unimplemented
+	    : error_type_str = "UNIMPLEMENTED: ";
+	    break;
+	default: error_type_str = "Unknown error: ";
     }
 
     full_message = error_type_str + error_message + "\n";
