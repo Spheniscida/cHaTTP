@@ -54,37 +54,34 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
 }
 
 /**
- * @brief Parse a message from the persistence layer.
+ * @brief [DEPRECATED] Parse a message from the persistence layer.
  *
  * @param r The response string.
  *
  * @returns A pointer to a generic response object. Depending on the value of response_type, that pointer may have to
  * 	be casted to represent a specialized class.
  *
+ * [DEPRECATED] in favor of PersistenceLayerResponse's constructor.
+ *
  * **ATTENTION: The pointer returned by this function must be freed (using `delete`) to avoid memory leaks. In this application,
  * it probably wouldn't even make sense to use `unique_ptr`s.**
  */
 PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceLayerResponse* response_obj)
 {
-    sequence_t seq_num;
-
-    PersistenceLayerResponseCode response_type;
-
     if ( response_obj == nullptr )
 	response_obj = new PersistenceLayerResponse;
+
     istringstream response(r);
 
-    response >> seq_num;
+    response >> response_obj->sequence_number;
 
-    if ( seq_num == 0 )
+    if ( response_obj->sequence_number == 0 )
 	throw BrokerError(ErrorType::protocolError,"The sequence number could not be read or it was 0, violating proto-specs.");
 
-    response >> response_type;
+    response >> response_obj->response_type;
 
-    if ( response_type == PersistenceLayerResponseCode::lookedUpUser )
+    if ( response_obj->response_type == PersistenceLayerResponseCode::lookedUpUser )
     {
-	response_obj->response_type = response_type;
-
 	string ok;
 	response >> ok;
 
@@ -106,8 +103,6 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceL
 	else
 	    throw BrokerError(ErrorType::protocolError,"Unknown response status (expected OK|FAIL|OFFLINE): " + ok);
 
-	response_obj->sequence_number = seq_num;
-
 	if ( response_obj->status && response_obj->online ) // Additional information is only present when status is "OK"
 	{
 	    response >> response_obj->broker_name;
@@ -122,11 +117,8 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceL
 	}
 
 	return response_obj;
-    } else if ( response_type == PersistenceLayerResponseCode::messages )
+    } else if ( response_obj->response_type == PersistenceLayerResponseCode::messages )
     {
-	response_obj->sequence_number = seq_num;
-	response_obj->response_type = response_type;
-
 	string ok;
 	response >> ok;
 
@@ -153,9 +145,6 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceL
 	return response_obj;
     } else
     {
-	response_obj->response_type = response_type;
-	response_obj->sequence_number = seq_num;
-
 	string ok;
 
 	response >> ok;
