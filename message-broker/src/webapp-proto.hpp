@@ -44,22 +44,6 @@ enum class WebappRequestCode {
     isOnline
 };
 
-/**
- * @brief Response types sent by us.
- */
-enum class WebappResponseCode {
-    /// Registered user.
-    registeredUser,
-    /// Marked user as online.
-    loggedIn,
-    /// Marked user as offline.
-    loggedOut,
-    /// Accepted message for delivery (or didn't...)
-    acceptedMessage,
-    /// User status.
-    isOnline
-};
-
 /******************************** Process incoming requests ********************************/
 
 /**
@@ -90,6 +74,38 @@ extern istringstream& operator>>(istringstream&, WebappRequestCode&);
 
 /****************************** Create outgoing responses ********************************/
 
+/**
+ * @brief Response types sent by us.
+ */
+enum class WebappResponseCode {
+    /// Registered user.
+    registeredUser,
+    /// Marked user as online.
+    loggedIn,
+    /// Marked user as offline.
+    loggedOut,
+    /// Accepted message for delivery (or didn't...)
+    acceptedMessage,
+    /// User status.
+    isOnline
+};
+
+
+class WebappResponse
+{
+public:
+    WebappResponse(WebappResponseCode type, sequence_t seqnum, bool response_status = true, const string& response_data = "");
+
+    string toString(void);
+private:
+    WebappResponseCode response_type;
+    sequence_t sequence_number;
+
+    bool status;
+
+    /// e.g. LGDIN <channel id>
+    string payload;
+};
 
 
 # endif

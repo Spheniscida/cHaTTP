@@ -13,10 +13,22 @@ void initMessageBrokerThread(void)
     initWebapp();
 }
 
+/**
+ * @brief Initialize global state of Message broker.
+ *
+ * This function ought to be called only once for a single instance of
+ * this program.
+ */
+void initMessageBroker(void)
+{
+    initializeGlobalSequenceNumber();
+}
+
 int main(int argc, char** argv)
 {
     // Only one thread yet.
     initMessageBrokerThread();
+    initMessageBroker();
     // This is only testing yet.
     try {
 	BrokerSettings b;

@@ -2,9 +2,16 @@
 # include "error.hpp"
 # include "conf.hpp"
 
+using std::ostringstream;
+
+/*********************************** Webapp requests ****************************/
+
 namespace
 {
     thread_local char* current_message;
+
+    const string ok_code = "OK";
+    const string fail_code = "FAIL";
 }
 
 /**
@@ -85,3 +92,32 @@ WebappRequest::WebappRequest(const string& request)
     throw BrokerError(ErrorType::unimplemented,"WebappRequest");
 }
 
+
+/****************************** Responses *******************************/
+
+WebappResponse::WebappResponse(WebappResponseCode type, sequence_t seqnum, bool response_status, const string& response_data)
+    : response_type(type),
+    sequence_number(seqnum),
+    status(response_status)
+{
+    if ( type == WebappResponseCode::loggedIn )
+	payload = response_data;
+}
+
+string WebappResponse::toString(void)
+{
+    ostringstream ostr;
+
+    ostr << sequence_number << '\n';
+
+    switch ( response_type )
+    {
+	case WebappResponseCode::acceptedMessage: ostr << "ACCMSG\n" << (status ? ok_code : "FAIL"); break;
+	case WebappResponseCode::isOnline: ostr << "UONL\n" << (status ? "Y" : "N"); break;
+	case WebappResponseCode::loggedIn: ostr << "LGDIN\n" << (status ? ok_code + "\n" + payload : fail_code); break;
+	case WebappResponseCode::loggedOut: ostr << "LGDOUT"; break;
+	case WebappResponseCode::registeredUser: ostr << "UREGD\n" << (status ? ok_code : fail_code); break;
+    }
+
+    return ostr.str();
+}

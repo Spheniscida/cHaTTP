@@ -100,7 +100,9 @@ public:
 
     string toString(void);
 private:
+    /// This one is initialized automatically.
     sequence_t sequence_number;
+
     PersistenceLayerCommandCode request_type;
 
     string user_name;

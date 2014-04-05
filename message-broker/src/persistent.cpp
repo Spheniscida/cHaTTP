@@ -237,6 +237,9 @@ string PersistenceLayerCommand::toString(void)
 {
     ostringstream out;
 
+    if ( 0 == sequence_number )
+	throw BrokerError(ErrorType::protocolError,"PersistenceLayerCommand::toString: Invalid sequence number");
+
     out << sequence_number << '\n';
 
     switch ( request_type )

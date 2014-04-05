@@ -16,6 +16,7 @@ BOOST_AUTO_TEST_CASE(parse_request_codes)
 {
     // Init
     initWebapp();
+    initializeGlobalSequenceNumber();
 
     // Test
     std::vector<WebappRequestCode> codes{WebappRequestCode::isOnline, WebappRequestCode::logIn, WebappRequestCode::logOut,
@@ -111,6 +112,123 @@ BOOST_AUTO_TEST_CASE(parse_user_online_request)
 	BOOST_CHECK(rq.request_type == WebappRequestCode::isOnline);
 	BOOST_CHECK_EQUAL(rq.user,"testuser1");
 	BOOST_CHECK_EQUAL(rq.sequence_number,11765);
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_register_response1)
+{
+    try {
+	WebappResponse r(WebappResponseCode::registeredUser,723,true);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nUREGD\nOK");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_register_response2)
+{
+    try {
+	WebappResponse r(WebappResponseCode::registeredUser,723,false);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nUREGD\nFAIL");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_onlineq_response1)
+{
+    try {
+	WebappResponse r(WebappResponseCode::isOnline,723,true);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nUONL\nY");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_onlineq_response2)
+{
+    try {
+	WebappResponse r(WebappResponseCode::isOnline,723,false);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nUONL\nN");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_accmsg_response1)
+{
+    try {
+	WebappResponse r(WebappResponseCode::acceptedMessage,723,true);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nACCMSG\nOK");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_accmsg_response2)
+{
+    try {
+	WebappResponse r(WebappResponseCode::acceptedMessage,723,false);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nACCMSG\nFAIL");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_login_response1)
+{
+    try {
+	WebappResponse r(WebappResponseCode::loggedIn,723,true,"aabce328");
+	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDIN\nOK\naabce328");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_login_response2)
+{
+    try {
+	WebappResponse r(WebappResponseCode::loggedIn,723,false,"aabce328");
+	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDIN\nFAIL");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(create_logout_response)
+{
+    try {
+	WebappResponse r(WebappResponseCode::loggedOut,723);
+	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDOUT");
+
     } catch (BrokerError e)
     {
 	BOOST_ERROR("Exception!\n");
