@@ -11,6 +11,8 @@
 
 using std::istringstream;
 
+BOOST_AUTO_TEST_SUITE(WebAppBrokerTests)
+
 // This has to be the first test case. (too lazy for non-automated test creation...)
 BOOST_AUTO_TEST_CASE(parse_request_codes)
 {
@@ -235,3 +237,5 @@ BOOST_AUTO_TEST_CASE(create_logout_response)
 	std::cerr << e.toString();
     }
 }
+
+BOOST_AUTO_TEST_SUITE_END()

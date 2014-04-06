@@ -42,9 +42,11 @@ public:
 
     connectionInformation getMessageRelayAddress(void);
     connectionInformation getPersistenceLayerAddress(void);
+    connectionInformation getWebappAddress(void);
 private:
     connectionInformation message_relay_info;
     connectionInformation persistence_layer_info;
+    connectionInformation webapp_info;
 };
 
 # endif
