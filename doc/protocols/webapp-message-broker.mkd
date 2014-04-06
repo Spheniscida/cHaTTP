@@ -34,7 +34,8 @@ a given response type.
 Individual fields of such a message SHOULD be separated by newline characters (LF, ASCII: 0x0a). The information
 fields MUST NOT contain newline characters.
 
-## User registration
+## Command types
+### User registration
 
     # Request
     <seqn> UREG <user name> <password>
@@ -46,6 +47,8 @@ it may relay it to the persistence layer and possibly fill its cache with provid
 
 This operation SHALL fail if a user with the same name exists in the underlying storage.
 
+### User log-in
+
     # Request
     <seqn> LOGIN <user name> <password>
     # Response
@@ -56,12 +59,16 @@ This operation marks a user as "online" in the underlying message handling appli
 It SHALL fail in two cases: (i) if the user doesn't exist, and (ii) if the supplied password is not identical with the one stored
 in the database. A future extension may include the actual reason for an error in this message.
 
+### User log-out
+
     # Request
     <seqn> LOGOUT <user name>
     # Response
     <seqn> LGDOUT
 
 Marks a user as offline. This command SHALL succeed in any case.
+
+### Send message
 
     # Request
     <seqn> SNDMSG <sender's user name> <sender's channel id> <destination user name> <message>
@@ -78,6 +85,8 @@ the message.
 The channel id is used to authenticate the sender. *Implementation details: Both the sender and the receiver as ULKUP'd in the
 persistence layer. The message is only accepted with OK if the receiver exists and the sender's returned channel id is identical
 with the supplied one.*
+
+### Query status of user
 
     # Request
     <seqn> UONLQ <user name>
