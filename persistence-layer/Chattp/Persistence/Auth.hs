@@ -3,6 +3,7 @@
 module Chattp.Persistence.Auth
 ( authUser
 , regUser
+, checkUserExistence
 ) where
 
 import Control.Applicative
@@ -32,7 +33,6 @@ checkPassword' :: Password -> Hash -> Bool
 checkPassword' = verifyPasswordWith pbkdf2 (2^)
 
 
-
 regUser :: User -> Password -> Redis [ByteString]
 regUser u p = storeHash u =<< liftIO (hashPassword p)
 
@@ -44,6 +44,11 @@ storeHash u h = eitherConst ["FAIL"] testSuccess <$> hsetnx "pwds" u h
 hashPassword :: Password -> IO Hash
 hashPassword p = makePasswordWith pbkdf2 p strength
     where strength = 14
+
+
+-- TODO: shouldn't return False on db error
+checkUserExistence :: User -> Redis Bool
+checkUserExistence = fmap (== Right True) . hexists "pwds"
 
 
 eitherConst :: c -> (b -> c) -> Either a b -> c
