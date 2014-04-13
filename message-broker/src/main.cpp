@@ -10,7 +10,7 @@
  */
 void initMessageBrokerThread(void)
 {
-    initWebapp();
+    initWebappProtocolParser();
 }
 
 /**

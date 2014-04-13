@@ -41,13 +41,12 @@ BOOST_AUTO_TEST_CASE(persistent_response_code_stream1)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse1)
 {
-    PersistenceLayerResponse* response;
 
     try {
-	response = parsePersistenceResponse("1234\nLGDIN\nOK");
-	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::loggedIn);
-	BOOST_CHECK_EQUAL(response->sequence_number,1234);
+	PersistenceLayerResponse response("1234\nLGDIN\nOK");
+	BOOST_CHECK(response.status);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::loggedIn);
+	BOOST_CHECK_EQUAL(response.sequence_number,1234);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -57,13 +56,11 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse1)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse2)
 {
-    PersistenceLayerResponse* response;
-
     try {
-	response = parsePersistenceResponse("3372112\nCHKDPASS\nFAIL");
-	BOOST_CHECK(!response->status);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::passwordChecked);
-	BOOST_CHECK_EQUAL(response->sequence_number,3372112);
+	PersistenceLayerResponse response("3372112\nCHKDPASS\nFAIL");
+	BOOST_CHECK(!response.status);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::passwordChecked);
+	BOOST_CHECK_EQUAL(response.sequence_number,3372112);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -90,16 +87,14 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 {
-    PersistenceLayerResponse* response;
-
     try {
-	response = parsePersistenceResponse("77129\nULKDUP\nOFFLINE");
-	BOOST_CHECK(response->status);
-	BOOST_CHECK(! response->online);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
-	BOOST_CHECK_EQUAL(response->sequence_number,77129);
-	BOOST_CHECK(response->broker_name.empty());
-	BOOST_CHECK(response->channel_name.empty());
+	PersistenceLayerResponse response("77129\nULKDUP\nOFFLINE");
+	BOOST_CHECK(response.status);
+	BOOST_CHECK(! response.online);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK_EQUAL(response.sequence_number,77129);
+	BOOST_CHECK(response.broker_name.empty());
+	BOOST_CHECK(response.channel_name.empty());
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -109,13 +104,11 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 {
-    PersistenceLayerResponse* response;
-
     try {
-	response = parsePersistenceResponse("23988\nULKDUP\nFAIL");
-	BOOST_CHECK(! response->status);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::lookedUpUser);
-	BOOST_CHECK_EQUAL(response->sequence_number,23988);
+	PersistenceLayerResponse response("23988\nULKDUP\nFAIL");
+	BOOST_CHECK(! response.status);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::lookedUpUser);
+	BOOST_CHECK_EQUAL(response.sequence_number,23988);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -125,16 +118,14 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 
 BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
 {
-    PersistenceLayerResponse* response;
-
     try {
-	response = parsePersistenceResponse("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n");
-	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::messages);
-	BOOST_CHECK_EQUAL(response->sequence_number,11712393297);
-	BOOST_CHECK_EQUAL(response->messages.size(),2);
-	BOOST_CHECK_EQUAL(response->messages[0],"Hello world 1.");
-	BOOST_CHECK_EQUAL(response->messages[1],"cHaTTP is awesome");
+	PersistenceLayerResponse response("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n");
+	BOOST_CHECK(response.status);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::messages);
+	BOOST_CHECK_EQUAL(response.sequence_number,11712393297);
+	BOOST_CHECK_EQUAL(response.messages.size(),2);
+	BOOST_CHECK_EQUAL(response.messages[0],"Hello world 1.");
+	BOOST_CHECK_EQUAL(response.messages[1],"cHaTTP is awesome");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -144,12 +135,11 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
 
 BOOST_AUTO_TEST_CASE(persistent_response_logged_out)
 {
-    PersistenceLayerResponse* response;
     try {
-	response = parsePersistenceResponse("26623723672908\nLGDOUT\nOK");
-	BOOST_CHECK(response->status);
-	BOOST_CHECK(response->response_type == PersistenceLayerResponseCode::loggedOut);
-	BOOST_CHECK_EQUAL(response->sequence_number,26623723672908);
+	PersistenceLayerResponse response("26623723672908\nLGDOUT\nOK");
+	BOOST_CHECK(response.status);
+	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::loggedOut);
+	BOOST_CHECK_EQUAL(response.sequence_number,26623723672908);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");

@@ -16,7 +16,7 @@ using std::istringstream;
  * application; it's described in /doc/protocols/webapp-message-broker.mkd.
  */
 
-extern void initWebapp(void);
+extern void initWebappProtocolParser(void);
 
 /**
  * @brief Channel ID type
@@ -50,8 +50,9 @@ enum class WebappRequestCode {
  * @brief Class for web application requests to the message broker (that is, us).
  *
  */
-struct WebappRequest
+class WebappRequest
 {
+public:
     WebappRequest(const string&);
 
     WebappRequestCode request_type;
@@ -68,6 +69,9 @@ struct WebappRequest
     string dest_user;
     /// for SNDMSG
     string message;
+
+private:
+    void parseWebappRequest(const string& rq);
 };
 
 extern istringstream& operator>>(istringstream&, WebappRequestCode&);

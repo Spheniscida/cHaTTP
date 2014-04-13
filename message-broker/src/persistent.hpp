@@ -41,8 +41,9 @@ enum class PersistenceLayerResponseCode {
  * - messages only for MSGS
  *
  */
-struct PersistenceLayerResponse
+class PersistenceLayerResponse
 {
+public:
     PersistenceLayerResponse(const string&);
     PersistenceLayerResponse(void);
 
@@ -59,10 +60,13 @@ struct PersistenceLayerResponse
 
     // Field for message retrieval responses.
     vector<string> messages;
+
+private:
+    void parsePersistenceResponse(const string& message);
+
 };
 
 
-extern PersistenceLayerResponse* parsePersistenceResponse(const string&, PersistenceLayerResponse* = nullptr);
 
 extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 

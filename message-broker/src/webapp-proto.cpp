@@ -9,18 +9,17 @@ using std::ostringstream;
 namespace
 {
     thread_local char* current_message;
-
     const string ok_code = "OK";
     const string fail_code = "FAIL";
 }
 
 /**
- * @brief Initialize WebApp subsystem for current thread.
+ * @brief initialize webapp subsystem for current thread.
  *
- * This function's main purpose is allocating a larger block of memory to
+ * this function's main purpose is allocating a larger block of memory to
  * store incoming messages.
  */
-void initWebapp(void)
+void initWebappProtocolParser(void)
 {
     current_message = new char[max_message_size];
 }
@@ -52,7 +51,15 @@ istringstream& operator>>(istringstream& stream, WebappRequestCode& code)
     return stream;
 }
 
+/**
+ * @brief Parse a request from the web application and create an object with that information.
+ */
 WebappRequest::WebappRequest(const string& request)
+{
+    parseWebappRequest(request);
+}
+
+void WebappRequest::parseWebappRequest(const string& request)
 {
     istringstream rqstream(request);
 

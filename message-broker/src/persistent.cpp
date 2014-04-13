@@ -14,7 +14,7 @@ using std::string;
  */
 PersistenceLayerResponse::PersistenceLayerResponse(const string& response)
 {
-    parsePersistenceResponse(response,this);
+    parsePersistenceResponse(response);
 }
 
 PersistenceLayerResponse::PersistenceLayerResponse(void)
@@ -66,66 +66,60 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
  * **ATTENTION: The pointer returned by this function must be freed (using `delete`) to avoid memory leaks. In this application,
  * it probably wouldn't even make sense to use `unique_ptr`s.**
  */
-PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceLayerResponse* response_obj)
+void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
 {
-    if ( response_obj == nullptr )
-	response_obj = new PersistenceLayerResponse;
-
     istringstream response(r);
 
-    response >> response_obj->sequence_number;
+    response >> sequence_number;
 
-    if ( response_obj->sequence_number == 0 )
+    if ( sequence_number == 0 )
 	throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: sequence number could not be read or it was 0, violating proto-specs.");
 
-    response >> response_obj->response_type;
+    response >> response_type;
 
-    if ( response_obj->response_type == PersistenceLayerResponseCode::lookedUpUser )
+    if ( response_type == PersistenceLayerResponseCode::lookedUpUser )
     {
 	string ok;
 	response >> ok;
 
 	if ( ok == "OK" )
 	{
-	    response_obj->status = true;
-	    response_obj->online = true;
+	    status = true;
+	    online = true;
 	}
 	else if ( ok == "FAIL" )
 	{
-	    response_obj->status = false;
-	    response_obj->online = false;
+	    status = false;
+	    online = false;
 	}
 	else if ( ok == "OFFLINE" )
 	{
-	    response_obj->status = true;
-	    response_obj->online = false;
+	    status = true;
+	    online = false;
 	}
 	else
 	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL|OFFLINE): " + ok);
 
-	if ( response_obj->status && response_obj->online ) // Additional information is only present when status is "OK"
+	if ( status && online ) // Additional information is only present when status is "OK"
 	{
-	    response >> response_obj->broker_name;
-	    response >> response_obj->channel_name;
+	    response >> broker_name;
+	    response >> channel_name;
 
-	    if ( response_obj->broker_name.empty() || response_obj->channel_name.empty() )
+	    if ( broker_name.empty() || channel_name.empty() )
 	    {
 		throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: type was ULKDUP; however, broker and/or channel could not be retrieved");
-		delete response_obj;
 	    }
 
 	}
-
-	return response_obj;
-    } else if ( response_obj->response_type == PersistenceLayerResponseCode::messages )
+    } else if ( response_type == PersistenceLayerResponseCode::messages )
     {
 	string ok;
 	response >> ok;
 
 	if ( ok == "FAIL" )
-	    response_obj->status = false;
+	    status = false;
 	else if ( ok == "OK" )
-	    response_obj->status = true;
+	    status = true;
 	else
 	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
 
@@ -138,11 +132,10 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceL
 	    response.getline(single_message,32767);
 	    if ( response.fail() )
 		break;
-	    response_obj->messages.push_back(string(single_message));
+	    messages.push_back(string(single_message));
 	}
 
-	response_obj->status = true;
-	return response_obj;
+	status = true;
     } else
     {
 	string ok;
@@ -150,17 +143,12 @@ PersistenceLayerResponse* parsePersistenceResponse(const string& r, PersistenceL
 	response >> ok;
 
 	if ( ok == "OK" )
-	    response_obj->status = true;
+	    status = true;
 	else if ( ok == "FAIL" )
-	    response_obj->status = false;
+	    status = false;
 	else
 	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
-
-	return response_obj;
     }
-
-
-    return nullptr;
 }
 
 /*********************************** Persistence layer commands *************************************/
