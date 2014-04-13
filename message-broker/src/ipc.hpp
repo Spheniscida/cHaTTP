@@ -1,13 +1,16 @@
 # ifndef IPC_HPP
 # define IPC_HPP
 
+# include <libsocket/exception.hpp>
 # include <libsocket/unixserverdgram.hpp>
 # include <libsocket/inetserverdgram.hpp>
 # include <libsocket/epoll.hpp>
 
 # include "conf.hpp"
+# include "error.hpp"
 # include "persistent.hpp"
 # include "webapp-proto.hpp"
+# include "message-relay.hpp"
 
 using libsocket::inet_dgram_server;
 using libsocket::unix_dgram_server;
@@ -31,8 +34,8 @@ public:
     WebappRequest recvFromWebapp(void);
 
     // To be implemented (especially the classes).
-    //void sendToRelay(const MessageForRelay&);
-    //MessageRelayResponse recvFromRelay(void);
+    void sendToRelay(const MessageForRelay&);
+    MessageRelayResponse recvFromRelay(void);
 private:
     connectionType persistence_type;
     connectionType webapp_type;

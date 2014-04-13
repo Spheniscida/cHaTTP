@@ -8,6 +8,7 @@ sequence-number.cpp
 broker-util.cpp
 webapp-proto.cpp
 ipc.cpp
+message-relay.cpp
 )
 
 set(execsrc

@@ -16,7 +16,9 @@ enum class ErrorType {
     /// An error caused by wrong parameters to a function which is specialized depending on an argument (i.e. PersistenceLayerCommand's ctor)
     argumentError,
     /// Hit an unimplemented area
-    unimplemented
+    unimplemented,
+    /// Network/socket errors
+    ipcError
 };
 
 /**
