@@ -10,7 +10,6 @@ MessageForRelay::MessageForRelay ( const string& mesg, const string& chan_id )
     : message(mesg),
     channel_id(chan_id)
 {
-    message_type = ReceivedMessageType::fromMessageRelay;
 }
 
 string MessageForRelay::toString ( void )
@@ -29,6 +28,8 @@ MessageRelayResponse::MessageRelayResponse ( const string& response )
 {
     istringstream response_stream(response);
     string response_type, response_status;
+
+    message_type = ReceivedMessageType::fromMessageRelay;
 
     response_stream >> seq_num;
     response_stream >> response_type;

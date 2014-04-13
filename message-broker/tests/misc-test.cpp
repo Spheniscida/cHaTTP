@@ -9,6 +9,7 @@
 # include <persistent.hpp>
 # include <sequence-number.hpp>
 # include <message-relay.hpp>
+# include <webapp-proto.hpp>
 
 /*
  * For parts of the program that are not important enough to have a dedicated
@@ -21,7 +22,7 @@ BOOST_AUTO_TEST_CASE(global_sequence_number_init_1)
 {
     initializeGlobalSequenceNumber();
 
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(), 1);
+    BOOST_CHECK_EQUAL(getNewSequenceNumber(),1);
 }
 
 BOOST_AUTO_TEST_CASE(global_sequence_number_after_increase)
@@ -82,6 +83,17 @@ BOOST_AUTO_TEST_CASE(receivable_cast1)
 
     if ( r->message_type == ReceivedMessageType::fromPersistence )
 	answer = dynamic_cast<PersistenceLayerResponse*>(r);
+}
+
+BOOST_AUTO_TEST_CASE(receivable_correct_message_types_in_messages)
+{
+    PersistenceLayerResponse pr("823\nUREGD\nOK");
+    MessageRelayResponse mrr("677\nMSGSNT\nOK");
+    WebappRequest wr("78\nLOGOUT\nusr");
+
+    BOOST_CHECK(pr.message_type == ReceivedMessageType::fromPersistence);
+    BOOST_CHECK(mrr.message_type == ReceivedMessageType::fromMessageRelay);
+    BOOST_CHECK(wr.message_type == ReceivedMessageType::fromWebApp);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

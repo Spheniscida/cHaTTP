@@ -8,7 +8,7 @@
 
 using std::string;
 
-class MessageForRelay : public Receivable
+class MessageForRelay
 {
 public:
     MessageForRelay(const string& mesg, const string& chan_id);
@@ -20,7 +20,7 @@ private:
     string channel_id;
 };
 
-class MessageRelayResponse
+class MessageRelayResponse : public Receivable
 {
 public:
     MessageRelayResponse(const string& response);
