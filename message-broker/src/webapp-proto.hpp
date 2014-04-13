@@ -5,6 +5,7 @@
 # include <sstream>
 
 # include "sequence-number.hpp"
+# include "receivable.hpp"
 
 using std::string;
 using std::istringstream;
@@ -50,7 +51,7 @@ enum class WebappRequestCode {
  * @brief Class for web application requests to the message broker (that is, us).
  *
  */
-class WebappRequest
+class WebappRequest : public Receivable
 {
 public:
     WebappRequest(const string&);

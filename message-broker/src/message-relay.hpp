@@ -4,10 +4,11 @@
 # include <string>
 
 # include "sequence-number.hpp"
+# include "receivable.hpp"
 
 using std::string;
 
-class MessageForRelay
+class MessageForRelay : public Receivable
 {
 public:
     MessageForRelay(const string& mesg, const string& chan_id);

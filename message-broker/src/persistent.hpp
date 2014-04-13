@@ -6,6 +6,7 @@
 # include <sstream>
 
 # include "sequence-number.hpp"
+# include "receivable.hpp"
 
 using std::string;
 using std::vector;
@@ -41,7 +42,7 @@ enum class PersistenceLayerResponseCode {
  * - messages only for MSGS
  *
  */
-class PersistenceLayerResponse
+class PersistenceLayerResponse : public Receivable
 {
 public:
     PersistenceLayerResponse(const string&);
