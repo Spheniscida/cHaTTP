@@ -85,6 +85,11 @@ connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, con
 {
     connectionInformation conninfo;
 
+    if ( getenv(addr_var) )
+	conninfo.address = getenv(addr_var);
+    else
+	throw BrokerError(ErrorType::configurationError,string("There is no ") + addr_var + " environment variable.");
+
     if ( getenv(family_var) )
     {
 	string conn_type(getenv(family_var));
