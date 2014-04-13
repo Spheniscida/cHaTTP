@@ -19,21 +19,6 @@ have to install the Boost test framework and its headers (e.g. libboost-test1.55
 
 To build the unit tests (`tests/test-main.cpp`), pass the following switch to CMake: `-Dunit_test=1`
 
-## General run-time requirements
-
-The message broker relies on names delivered by `recvfrom(2)`. This means: If you have a node on your cluster
-and configure it as "node1.yourcluster.yourorg.net", then its IP address should resolve back to that name.
-
-This has also the consequence that you may only configure your nodes using raw IP addresses if they do not
-resolve to a name.
-
-This restriction is in place because the message broker needs to be able to distinguish the three daemons it's
-communicating with from each other. It does this by looking at the name returned by the kernel's socket functions.
-There isn't any problem in the UNIX domain.
-
-    TODO: This may be solved by changing the basic IPC mechanisms in the message broker to use three different sockets,
-          each dedicated to one daemon and polled using `epoll()`/`select()`/`poll()`.
-
 ## Documentation
 
 Build the documentation (if you have graphviz available) using doxygen and the `doxyconf`
