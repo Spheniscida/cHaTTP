@@ -1,8 +1,7 @@
 # include "message-relay.hpp"
+# include "error.hpp"
 
 # include <sstream>
-
-# include "error.hpp"
 
 using std::istringstream;
 using std::ostringstream;
@@ -11,6 +10,7 @@ MessageForRelay::MessageForRelay ( const string& mesg, const string& chan_id )
     : message(mesg),
     channel_id(chan_id)
 {
+    message_type = ReceivedMessageType::fromMessageRelay;
 }
 
 string MessageForRelay::toString ( void )

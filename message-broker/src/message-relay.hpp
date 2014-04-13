@@ -24,7 +24,7 @@ class MessageRelayResponse
 {
 public:
     MessageRelayResponse(const string& response);
-private:
+
     sequence_t seq_num;
     bool status;
 };

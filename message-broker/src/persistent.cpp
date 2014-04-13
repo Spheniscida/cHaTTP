@@ -14,12 +14,8 @@ using std::string;
  */
 PersistenceLayerResponse::PersistenceLayerResponse(const string& response)
 {
+    message_type = ReceivedMessageType::fromPersistence;
     parsePersistenceResponse(response);
-}
-
-PersistenceLayerResponse::PersistenceLayerResponse(void)
-{
-    // void
 }
 
 /**

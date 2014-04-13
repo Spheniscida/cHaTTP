@@ -46,7 +46,6 @@ class PersistenceLayerResponse : public Receivable
 {
 public:
     PersistenceLayerResponse(const string&);
-    PersistenceLayerResponse(void);
 
     PersistenceLayerResponseCode response_type;
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
