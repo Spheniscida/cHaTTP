@@ -66,8 +66,6 @@ private:
 
 };
 
-
-
 extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 
 /************************************* Creating protocol messages **************************************/

@@ -76,9 +76,11 @@ void WebappRequest::parseWebappRequest(const string& request)
 	rqstream >> channel_id;
 	rqstream >> dest_user;
 
-	// Message
+	// Chop of the remaining '\n' character before reading the message.
 	rqstream.getline(current_message,0);
 	rqstream.getline(current_message,max_message_size);
+
+	current_message[8191] = 0; // Terminate it in either case.
 
 	message = current_message;
 
@@ -88,10 +90,16 @@ void WebappRequest::parseWebappRequest(const string& request)
 	rqstream >> user;
 	rqstream >> password;
 
+	if ( user.empty() || password.empty() )
+	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user or password field.");
+
 	return;
     } else if ( request_type == WebappRequestCode::isOnline || request_type == WebappRequestCode::logOut )
     {
 	rqstream >> user;
+
+	if ( user.empty() )
+	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user field.");
 
 	return;
     }

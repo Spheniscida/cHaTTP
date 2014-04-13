@@ -16,7 +16,7 @@ void initMessageBrokerThread(void)
 /**
  * @brief Initialize global state of Message broker.
  *
- * This function ought to be called only once for a single instance of
+ * This function should to be called only once for a single instance of
  * this program.
  */
 void initMessageBroker(void)
@@ -36,5 +36,6 @@ int main(int argc, char** argv)
     {
 	std::cerr << e.toString();
     }
+
     return 0;
 }

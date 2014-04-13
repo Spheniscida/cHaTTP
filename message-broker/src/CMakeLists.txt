@@ -7,6 +7,7 @@ persistent.cpp
 sequence-number.cpp
 broker-util.cpp
 webapp-proto.cpp
+ipc.cpp
 )
 
 set(execsrc

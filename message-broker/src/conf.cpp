@@ -19,6 +19,13 @@ namespace
     const char* persistence_addr_env_var  = "CHATTP_PERSISTENCE_LAYER_ADDR";
     const char* persistence_family_env_var= "CHATTP_PERSISTENCE_LAYER_FAMILY";
     const char* persistence_port_env_var  = "CHATTP_PERSISTENCE_LAYER_PORT";
+
+    const char* broker_webapp_bind_addr_var	= "CHATTP_MSGBROKER_WEBAPP_BIND_ADDR";
+    const char* broker_webapp_bind_port_var	= "CHATTP_MSGBROKER_WEBAPP_BIND_PORT";
+    const char* broker_msgrelay_bind_addr_var	= "CHATTP_MSGBROKER_MSGRELAY_BIND_ADDR";
+    const char* broker_msgrelay_bind_port_var	= "CHATTP_MSGBROKER_MSGRELAY_BIND_PORT";
+    const char* broker_persistence_bind_addr_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_ADDR";
+    const char* broker_persistence_bind_port_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_PORT";
 }
 
 const unsigned int max_message_size = 8192;
@@ -31,82 +38,17 @@ const unsigned int max_message_size = 8192;
  */
 BrokerSettings::BrokerSettings(void)
 {
-    // Message relay configuration
-    if ( getenv(mesg_relay_addr_env_var) )
-	message_relay_info.address = getenv(mesg_relay_addr_env_var);
-    else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + mesg_relay_addr_env_var + " environment variable");
+    // Fetch services.
+    message_relay_info = extractConnInfo(mesg_relay_addr_env_var,mesg_relay_family_env_var,mesg_relay_port_env_var);
+    persistence_layer_info = extractConnInfo(persistence_addr_env_var,persistence_family_env_var,persistence_port_env_var);
+    webapp_info = extractConnInfo(webapp_addr_env_var,webapp_family_env_var,webapp_port_env_var);
 
+    // Fetch bind info.
+    message_relay_bind_info = extractConnInfo(broker_msgrelay_bind_addr_var, mesg_relay_family_env_var, broker_msgrelay_bind_port_var);
+    persistence_bind_info = extractConnInfo(broker_persistence_bind_addr_var, persistence_family_env_var, broker_persistence_bind_port_var);
+    webapp_bind_info = extractConnInfo(broker_webapp_bind_addr_var, webapp_family_env_var, broker_webapp_bind_port_var);
 
-    if ( getenv(mesg_relay_family_env_var) )
-    {
-	string conn_type(getenv(mesg_relay_family_env_var));
-
-	if (conn_type == unix_family)
-	    message_relay_info.type = connectionType::UNIX;
-	else if (conn_type == inet_family)
-	{
-	    message_relay_info.type = connectionType::INET;
-
-	    if ( getenv(mesg_relay_port_env_var) )
-		message_relay_info.port = getenv(mesg_relay_port_env_var);
-	    else throw BrokerError(ErrorType::configurationError,string("The ") + mesg_relay_port_env_var + " environment variable could not be found.");
-	} else
-	    throw BrokerError(ErrorType::configurationError,string("There's something wrong with the ") + mesg_relay_family_env_var + " environment variable");
-    } else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + mesg_relay_family_env_var + " environment variable");
-
-    // Persistence layer (data source) configuration
-    if ( getenv(persistence_addr_env_var) )
-	persistence_layer_info.address = getenv(persistence_addr_env_var);
-    else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + persistence_addr_env_var + " environment variable");
-
-    if ( getenv(persistence_family_env_var) )
-    {
-	string conn_type(getenv(persistence_family_env_var));
-
-	if ( conn_type == inet_family )
-	{
-	    persistence_layer_info.type = connectionType::INET;
-
-	    if ( getenv(persistence_port_env_var) )
-		persistence_layer_info.port = getenv(persistence_port_env_var);
-	    else
-		throw BrokerError(ErrorType::configurationError,string("There is no ") + persistence_port_env_var + " environment variable.");
-	} else if ( conn_type == unix_family )
-	    persistence_layer_info.type = connectionType::UNIX;
-	else
-	    throw BrokerError(ErrorType::configurationError,string("There's something wrong with the ") + persistence_family_env_var + " environment variable");
-    } else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + persistence_family_env_var + " environment variable");
-
-    // Web app configuration
-
-    if ( getenv(webapp_addr_env_var) )
-	webapp_info.address = getenv(webapp_addr_env_var);
-    else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + webapp_addr_env_var + " environment variable");
-
-    if ( getenv(webapp_family_env_var) )
-    {
-	string conn_type(getenv(persistence_family_env_var));
-
-	if ( conn_type == inet_family )
-	{
-	    webapp_info.type = connectionType::INET;
-
-	    if ( getenv(webapp_port_env_var) )
-		webapp_info.port = getenv(webapp_port_env_var);
-	    else
-		throw BrokerError(ErrorType::configurationError,string("There is no ") + webapp_port_env_var + " environment variable");
-	} else if ( conn_type == unix_family )
-	    webapp_info.type = connectionType::UNIX;
-	else
-	    throw BrokerError(ErrorType::configurationError,string("There is something wrong with the ") + webapp_family_env_var + " environment variable");
-    } else
-	throw BrokerError(ErrorType::configurationError,string("There is no ") + webapp_family_env_var + " environment variable");
-
+    checkSanity(); // Throws on configuration error.
 }
 
 connectionInformation BrokerSettings::getMessageRelayAddress(void)
@@ -117,4 +59,58 @@ connectionInformation BrokerSettings::getMessageRelayAddress(void)
 connectionInformation BrokerSettings::getPersistenceLayerAddress(void)
 {
     return persistence_layer_info;
+}
+
+connectionInformation BrokerSettings::getWebappAddress (void)
+{
+    return webapp_info;
+}
+
+connectionInformation BrokerSettings::getMessageRelayBindAddress (void)
+{
+    return message_relay_bind_info;
+}
+
+connectionInformation BrokerSettings::getPersistenceLayerBindAddress (void)
+{
+    return persistence_bind_info;
+}
+
+connectionInformation BrokerSettings::getWebappBindAddress (void)
+{
+    return webapp_bind_info;
+}
+
+connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, const char* family_var, const char* port_var)
+{
+    connectionInformation conninfo;
+
+    if ( getenv(family_var) )
+    {
+	string conn_type(getenv(family_var));
+
+	if (conn_type == unix_family)
+	{
+	    conninfo.type = connectionType::UNIX;
+
+	} else if (conn_type == inet_family)
+	{
+	    conninfo.type = connectionType::INET;
+
+	    if ( getenv(port_var) )
+	    {
+		conninfo.port = getenv(port_var);
+	    } else
+		throw BrokerError(ErrorType::configurationError,string("The ") + port_var + " environment variable could not be found.");
+	} else
+	    throw BrokerError(ErrorType::configurationError,string("There's something wrong with the ") + family_var + " environment variable");
+    } else
+	throw BrokerError(ErrorType::configurationError,string("There is no ") + family_var + " environment variable");
+
+    return conninfo;
+}
+
+bool BrokerSettings::checkSanity (void)
+{
+    return true;
 }
