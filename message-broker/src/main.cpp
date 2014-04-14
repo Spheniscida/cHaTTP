@@ -27,6 +27,8 @@ void initMessageBroker(void)
     initializeGlobalSequenceNumber();
 }
 
+void communicator_example(void);
+
 int main(int argc, char** argv)
 {
     // Only one thread yet.
@@ -35,12 +37,29 @@ int main(int argc, char** argv)
     // This is only testing yet.
     try {
 	BrokerSettings b;
-	// The communicator creates several sockets in /tmp.
-	//Communicator c;
+
     } catch (BrokerError e)
     {
 	std::cerr << e.toString();
     }
 
     return 0;
+}
+
+void communicator_example(void)
+{
+    Communicator c;
+
+    vector<Receivable*> v = c.receiveMessage();
+
+    if ( v.size() > 0 )
+    {
+	if ( v[0]->sender == MessageOrigin::fromWebApp )
+	{
+	    WebappRequest* x = dynamic_cast<WebappRequest*>(v[0]);
+	    std::cout << x->sequence_number;
+	    std::cout << x->user << x->password;
+	    std::cout << "\n";
+	}
+    }
 }
