@@ -52,36 +52,6 @@ BrokerSettings::BrokerSettings(void)
     checkSanity(); // Throws on configuration error.
 }
 
-connectionInformation BrokerSettings::getMessageRelayAddress(void)
-{
-    return message_relay_info;
-}
-
-connectionInformation BrokerSettings::getPersistenceLayerAddress(void)
-{
-    return persistence_layer_info;
-}
-
-connectionInformation BrokerSettings::getWebappAddress (void)
-{
-    return webapp_info;
-}
-
-connectionInformation BrokerSettings::getMessageRelayBindAddress (void)
-{
-    return message_relay_bind_info;
-}
-
-connectionInformation BrokerSettings::getPersistenceLayerBindAddress (void)
-{
-    return persistence_bind_info;
-}
-
-connectionInformation BrokerSettings::getWebappBindAddress (void)
-{
-    return webapp_bind_info;
-}
-
 connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, const char* family_var, const char* port_var)
 {
     connectionInformation conninfo;

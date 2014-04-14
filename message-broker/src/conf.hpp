@@ -45,13 +45,13 @@ class BrokerSettings
 public:
     BrokerSettings(void);
 
-    connectionInformation getMessageRelayAddress(void);
-    connectionInformation getPersistenceLayerAddress(void);
-    connectionInformation getWebappAddress(void);
+    connectionInformation getMessageRelayAddress(void) { return message_relay_info; };
+    connectionInformation getPersistenceLayerAddress(void) { return persistence_layer_info; };
+    connectionInformation getWebappAddress(void) { return webapp_info; };
 
-    connectionInformation getMessageRelayBindAddress(void);
-    connectionInformation getPersistenceLayerBindAddress(void);
-    connectionInformation getWebappBindAddress(void);
+    connectionInformation getMessageRelayBindAddress(void) { return message_relay_bind_info; };
+    connectionInformation getPersistenceLayerBindAddress(void) { return persistence_bind_info; };
+    connectionInformation getWebappBindAddress(void) { return webapp_bind_info; };
 private:
     connectionInformation message_relay_info;
     connectionInformation persistence_layer_info;
