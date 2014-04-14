@@ -16,6 +16,7 @@ main.cpp
 )
 
 add_library(msg_broker_lib STATIC ${libsrc})
+
 add_executable(msg-broker ${execsrc})
 
-target_link_libraries(msg-broker socket pthread msg_broker_lib)
+target_link_libraries(msg-broker socket++ pthread msg_broker_lib)

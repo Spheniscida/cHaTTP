@@ -1,7 +1,9 @@
+# include <iostream>
+
 # include "conf.hpp"
 # include "error.hpp"
 # include "webapp-proto.hpp"
-# include <iostream>
+# include "ipc.hpp"
 
 /**
  * @brief Initialize Message Broker thread.
@@ -32,6 +34,8 @@ int main(int argc, char** argv)
     // This is only testing yet.
     try {
 	BrokerSettings b;
+	// The communicator creates several sockets in /tmp.
+	//Communicator c;
     } catch (BrokerError e)
     {
 	std::cerr << e.toString();
