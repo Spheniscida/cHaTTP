@@ -13,6 +13,7 @@
 void initMessageBrokerThread(void)
 {
     initWebappProtocolParser();
+    initIPC();
 }
 
 /**

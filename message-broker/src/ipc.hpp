@@ -20,6 +20,8 @@ using libsocket::epollset;
 
 using std::unique_ptr;
 
+extern void initIPC(void);
+
 /**
  * @brief Communicator is an additional layer between the message broker and the outside world.
  *
@@ -36,15 +38,17 @@ public:
     void sendToWebapp(const WebappResponse& cmd);
     void sendToRelay(const MessageForRelay&);
 
-    unique_ptr<Receivable> receiveMessage(void);
+     std::vector< Receivable* > receiveMessage( void );
 private:
-    connectionInformation persistence_info, webapp_info, msgrelay_info;
+    connectionInformation persistence_connection_info, webapp_connection_info, msgrelay_connection_info;
     epollset<libsocket::socket> e_set;
 
-    inet_dgram_server *inet_persistence, *inet_webapp, *inet_msgrelay;
-    unix_dgram_server *unix_persistence, *unix_webapp, *unix_msgrelay;
+    inet_dgram_server *inet_persistence_sock, *inet_webapp_sock, *inet_msgrelay_sock;
+    unix_dgram_server *unix_persistence_sock, *unix_webapp_sock, *unix_msgrelay_sock;
 
-    static void sendTo(const connectionInformation& dst, const string& msg);
+    connectionType getSocketType(libsocket::socket* sock);
+    Receivable* receiveFromUNIX(unix_dgram_server* sock);
+    Receivable* receiveFromINET(inet_dgram_server* sock);
 };
 
 # endif
