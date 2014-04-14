@@ -111,10 +111,10 @@ void WebappRequest::parseWebappRequest(const string& request)
 
 /****************************** Responses *******************************/
 
-WebappResponse::WebappResponse(WebappResponseCode type, sequence_t seqnum, bool response_status, const string& response_data)
-    : response_type(type),
-    sequence_number(seqnum),
-    status(response_status)
+WebappResponse::WebappResponse(WebappResponseCode type, bool response_status, const string& response_data)
+    : sequence_number(getNewSequenceNumber()),
+      response_type(type),
+      status(response_status)
 {
     if ( type == WebappResponseCode::loggedIn )
 	payload = response_data;

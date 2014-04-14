@@ -99,12 +99,12 @@ enum class WebappResponseCode {
 class WebappResponse
 {
 public:
-    WebappResponse(WebappResponseCode type, sequence_t seqnum, bool response_status = true, const string& response_data = "");
+    WebappResponse(WebappResponseCode type, bool response_status = true, const string& response_data = "");
 
     string toString(void) const;
+    sequence_t sequence_number;
 private:
     WebappResponseCode response_type;
-    sequence_t sequence_number;
 
     bool status;
 

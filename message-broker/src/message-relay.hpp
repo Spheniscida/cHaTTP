@@ -14,8 +14,8 @@ public:
     MessageForRelay(const string& mesg, const string& chan_id);
 
     string toString(void) const;
-private:
     sequence_t seq_num;
+private:
     string message;
     string channel_id;
 };

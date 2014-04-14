@@ -123,9 +123,10 @@ BOOST_AUTO_TEST_CASE(parse_user_online_request)
 
 BOOST_AUTO_TEST_CASE(create_register_response1)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::registeredUser,723,true);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nUREGD\nOK");
+	WebappResponse r(WebappResponseCode::registeredUser,true);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nUREGD\nOK");
 
     } catch (BrokerError e)
     {
@@ -136,9 +137,10 @@ BOOST_AUTO_TEST_CASE(create_register_response1)
 
 BOOST_AUTO_TEST_CASE(create_register_response2)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::registeredUser,723,false);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nUREGD\nFAIL");
+	WebappResponse r(WebappResponseCode::registeredUser,false);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nUREGD\nFAIL");
 
     } catch (BrokerError e)
     {
@@ -149,9 +151,10 @@ BOOST_AUTO_TEST_CASE(create_register_response2)
 
 BOOST_AUTO_TEST_CASE(create_onlineq_response1)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::isOnline,723,true);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nUONL\nY");
+	WebappResponse r(WebappResponseCode::isOnline,true);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nUONL\nY");
 
     } catch (BrokerError e)
     {
@@ -162,9 +165,10 @@ BOOST_AUTO_TEST_CASE(create_onlineq_response1)
 
 BOOST_AUTO_TEST_CASE(create_onlineq_response2)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::isOnline,723,false);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nUONL\nN");
+	WebappResponse r(WebappResponseCode::isOnline,false);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nUONL\nN");
 
     } catch (BrokerError e)
     {
@@ -175,9 +179,10 @@ BOOST_AUTO_TEST_CASE(create_onlineq_response2)
 
 BOOST_AUTO_TEST_CASE(create_accmsg_response1)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::acceptedMessage,723,true);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nACCMSG\nOK");
+	WebappResponse r(WebappResponseCode::acceptedMessage,true);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nACCMSG\nOK");
 
     } catch (BrokerError e)
     {
@@ -188,9 +193,10 @@ BOOST_AUTO_TEST_CASE(create_accmsg_response1)
 
 BOOST_AUTO_TEST_CASE(create_accmsg_response2)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::acceptedMessage,723,false);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nACCMSG\nFAIL");
+	WebappResponse r(WebappResponseCode::acceptedMessage,false);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nACCMSG\nFAIL");
 
     } catch (BrokerError e)
     {
@@ -201,9 +207,10 @@ BOOST_AUTO_TEST_CASE(create_accmsg_response2)
 
 BOOST_AUTO_TEST_CASE(create_login_response1)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::loggedIn,723,true,"aabce328");
-	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDIN\nOK\naabce328");
+	WebappResponse r(WebappResponseCode::loggedIn,true,"aabce328");
+	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDIN\nOK\naabce328");
 
     } catch (BrokerError e)
     {
@@ -214,9 +221,10 @@ BOOST_AUTO_TEST_CASE(create_login_response1)
 
 BOOST_AUTO_TEST_CASE(create_login_response2)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::loggedIn,723,false,"aabce328");
-	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDIN\nFAIL");
+	WebappResponse r(WebappResponseCode::loggedIn,false,"aabce328");
+	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDIN\nFAIL");
 
     } catch (BrokerError e)
     {
@@ -227,9 +235,10 @@ BOOST_AUTO_TEST_CASE(create_login_response2)
 
 BOOST_AUTO_TEST_CASE(create_logout_response)
 {
+    initializeGlobalSequenceNumber();
     try {
-	WebappResponse r(WebappResponseCode::loggedOut,723);
-	BOOST_CHECK_EQUAL(r.toString(),"723\nLGDOUT");
+	WebappResponse r(WebappResponseCode::loggedOut);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDOUT");
 
     } catch (BrokerError e)
     {
