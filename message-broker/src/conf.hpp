@@ -5,8 +5,10 @@
 
 using std::string;
 
-/// Maximum message size accepted by this program.
+/// Maximum message size accepted by this program (message: text sent from a user).
 extern const unsigned int max_message_size;
+/// Maximum size of incoming requests/responses (message: protocol message)
+extern const unsigned int max_raw_message_size;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

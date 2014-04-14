@@ -28,7 +28,8 @@ namespace
     const char* broker_persistence_bind_port_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_PORT";
 }
 
-const unsigned int max_message_size = 8192;
+const unsigned int max_raw_message_size = 16384;
+const unsigned int max_message_size = 12288;
 
 /**
  * @brief Fetch configuration from environment.
