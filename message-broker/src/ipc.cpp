@@ -1,39 +1,40 @@
 # include "ipc.hpp"
 
-Communicator::Communicator ( void )
+Communicator::Communicator (void)
+    : e_set(3)
 {
     BrokerSettings settings;
 
-    persistence_type = settings.getPersistenceLayerBindAddress().type;
-    msgrelay_type = settings.getMessageRelayBindAddress().type;
-    webapp_type = settings.getWebappBindAddress().type;
+    persistence_info.type = settings.getPersistenceLayerBindAddress().type;
+    msgrelay_info.type = settings.getMessageRelayBindAddress().type;
+    webapp_info.type = settings.getWebappBindAddress().type;
 
     try {
-	if ( persistence_type == connectionType::UNIX )
+	if ( persistence_info.type == connectionType::UNIX )
 	{
 	    inet_persistence = nullptr;
-	    unix_persistence = new unix_dgram_server(settings.getPersistenceLayerAddress().address);
-	} else if ( persistence_type == connectionType::INET )
+	    unix_persistence = new unix_dgram_server(settings.getPersistenceLayerBindAddress().address);
+	} else if ( persistence_info.type == connectionType::INET )
 	{
 	    unix_persistence = nullptr;
 	    inet_persistence = new inet_dgram_server(settings.getPersistenceLayerBindAddress().address,settings.getPersistenceLayerBindAddress().port,LIBSOCKET_BOTH);
 	}
 
-	if ( msgrelay_type == connectionType::UNIX )
+	if ( msgrelay_info.type == connectionType::UNIX )
 	{
 	    inet_msgrelay = nullptr;
-	    unix_msgrelay = new unix_dgram_server(settings.getMessageRelayAddress().address);
-	} else if ( msgrelay_type == connectionType::INET )
+	    unix_msgrelay = new unix_dgram_server(settings.getMessageRelayBindAddress().address);
+	} else if ( msgrelay_info.type == connectionType::INET )
 	{
 	    unix_msgrelay = nullptr;
 	    inet_msgrelay = new inet_dgram_server(settings.getMessageRelayBindAddress().address,settings.getMessageRelayBindAddress().port,LIBSOCKET_BOTH);
 	}
 
-	if ( webapp_type == connectionType::UNIX )
+	if ( webapp_info.type == connectionType::UNIX )
 	{
 	    inet_webapp = nullptr;
 	    unix_webapp = new unix_dgram_server(settings.getWebappBindAddress().address);
-	} else if ( webapp_type == connectionType::INET )
+	} else if ( webapp_info.type == connectionType::INET )
 	{
 	    unix_webapp = nullptr;
 	    inet_webapp = new inet_dgram_server(settings.getWebappBindAddress().address,settings.getWebappBindAddress().port,LIBSOCKET_BOTH);
@@ -45,7 +46,7 @@ Communicator::Communicator ( void )
     }
 }
 
-Communicator::~Communicator ( void )
+Communicator::~Communicator (void)
 {
     if ( inet_msgrelay )
 	delete inet_msgrelay;
