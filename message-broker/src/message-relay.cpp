@@ -12,7 +12,7 @@ MessageForRelay::MessageForRelay ( const string& mesg, const string& chan_id )
 {
 }
 
-string MessageForRelay::toString ( void )
+string MessageForRelay::toString ( void ) const
 {
     ostringstream message_to_send;
 

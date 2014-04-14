@@ -13,7 +13,7 @@ class MessageForRelay
 public:
     MessageForRelay(const string& mesg, const string& chan_id);
 
-    string toString(void);
+    string toString(void) const;
 private:
     sequence_t seq_num;
     string message;

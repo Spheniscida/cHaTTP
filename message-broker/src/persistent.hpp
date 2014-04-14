@@ -100,7 +100,7 @@ public:
     /// For LOGIN
     PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string broker_name, string channel_id);
 
-    string toString(void);
+    string toString(void) const;
 private:
     /// This one is initialized automatically.
     sequence_t sequence_number;

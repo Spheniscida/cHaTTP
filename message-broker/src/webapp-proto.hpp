@@ -101,7 +101,7 @@ class WebappResponse
 public:
     WebappResponse(WebappResponseCode type, sequence_t seqnum, bool response_status = true, const string& response_data = "");
 
-    string toString(void);
+    string toString(void) const;
 private:
     WebappResponseCode response_type;
     sequence_t sequence_number;

@@ -165,3 +165,35 @@ Receivable* Communicator::receiveFromINET ( inet_dgram_server* sock )
     else
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromINET: Unknown socket encountered!");
 }
+
+void Communicator::send ( const PersistenceLayerCommand& cmd )
+{
+    if ( inet_persistence_sock )
+	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
+    else if ( unix_persistence_sock )
+	unix_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address);
+    else
+	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const PersistenceLayerCommand&): No working socket for persistence.");
+}
+
+void Communicator::send ( const WebappResponse& cmd )
+{
+    if ( unix_webapp_sock )
+	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);
+    else if ( inet_webapp_sock )
+	inet_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address, webapp_connection_info.port);
+    else
+	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const WebappResponse&): No working socket for webapp.");
+}
+
+void Communicator::send ( const MessageForRelay& cmd )
+{
+    if ( unix_msgrelay_sock )
+	unix_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address);
+    else if ( inet_msgrelay_sock )
+	inet_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address,msgrelay_connection_info.port);
+    else
+	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const MessageForRelay&): No working socket for message relay.");
+
+}
+

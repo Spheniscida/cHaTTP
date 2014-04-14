@@ -18,7 +18,9 @@ enum class ErrorType {
     /// Hit an unimplemented area
     unimplemented,
     /// Network/socket errors
-    ipcError
+    ipcError,
+    /// Any implementation error -- something that really shouldn't happen.
+    genericImplementationError
 };
 
 /**

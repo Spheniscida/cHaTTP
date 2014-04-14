@@ -50,17 +50,13 @@ istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& c
 }
 
 /**
- * @brief [DEPRECATED] Parse a message from the persistence layer.
+ * @brief Parse a message from the persistence layer.
  *
  * @param r The response string.
  *
  * @returns A pointer to a generic response object. Depending on the value of response_type, that pointer may have to
  * 	be casted to represent a specialized class.
  *
- * [DEPRECATED] in favor of PersistenceLayerResponse's constructor.
- *
- * **ATTENTION: The pointer returned by this function must be freed (using `delete`) to avoid memory leaks. In this application,
- * it probably wouldn't even make sense to use `unique_ptr`s.**
  */
 void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
 {
@@ -217,7 +213,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  *
  * @returns A string ready to be sent to the persistence layer.
  */
-string PersistenceLayerCommand::toString(void)
+string PersistenceLayerCommand::toString(void) const
 {
     ostringstream out;
 

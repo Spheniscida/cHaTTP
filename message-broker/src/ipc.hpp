@@ -34,11 +34,11 @@ public:
     Communicator(void);
     ~Communicator(void);
 
-    void sendToPersistence(const PersistenceLayerCommand& cmd);
-    void sendToWebapp(const WebappResponse& cmd);
-    void sendToRelay(const MessageForRelay&);
+    void send(const PersistenceLayerCommand& cmd);
+    void send(const WebappResponse& cmd);
+    void send(const MessageForRelay& cmd);
 
-     std::vector< Receivable* > receiveMessage( void );
+     std::vector<Receivable*> receiveMessage( void );
 private:
     connectionInformation persistence_connection_info, webapp_connection_info, msgrelay_connection_info;
     epollset<libsocket::socket> e_set;

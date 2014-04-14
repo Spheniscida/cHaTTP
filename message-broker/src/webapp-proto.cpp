@@ -120,7 +120,7 @@ WebappResponse::WebappResponse(WebappResponseCode type, sequence_t seqnum, bool 
 	payload = response_data;
 }
 
-string WebappResponse::toString(void)
+string WebappResponse::toString(void) const
 {
     ostringstream ostr;
 
