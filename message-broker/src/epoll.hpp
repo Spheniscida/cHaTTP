@@ -75,8 +75,8 @@ namespace libsocket
 	epollset(epollset&&);
 	~epollset(void);
 
-	void add_fd( SocketT& sock, int method );
-	void del_fd(const SocketT& sock);
+	void add_fd( SocketT* sock, int method );
+	void del_fd(const SocketT* sock);
 	ready_socks wait(int timeout = -1);
 
     private:
@@ -136,11 +136,11 @@ namespace libsocket
      * @param method Any combination of `LIBSOCKET_READ` and `LIBSOCKET_WRITE`.
      */
     template<typename SocketT>
-    void epollset<SocketT>::add_fd(SocketT& sock, int method)
+    void epollset<SocketT>::add_fd(SocketT* sock, int method)
     {
 	struct epoll_event new_event;
 
-	new_event.data.ptr = 0; // ptr is the largest field (8 bytes on 64bit)
+	new_event.data.ptr = 0; // ptr is the largest field in that union (8 bytes on amd64/ia64)
 	new_event.events = 0;
 
 	if ( method & LIBSOCKET_READ )
@@ -148,9 +148,9 @@ namespace libsocket
 	if ( method & LIBSOCKET_WRITE )
 	    new_event.events |= EPOLLOUT;
 
-	new_event.data.ptr = &sock;
+	new_event.data.ptr = sock;
 
-	if ( 0 > epoll_ctl(epollfd,EPOLL_CTL_ADD,sock.getfd(),&new_event) )
+	if ( 0 > epoll_ctl(epollfd,EPOLL_CTL_ADD,sock->getfd(),&new_event) )
 	    throw socket_exception(__FILE__,__LINE__,string("epoll_ctl failed: ") + strerror(errno));
     }
 
@@ -160,9 +160,9 @@ namespace libsocket
      * @param sock The socket to remove.
      */
     template<typename SocketT>
-    void epollset<SocketT>::del_fd(const SocketT& sock)
+    void epollset<SocketT>::del_fd( const SocketT* sock )
     {
-	if ( 0 > epoll_ctl(epollfd,EPOLL_CTL_DEL,sock.getfd(),nullptr) )
+	if ( 0 > epoll_ctl(epollfd,EPOLL_CTL_DEL,sock->getfd(),nullptr) )
 	    throw socket_exception(__FILE__,__LINE__,string("epoll_ctl failed: ") + strerror(errno));
     }
 
