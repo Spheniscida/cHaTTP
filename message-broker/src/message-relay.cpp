@@ -29,7 +29,7 @@ MessageRelayResponse::MessageRelayResponse ( const string& response )
     istringstream response_stream(response);
     string response_type, response_status;
 
-    message_type = ReceivedMessageType::fromMessageRelay;
+    sender = MessageOrigin::fromMessageRelay;
 
     response_stream >> seq_num;
     response_stream >> response_type;

@@ -1,7 +1,7 @@
 # ifndef RECEIVABLE_HPP
 # define RECEIVABLE_HPP
 
-enum class ReceivedMessageType {
+enum class MessageOrigin {
     fromWebApp,
     fromMessageRelay,
     fromPersistence
@@ -18,7 +18,7 @@ class Receivable
 {
 public:
     virtual ~Receivable(void) = default;
-    ReceivedMessageType message_type;
+    MessageOrigin sender;
 };
 
 # endif

@@ -79,21 +79,21 @@ BOOST_AUTO_TEST_CASE(receivable_cast1)
 
     Receivable* r = persist_resp;
 
-    BOOST_CHECK(r->message_type == ReceivedMessageType::fromPersistence);
+    BOOST_CHECK(r->sender == MessageOrigin::fromPersistence);
 
-    if ( r->message_type == ReceivedMessageType::fromPersistence )
+    if ( r->sender == MessageOrigin::fromPersistence )
 	answer = dynamic_cast<PersistenceLayerResponse*>(r);
 }
 
-BOOST_AUTO_TEST_CASE(receivable_correct_message_types_in_messages)
+BOOST_AUTO_TEST_CASE(receivable_correct_senders_in_messages)
 {
     PersistenceLayerResponse pr("823\nUREGD\nOK");
     MessageRelayResponse mrr("677\nMSGSNT\nOK");
     WebappRequest wr("78\nLOGOUT\nusr");
 
-    BOOST_CHECK(pr.message_type == ReceivedMessageType::fromPersistence);
-    BOOST_CHECK(mrr.message_type == ReceivedMessageType::fromMessageRelay);
-    BOOST_CHECK(wr.message_type == ReceivedMessageType::fromWebApp);
+    BOOST_CHECK(pr.sender == MessageOrigin::fromPersistence);
+    BOOST_CHECK(mrr.sender == MessageOrigin::fromMessageRelay);
+    BOOST_CHECK(wr.sender == MessageOrigin::fromWebApp);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
