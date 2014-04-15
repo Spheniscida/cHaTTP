@@ -30,6 +30,7 @@ namespace
 
 const unsigned int max_raw_message_size = 16384;
 const unsigned int max_message_size = 12288;
+const bool debugging_mode = true;
 
 /**
  * @brief Fetch configuration from environment.

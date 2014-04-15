@@ -34,10 +34,10 @@ int main(int argc, char** argv)
     // Only one thread yet.
     initMessageBrokerThread();
     initMessageBroker();
+
     // This is only testing yet.
     try {
 	BrokerSettings b;
-
     } catch (BrokerError e)
     {
 	std::cerr << e.toString();

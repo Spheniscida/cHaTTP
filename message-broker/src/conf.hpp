@@ -9,6 +9,7 @@ using std::string;
 extern const unsigned int max_message_size;
 /// Maximum size of incoming requests/responses (message: protocol message)
 extern const unsigned int max_raw_message_size;
+extern const bool debugging_mode;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

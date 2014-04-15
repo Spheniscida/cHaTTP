@@ -1,7 +1,9 @@
 # ifndef ERROR_HPP
 # define ERROR_HPP
 
+# include "conf.hpp"
 # include <string>
+# include <iostream>
 
 using std::string;
 
@@ -35,5 +37,10 @@ struct BrokerError
     string error_message;
 };
 
+inline void debug_log(const string& msg)
+{
+    if ( debugging_mode )
+	std::cerr << "DBG <> " << msg << std::endl;
+}
 
 # endif

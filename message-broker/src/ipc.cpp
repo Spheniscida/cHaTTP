@@ -98,7 +98,7 @@ Communicator::~Communicator (void)
 	delete unix_webapp_sock;
 }
 
-vector<Receivable*> Communicator::receiveMessage (void)
+vector<Receivable*> Communicator::receiveMessage(void)
 {
     epollset<libsocket::socket>::ready_socks ready_for_recv = e_set.wait();
 
@@ -119,6 +119,7 @@ vector<Receivable*> Communicator::receiveMessage (void)
 	return return_vec;
     } else if ( size == 0 )
     {
+	debug_log("epoll returned without any sockets.");
 	return receiveMessage(); // This is probably some spurious wake-up, so do another call...
     } else
     {
@@ -129,14 +130,14 @@ vector<Receivable*> Communicator::receiveMessage (void)
     }
 }
 
-connectionType Communicator::getSocketType ( libsocket::socket* sock )
+connectionType Communicator::getSocketType(libsocket::socket* sock)
 {
     if ( sock == unix_persistence_sock || sock == unix_webapp_sock || sock == unix_msgrelay_sock )
 	return connectionType::UNIX;
     else return connectionType::INET;
 }
 
-Receivable* Communicator::receiveFromUNIX ( unix_dgram_server* sock )
+Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 {
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
@@ -151,7 +152,7 @@ Receivable* Communicator::receiveFromUNIX ( unix_dgram_server* sock )
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromUNIX: Unknown socket encountered!");
 }
 
-Receivable* Communicator::receiveFromINET ( inet_dgram_server* sock )
+Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 {
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
@@ -166,7 +167,7 @@ Receivable* Communicator::receiveFromINET ( inet_dgram_server* sock )
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromINET: Unknown socket encountered!");
 }
 
-void Communicator::send ( const PersistenceLayerCommand& cmd )
+void Communicator::send(const PersistenceLayerCommand& cmd)
 {
     if ( inet_persistence_sock )
 	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
@@ -176,7 +177,7 @@ void Communicator::send ( const PersistenceLayerCommand& cmd )
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const PersistenceLayerCommand&): No working socket for persistence.");
 }
 
-void Communicator::send ( const WebappResponse& cmd )
+void Communicator::send(const WebappResponse& cmd)
 {
     if ( unix_webapp_sock )
 	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);
@@ -186,7 +187,7 @@ void Communicator::send ( const WebappResponse& cmd )
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const WebappResponse&): No working socket for webapp.");
 }
 
-void Communicator::send ( const MessageForRelay& cmd )
+void Communicator::send(const MessageForRelay& cmd)
 {
     if ( unix_msgrelay_sock )
 	unix_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address);

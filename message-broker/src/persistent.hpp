@@ -101,7 +101,8 @@ public:
     PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string broker_name, string channel_id);
 
     string toString(void) const;
-    /// This one is initialized automatically.
+    /// This one is initialized automatically. We need to expose it so the function using this class may store the generated
+    /// sequence number.
     sequence_t sequence_number;
 private:
 
