@@ -11,6 +11,8 @@ extern const unsigned int max_message_size;
 extern const unsigned int max_raw_message_size;
 extern const bool debugging_mode;
 
+const string message_broker_name = "localhost";
+
 /**
  * @brief Enumeration for connection type: UNIX/UDP
  */

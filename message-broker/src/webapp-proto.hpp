@@ -55,6 +55,7 @@ class WebappRequest : public Receivable
 {
 public:
     WebappRequest(const string&);
+    WebappRequest(void) = default;
 
     WebappRequestCode request_type;
     sequence_t sequence_number;
