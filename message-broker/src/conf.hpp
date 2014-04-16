@@ -2,16 +2,21 @@
 # define CONF_HPP
 
 # include <string>
+# include <chrono>
 
 using std::string;
+using std::chrono::time_point;
+using std::chrono::steady_clock;
 
 /// Maximum message size accepted by this program (message: text sent from a user).
-extern const unsigned int max_message_size;
+const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
-extern const unsigned int max_raw_message_size;
-extern const bool debugging_mode;
-
+const unsigned int max_raw_message_size = 12288;
+const bool debugging_mode = true;
 const string message_broker_name = "localhost";
+
+extern time_point<steady_clock> start_time;
+extern unsigned int packets_processed;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

@@ -20,7 +20,6 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     communicator.send(cmd);
 }
 
-
 void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& rp)
 {
     // This is called on a response to a request made by onWebAppLOGIN.

@@ -110,6 +110,8 @@ vector<Receivable*> Communicator::receiveMessage(void)
 
 	for ( unsigned short i = 0; i < ready_for_recv.size(); i++ )
 	{
+	    // We receive only one message. epoll works level-triggered here, so we receive the
+	    // second one immediately.
 	    if ( getSocketType(ready_for_recv[0]) == connectionType::UNIX )
 		return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
 	    else if (getSocketType(ready_for_recv[1]) == connectionType::INET )
@@ -142,6 +144,7 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
 
+    packets_processed++;
     if ( sock == unix_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
     else if ( sock == unix_persistence_sock )
@@ -157,6 +160,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
 
+    packets_processed++;
     if ( sock == inet_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
     else if ( sock == inet_persistence_sock )
@@ -175,6 +179,8 @@ void Communicator::send(const PersistenceLayerCommand& cmd)
 	unix_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address);
     else
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const PersistenceLayerCommand&): No working socket for persistence.");
+
+    packets_processed++;
 }
 
 void Communicator::send(const WebappResponse& cmd)
@@ -185,6 +191,8 @@ void Communicator::send(const WebappResponse& cmd)
 	inet_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address, webapp_connection_info.port);
     else
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const WebappResponse&): No working socket for webapp.");
+
+    packets_processed++;
 }
 
 void Communicator::send(const MessageForRelay& cmd)
@@ -196,5 +204,6 @@ void Communicator::send(const MessageForRelay& cmd)
     else
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const MessageForRelay&): No working socket for message relay.");
 
+    packets_processed++;
 }
 

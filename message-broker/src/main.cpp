@@ -28,12 +28,26 @@ void initMessageBroker(void)
 {
     initializeGlobalSequenceNumber();
     initializeUrandomSource();
+    packets_processed = 0;
 }
 
-void communicator_example(void);
+/**
+ * @brief Calculate processed messages per second since start.
+ * 
+ * "Processed messages" means all protocol requests and responses received and sent by us.
+ */
+double messagesPerSec(void)
+{
+    using namespace std::chrono;
+    unsigned long long duration = duration_cast<milliseconds>(steady_clock::now() - start_time).count();
+
+    return (static_cast<double>(packets_processed) / duration);
+}
+
 
 int main(int argc, char** argv)
 {
+    start_time = steady_clock::now();
     // Only one thread yet.
     initMessageBrokerThread();
     initMessageBroker();
@@ -47,22 +61,4 @@ int main(int argc, char** argv)
     }
 
     return 0;
-}
-
-void communicator_example(void)
-{
-    Communicator c;
-
-    vector<Receivable*> v = c.receiveMessage();
-
-    if ( v.size() > 0 )
-    {
-	if ( v[0]->sender == MessageOrigin::fromWebApp )
-	{
-	    WebappRequest* x = dynamic_cast<WebappRequest*>(v[0]);
-	    std::cout << x->sequence_number;
-	    std::cout << x->user << x->password;
-	    std::cout << "\n";
-	}
-    }
 }
