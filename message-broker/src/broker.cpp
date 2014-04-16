@@ -8,6 +8,7 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
 {
     OutstandingTransaction transaction;
 
+    // Next packet for this transaction is CHKDPASS.
     transaction.type = OutstandingType::persistenceCHKDPASS;
     transaction.original_sequence_number = rq.sequence_number;
 
@@ -26,6 +27,12 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 
     sequence_t seqnum = rp.sequence_number;
     OutstandingTransaction& transaction = transactions[seqnum];
+
+    if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
+    {
+	transactions.erase(seqnum);
+	return;
+    }
 
     if ( transaction.type != OutstandingType::persistenceCHKDPASS )
 	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceCHKDPASS: Expected transaction.type to be persistenceCHKDPASS.");
@@ -55,6 +62,25 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
     }
 }
 
+void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
+{
+    sequence_t seqnum = rp.sequence_number;
+
+    OutstandingTransaction& transaction = transactions[seqnum];
+
+    if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
+    {
+	transactions.erase(seqnum);
+	return;
+    }
+
+    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status);
+
+    communicator.send(resp);
+
+    transactions.erase(seqnum);
+}
+
 void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 {
     // We have received an ULKDUP response. What do we do next?
@@ -63,6 +89,12 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     // This (rp) is an answer. Someone did send a request; what transaction was it?
     OutstandingTransaction& transaction = transactions[seqnum];
+
+    if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
+    {
+	transactions.erase(seqnum);
+	return;
+    }
 
     // We are in the process of sending a message and we just received information on the sender.
     // Is the sender authorized? If yes, ask for the receiver's information and return. If not,
@@ -112,11 +144,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	} else
 	{
 	    // send to persistence
-	    transaction.type = OutstandingType::persistenceMSGSVD;
 	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
 
 	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message);
 
+	    transaction.type = OutstandingType::persistenceMSGSVD;
 	    transactions[cmd.sequence_number] = transaction;
 	    transactions.erase(seqnum);
 
@@ -132,6 +164,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	transactions.erase(seqnum);
 
 	communicator.send(resp);
-    }
+    } else
+	throw BrokerError(ErrorType::genericImplementationError,"Unhandled transaction type in onPersistenceULKDUP.");
 
 }

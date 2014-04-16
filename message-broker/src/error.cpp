@@ -37,6 +37,12 @@ string BrokerError::toString(void)
 	case ErrorType::unimplemented
 	    : error_type_str = "UNIMPLEMENTED: ";
 	    break;
+	case ErrorType::genericImplementationError
+	    : error_type_str = "genericImplementationError: ";
+	    break;
+	case ErrorType::ipcError
+	    : error_type_str = "IPC error: ";
+	    break;
 	default: error_type_str = "Unknown error: ";
     }
 

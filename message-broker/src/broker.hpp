@@ -9,6 +9,7 @@ using std::unordered_map;
 # include "persistent.hpp"
 # include "message-relay.hpp"
 # include "ipc.hpp"
+# include "error.hpp"
 
 class OutstandingTransaction;
 

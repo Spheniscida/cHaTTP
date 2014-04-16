@@ -4,6 +4,8 @@
 # include "error.hpp"
 # include "webapp-proto.hpp"
 # include "ipc.hpp"
+# include "broker-util.hpp"
+# include "broker.hpp"
 
 /**
  * @brief Initialize Message Broker thread.
@@ -25,6 +27,7 @@ void initMessageBrokerThread(void)
 void initMessageBroker(void)
 {
     initializeGlobalSequenceNumber();
+    initializeUrandomSource();
 }
 
 void communicator_example(void);
@@ -37,7 +40,7 @@ int main(int argc, char** argv)
 
     // This is only testing yet.
     try {
-	BrokerSettings b;
+	//BrokerSettings b;
     } catch (BrokerError e)
     {
 	std::cerr << e.toString();
