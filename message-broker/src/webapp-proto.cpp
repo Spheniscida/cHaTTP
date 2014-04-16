@@ -111,8 +111,8 @@ void WebappRequest::parseWebappRequest(const string& request)
 
 /****************************** Responses *******************************/
 
-WebappResponse::WebappResponse(WebappResponseCode type, bool response_status, const string& response_data)
-    : sequence_number(getNewSequenceNumber()),
+WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status, const string& response_data)
+    : sequence_number(seq_num),
       response_type(type),
       status(response_status)
 {
