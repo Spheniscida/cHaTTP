@@ -62,11 +62,11 @@ in the database. A future extension may include the actual reason for an error i
 ### User log-out
 
     # Request
-    <seqn> LOGOUT <user name>
+    <seqn> LOGOUT <user name> <channel id>
     # Response
-    <seqn> LGDOUT
+    <seqn> LGDOUT {OK|FAIL}
 
-Marks a user as offline. This command SHALL succeed in any case.
+Marks a user as offline. The channel id makes it hard for others to render a foreign session invalid.
 
 ### Send message
 
