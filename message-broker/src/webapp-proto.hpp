@@ -65,7 +65,7 @@ public:
     /// for UREG, LOGIN
     string password;
 
-    /// for SNDMSG
+    /// for SNDMSG, LOGOUT
     channel_id_t channel_id;
     /// for SNDMSG
     string dest_user;

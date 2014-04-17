@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(message_relay_parser1)
     try {
 	MessageRelayResponse resp("27272\nMSGSNT\nOK");
 
-	BOOST_CHECK_EQUAL(resp.seq_num,27272);
+	BOOST_CHECK_EQUAL(resp.sequence_number,27272);
 	BOOST_CHECK_EQUAL(resp.status,true);
     } catch (BrokerError e)
     {
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(message_relay_parser2)
     try {
 	MessageRelayResponse resp("23876123\nMSGSNT\nFAIL");
 
-	BOOST_CHECK_EQUAL(resp.seq_num,23876123);
+	BOOST_CHECK_EQUAL(resp.sequence_number,23876123);
 	BOOST_CHECK_EQUAL(resp.status,false);
     } catch (BrokerError e)
     {
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(receivable_correct_senders_in_messages)
 {
     PersistenceLayerResponse pr("823\nUREGD\nOK");
     MessageRelayResponse mrr("677\nMSGSNT\nOK");
-    WebappRequest wr("78\nLOGOUT\nusr");
+    WebappRequest wr("78\nLOGOUT\nusr\nashjgasdjghaksdgauzed");
 
     BOOST_CHECK(pr.sender == MessageOrigin::fromPersistence);
     BOOST_CHECK(mrr.sender == MessageOrigin::fromMessageRelay);

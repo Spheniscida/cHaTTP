@@ -95,13 +95,21 @@ void WebappRequest::parseWebappRequest(const string& request)
 	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user or password field.");
 
 	return;
-    } else if ( request_type == WebappRequestCode::isOnline || request_type == WebappRequestCode::logOut )
+    } else if ( request_type == WebappRequestCode::isOnline )
     {
 	rqstream >> user;
 
 	if ( user.empty() )
 	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user field.");
 
+	return;
+    } else if ( request_type == WebappRequestCode::logOut )
+    {
+	rqstream >> user;
+	rqstream >> channel_id;
+
+	if ( user.empty() || channel_id.empty() )
+	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user or channel_id field.");
 	return;
     }
 
@@ -131,7 +139,7 @@ string WebappResponse::toString(void) const
 	case WebappResponseCode::acceptedMessage: ostr << "ACCMSG\n" << (status ? ok_code : "FAIL"); break;
 	case WebappResponseCode::isOnline: ostr << "UONL\n" << (status ? "Y" : "N"); break;
 	case WebappResponseCode::loggedIn: ostr << "LGDIN\n" << (status ? ok_code + "\n" + payload : fail_code); break;
-	case WebappResponseCode::loggedOut: ostr << "LGDOUT"; break;
+	case WebappResponseCode::loggedOut: ostr << "LGDOUT\n" << (status ? ok_code  : fail_code); break;
 	case WebappResponseCode::registeredUser: ostr << "UREGD\n" << (status ? ok_code : fail_code); break;
     }
 

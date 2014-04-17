@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(parse_login_request)
 BOOST_AUTO_TEST_CASE(parse_logout_request)
 {
     try {
-	WebappRequest rq("11765\nLOGOUT\ntestuser1");
+	WebappRequest rq("11765\nLOGOUT\ntestuser1\nbasdkjasdadaasdkuhdad");
 
 	BOOST_CHECK(rq.request_type == WebappRequestCode::logOut);
 	BOOST_CHECK_EQUAL(rq.user,"testuser1");
@@ -228,8 +228,8 @@ BOOST_AUTO_TEST_CASE(create_login_response2)
 BOOST_AUTO_TEST_CASE(create_logout_response)
 {
     try {
-	WebappResponse r(1,WebappResponseCode::loggedOut);
-	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDOUT");
+	WebappResponse r(1,WebappResponseCode::loggedOut,true);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDOUT\nOK");
 
     } catch (BrokerError e)
     {

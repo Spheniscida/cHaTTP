@@ -25,7 +25,7 @@ class MessageRelayResponse : public Receivable
 public:
     MessageRelayResponse(const string& response);
 
-    sequence_t seq_num;
+    sequence_t sequence_number;
     bool status;
 };
 

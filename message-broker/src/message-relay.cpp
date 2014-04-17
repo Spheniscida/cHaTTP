@@ -32,11 +32,11 @@ MessageRelayResponse::MessageRelayResponse ( const string& response )
 
     sender = MessageOrigin::fromMessageRelay;
 
-    response_stream >> seq_num;
+    response_stream >> sequence_number;
     response_stream >> response_type;
     response_stream >> response_status;
 
-    if ( seq_num == 0 )
+    if ( sequence_number == 0 )
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid sequence number.");
     if ( response_type != "MSGSNT" )
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid response type.");

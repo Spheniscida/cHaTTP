@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup)
 	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response.sequence_number,23987);
 	BOOST_CHECK_EQUAL(response.broker_name,"prod.spheniscida.de");
-	BOOST_CHECK_EQUAL(response.channel_name,"776ae45c");
+	BOOST_CHECK_EQUAL(response.channel_id,"776ae45c");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_offline)
 	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::lookedUpUser);
 	BOOST_CHECK_EQUAL(response.sequence_number,77129);
 	BOOST_CHECK(response.broker_name.empty());
-	BOOST_CHECK(response.channel_name.empty());
+	BOOST_CHECK(response.channel_id.empty());
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");

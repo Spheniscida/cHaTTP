@@ -98,36 +98,36 @@ Communicator::~Communicator (void)
 	delete unix_webapp_sock;
 }
 
-vector<Receivable*> Communicator::receiveMessage(void)
+vector<Receivable*> Communicator::receiveMessages(void)
 {
     epollset<libsocket::socket>::ready_socks ready_for_recv = e_set.wait();
 
-    unsigned short size = ready_for_recv.size();
+    unsigned short n_ready = ready_for_recv.size();
 
-    if ( size > 0 && size < 3 ) // Should be the most likely case
+    if ( n_ready > 0 && n_ready < 3 ) // Should be the most likely case
     {
-	vector<Receivable*> return_vec(ready_for_recv.size(),nullptr);
+	vector<Receivable*> return_vec(n_ready,nullptr);
 
-	for ( unsigned short i = 0; i < ready_for_recv.size(); i++ )
+	for ( unsigned short i = 0; i < n_ready; i++ )
 	{
 	    // We receive only one message. epoll works level-triggered here, so we receive the
 	    // second one immediately.
-	    if ( getSocketType(ready_for_recv[0]) == connectionType::UNIX )
+	    if ( getSocketType(ready_for_recv[i]) == connectionType::UNIX )
 		return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
-	    else if (getSocketType(ready_for_recv[1]) == connectionType::INET )
+	    else
 		return_vec[i] = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]));
 	}
 
 	return return_vec;
-    } else if ( size == 0 )
+    } else if ( n_ready == 0 )
     {
 	debug_log("epoll returned without any sockets.");
-	return receiveMessage(); // This is probably some spurious wake-up, so do another call...
+	return receiveMessages(); // This is probably some spurious wake-up, so do another call...
     } else
     {
 	std::ostringstream errmsg;
 
-	errmsg << "Communicator::receiveMessage: Unprepared for " << size << " ready sockets.";
+	errmsg << "Communicator::receiveMessage: Unprepared for " << n_ready << " ready sockets.";
 	throw BrokerError(ErrorType::ipcError,errmsg.str());
     }
 }
@@ -143,6 +143,9 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 {
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
+
+    if ( debugging_mode ) // string() is expensive
+	debug_log("Received message (unix): " + string(message_receiver_buffer));
 
     packets_processed++;
     if ( sock == unix_webapp_sock )
@@ -160,6 +163,9 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     memset(message_receiver_buffer,0,last_message_size);
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
 
+    if ( debugging_mode ) // string() is expensive
+	debug_log("Received message (inet): " + string(message_receiver_buffer));
+
     packets_processed++;
     if ( sock == inet_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
@@ -173,6 +179,9 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 
 void Communicator::send(const PersistenceLayerCommand& cmd)
 {
+    if ( debugging_mode ) // toString() is expensive
+	debug_log("Sent to Persistence Layer: " + cmd.toString());
+
     if ( inet_persistence_sock )
 	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
     else if ( unix_persistence_sock )
@@ -185,6 +194,9 @@ void Communicator::send(const PersistenceLayerCommand& cmd)
 
 void Communicator::send(const WebappResponse& cmd)
 {
+    if ( debugging_mode ) // toString() is expensive
+	debug_log("Sent to WebApp (response): " + cmd.toString());
+
     if ( unix_webapp_sock )
 	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);
     else if ( inet_webapp_sock )
@@ -197,6 +209,9 @@ void Communicator::send(const WebappResponse& cmd)
 
 void Communicator::send(const MessageForRelay& cmd)
 {
+    if ( debugging_mode ) // toString() is expensive
+	debug_log("Sent to Message relay: " + cmd.toString());
+
     if ( unix_msgrelay_sock )
 	unix_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address);
     else if ( inet_msgrelay_sock )

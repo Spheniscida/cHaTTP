@@ -13,7 +13,7 @@ using std::unordered_map;
 
 class OutstandingTransaction;
 
-// NOTE: Introduce locks (mutexes) for multithreaded operation!
+// NOTE: Introduce locks (mutexes) for multithreaded operation! (respectively atomicity for ints)
 extern unordered_map<sequence_t,OutstandingTransaction> transactions;
 extern unordered_map<sequence_t,WebappRequest> webapp_requests;
 
@@ -29,13 +29,26 @@ public:
 
     void dispatch(void);
 
+    void onWebAppUREG(const WebappRequest& rq);
     void onWebAppLOGIN(const WebappRequest& rq);
+    void onWebAppLOGOUT(const WebappRequest& rq);
+    void onWebAppSNDMSG(const WebappRequest& rq);
+    void onWebAppUONLQ(const WebappRequest& rq);
+    void onPersistenceUREGD(const PersistenceLayerResponse& rp);
     void onPersistenceCHKDPASS(const PersistenceLayerResponse& rp);
     void onPersistenceLGDIN(const PersistenceLayerResponse& rp);
+    void onPersistenceLGDOUT(const PersistenceLayerResponse& rp);
     void onPersistenceULKDUP(const PersistenceLayerResponse& rp);
+    void onPersistenceMSGSVD(const PersistenceLayerResponse& rp);
+    void onPersistenceMSGS(const PersistenceLayerResponse& rp);
+    void onMessagerelayMSGSNT(const MessageRelayResponse& rp);
 
 private:
     Communicator communicator;
+
+    void handlePersistenceMessage(Receivable* msg);
+    void handleWebappMessage(Receivable* msg);
+    void handleMessagerelayMessage(Receivable* msg);
 };
 
 enum class OutstandingType {
@@ -43,10 +56,15 @@ enum class OutstandingType {
     persistenceCHKDPASS,
     persistenceLGDIN,
 
+    // for logouts
+    persistenceLGDOUT,
+
     // for ULKDUP
     persistenceSndmsgSenderULKDUP,
     persistenceSndmsgReceiverULKDUP,
     persistenceUonlqULKDUP,
+    persistenceLogoutULKDUP,
+    persistenceUREGD,
 
     // for MSGSV
     persistenceMSGSVD,
@@ -62,7 +80,7 @@ class OutstandingTransaction
 {
 public:
     OutstandingType type;
-    /// References another transaction, e.g. a SNDMSG request from the web application.
+    /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;
 };
 

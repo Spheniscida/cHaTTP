@@ -56,7 +56,7 @@ public:
     // Fields for Lookup Responses.
     bool online;
     string broker_name;
-    string channel_name;
+    string channel_id;
 
     // Field for message retrieval responses.
     vector<string> messages;

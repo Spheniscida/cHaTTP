@@ -95,9 +95,9 @@ void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
 	if ( status && online ) // Additional information is only present when status is "OK"
 	{
 	    response >> broker_name;
-	    response >> channel_name;
+	    response >> channel_id;
 
-	    if ( broker_name.empty() || channel_name.empty() )
+	    if ( broker_name.empty() || channel_id.empty() )
 	    {
 		throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: type was ULKDUP; however, broker and/or channel could not be retrieved");
 	    }

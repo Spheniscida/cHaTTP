@@ -25,23 +25,23 @@ string BrokerError::toString(void)
 
     switch ( type )
     {
-	case ErrorType::configurationError
-	    : error_type_str = "configurationError: ";
+	case ErrorType::configurationError:
+	    error_type_str = "configurationError: ";
 	    break;
-	case ErrorType::argumentError
-	    : error_type_str = "argumentError: ";
+	case ErrorType::argumentError:
+	    error_type_str = "argumentError: ";
 	    break;
-	case ErrorType::protocolError
-	    : error_type_str = "protocolError: ";
+	case ErrorType::protocolError:
+	    error_type_str = "protocolError: ";
 	    break;
-	case ErrorType::unimplemented
-	    : error_type_str = "UNIMPLEMENTED: ";
+	case ErrorType::unimplemented:
+	    error_type_str = "UNIMPLEMENTED: ";
 	    break;
-	case ErrorType::genericImplementationError
-	    : error_type_str = "genericImplementationError: ";
+	case ErrorType::genericImplementationError:
+	    error_type_str = "genericImplementationError: ";
 	    break;
-	case ErrorType::ipcError
-	    : error_type_str = "IPC error: ";
+	case ErrorType::ipcError:
+	    error_type_str = "IPC error: ";
 	    break;
 	default: error_type_str = "Unknown error: ";
     }

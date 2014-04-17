@@ -33,7 +33,7 @@ void initMessageBroker(void)
 
 /**
  * @brief Calculate processed messages per second since start.
- * 
+ *
  * "Processed messages" means all protocol requests and responses received and sent by us.
  */
 double messagesPerSec(void)
