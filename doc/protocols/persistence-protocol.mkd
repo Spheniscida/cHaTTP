@@ -39,6 +39,8 @@ The persistence layer is configured using the following environment variables:
 * `CHATTP_REDIS_FAMILY` - ("UNIX"/"INET") How to connect to redis.
 * `CHATTP_REDIS_ADDR` - Redis' hostname / socket path.
 * `CHATTP_REDIS_PORT` - Redis' port,  mpty if using UNIX domain.
+* `CHATTP_MSGBROKER_PERSISTENCE_BIND_ADDR` - The address of the message broker which should be used by the persistence layer.
+* `CHATTP_MSGBROKER_PERSISTENCE_BIND_PORT` - The port of the message broker.
 
 ## Command types
 

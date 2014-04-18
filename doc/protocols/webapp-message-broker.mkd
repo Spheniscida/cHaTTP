@@ -68,6 +68,8 @@ in the database. A future extension may include the actual reason for an error i
 
 Marks a user as offline. The channel id makes it hard for others to render a foreign session invalid.
 
+Fails if user is already offline or user name and channel id mismatch.
+
 ### Send message
 
     # Request
