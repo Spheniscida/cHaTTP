@@ -4,6 +4,13 @@
 unordered_map<sequence_t,OutstandingTransaction> transactions;
 unordered_map<sequence_t,WebappRequest> webapp_requests;
 
+/**
+ * @brief Receive and process incoming messages.
+ *
+ * This function receives incoming messages and gives them to the appropriate handlers for each protocol event. It's
+ * just a single infinite loop.
+ *
+ */
 void ProtocolDispatcher::dispatch(void)
 {
     vector<Receivable*> received_messages;
@@ -44,7 +51,6 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<Receivable> msg)
     if ( ! response )
 	throw BrokerError(ErrorType::genericImplementationError,"handlePersistenceMessage(): Expected type PersistenceLayerResponse, but dynamic_cast failed.");
 
-    // TODO: Rearrange items for performance?
     switch ( response->response_type )
     {
 	case PersistenceLayerResponseCode::lookedUpUser:
@@ -153,6 +159,8 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
     transactions[cmd.sequence_number] = transaction;
     webapp_requests[rq.sequence_number] = rq;
+
+    communicator.send(cmd);
 }
 
 void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
@@ -223,7 +231,8 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
     if ( transaction.type != OutstandingType::persistenceCHKDPASS )
 	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceCHKDPASS: Expected transaction.type to be persistenceCHKDPASS.");
 
-    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
+    // No const for modifying channel_id.
+    WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
 
     // Password/user incorrect?
     if ( rp.status == false )
@@ -236,8 +245,14 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 	webapp_requests.erase(original_webapp_request.sequence_number);
     } else
     {
-	string channel_id = generateChannelId();
+	channel_id_t channel_id = generateChannelId();
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::logIn,original_webapp_request.user,message_broker_name,channel_id);
+
+	/* Here, we're doing something which is not very clean: We save the channel id in the "original" webapp request
+	 * although that didn't actually bear a channel id. However, this is necessary so the onPersistenceLGDIN() handler
+	 * may reply with a sequence number.
+	 */
+	original_webapp_request.channel_id = channel_id;
 
 	transaction.type = OutstandingType::persistenceLGDIN;
 	transactions[cmd.sequence_number] = transaction;
@@ -259,10 +274,13 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status);
+    channel_id_t channel_id = webapp_requests[transaction.original_sequence_number].channel_id;
+
+    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,channel_id);
 
     communicator.send(resp);
 
+    webapp_requests.erase(seqnum);
     transactions.erase(seqnum);
 }
 
