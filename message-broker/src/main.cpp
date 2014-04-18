@@ -54,7 +54,12 @@ int main(int argc, char** argv)
 
     // This is only testing yet.
     try {
-	//BrokerSettings b;
+	BrokerSettings b;
+
+	ProtocolDispatcher dispatcher;
+
+	dispatcher.dispatch();
+
     } catch (BrokerError e)
     {
 	std::cerr << e.toString();
