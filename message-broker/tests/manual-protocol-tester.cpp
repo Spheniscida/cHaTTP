@@ -40,11 +40,11 @@ void persistenceDummy(void)
     } else // parent -- receiving, writing to stdout
     {
 	std::string mesg, src;
-	mesg.resize(2048);
 	src.resize(0);
 
 	while ( true )
 	{
+	    mesg.resize(2048);
 	    sock.rcvfrom(mesg,src);
 
 	    std::for_each(mesg.begin(),mesg.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
@@ -79,11 +79,11 @@ void webappDummy(void)
     } else // parent -- receiving, writing to stdout
     {
 	std::string mesg, src;
-	mesg.resize(2048);
 	src.resize(0);
 
 	while ( true )
 	{
+	    mesg.resize(2048);
 	    sock.rcvfrom(mesg,src);
 
 	    std::for_each(mesg.begin(),mesg.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
@@ -118,11 +118,11 @@ void messagerelayDummy(void)
     } else // parent -- receiving, writing to stdout
     {
 	std::string mesg, src;
-	mesg.resize(2048);
 	src.resize(0);
 
 	while ( true )
 	{
+	    mesg.resize(2048);
 	    sock.rcvfrom(mesg,src);
 
 	    std::for_each(mesg.begin(),mesg.end(),[](char& c) { c == '\n' ? c = ' ' : c; });

@@ -104,33 +104,20 @@ vector<Receivable*> Communicator::receiveMessages(void)
 
     unsigned short n_ready = ready_for_recv.size();
 
-    if ( n_ready > 0 && n_ready < 3 ) // Should be the most likely case
-    {
-	// Those pointers are later handled by shared_ptr so we don't have to worry about memory leaks.
-	vector<Receivable*> return_vec(n_ready,nullptr);
+    // Those pointers are later handled by shared_ptr so we don't have to worry about memory leaks.
+    vector<Receivable*> return_vec(n_ready,nullptr);
 
-	for ( unsigned short i = 0; i < n_ready; i++ ) // Most likely: n_ready == 1
-	{
-	    // We receive only one message. epoll works level-triggered here, so we receive the
-	    // second one immediately on the next call to receiveMessages()
-	    if ( getSocketType(ready_for_recv[i]) == connectionType::UNIX )
-		return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
-	    else
-		return_vec[i] = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]));
-	}
-
-	return return_vec;
-    } else if ( n_ready == 0 )
+    for ( unsigned short i = 0; i < n_ready; i++ ) // Most likely: n_ready == 1
     {
-	debug_log("epoll returned without any sockets.");
-	return receiveMessages(); // This is probably some spurious wake-up, so do another call...
-    } else
-    {
-	std::ostringstream errmsg;
-
-	errmsg << "Communicator::receiveMessage: Unprepared for " << n_ready << " ready sockets.";
-	throw BrokerError(ErrorType::ipcError,errmsg.str());
+	// We receive only one message. epoll works level-triggered here, so we receive the
+	// second one immediately on the next call to receiveMessages()
+	if ( getSocketType(ready_for_recv[i]) == connectionType::UNIX )
+	    return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
+	else
+	    return_vec[i] = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]));
     }
+
+    return return_vec; // return_vec.size() may be 0
 }
 
 connectionType Communicator::getSocketType(libsocket::socket* sock)
