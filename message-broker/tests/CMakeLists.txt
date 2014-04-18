@@ -18,6 +18,10 @@ set(wasrc
 web-app.cpp
 )
 
+set(manualsrc
+manual-protocol-tester.cpp
+)
+
 find_library(boost_test_lib "boost_unit_test_framework")
 
 add_executable(persistence-protocol ${persistsrc})
@@ -28,6 +32,9 @@ target_link_libraries(misc-test msg_broker_lib ${boost_test_lib})
 
 add_executable(webapp-test ${wasrc})
 target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib})
+
+add_executable(manual-test ${manualsrc})
+target_link_libraries(manual-test msg_broker_lib socket++)
 
 # Tests
 
