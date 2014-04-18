@@ -195,6 +195,7 @@ void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
@@ -217,6 +218,7 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
@@ -256,6 +258,7 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
@@ -278,6 +281,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
@@ -392,6 +396,7 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
     if ( ! transaction.original_sequence_number )
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
@@ -413,6 +418,13 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
     sequence_t seqnum = rp.sequence_number;
 
     OutstandingTransaction& transaction = transactions[seqnum];
+
+    if ( ! transaction.original_sequence_number )
+    {
+	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (Persistence)");
+	return;
+    }
 
     const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
 
@@ -441,6 +453,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
     if ( ! transaction.original_sequence_number )
     {
 	transactions.erase(seqnum);
+	debug_log("Received dangling transaction reference. (message relay)");
 	return;
     }
 

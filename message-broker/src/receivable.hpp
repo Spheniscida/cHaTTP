@@ -1,6 +1,8 @@
 # ifndef RECEIVABLE_HPP
 # define RECEIVABLE_HPP
 
+# include "error.hpp"
+
 enum class MessageOrigin {
     fromWebApp,
     fromMessageRelay,

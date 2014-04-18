@@ -1,4 +1,9 @@
 # include "error.hpp"
+# include <algorithm>
+# include <iostream>
+
+using std::cerr;
+using std::for_each;
 
 /**
  * @brief Constructor
@@ -49,4 +54,14 @@ string BrokerError::toString(void)
     full_message = error_type_str + error_message + "\n";
 
     return full_message;
+}
+
+void debug_log(const string& msg)
+{
+    if ( debugging_mode )
+    {
+	string without_newlines = msg;
+	for_each(without_newlines.begin(),without_newlines.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
+	cerr << "DBG : " << without_newlines << std::endl;
+    }
 }
