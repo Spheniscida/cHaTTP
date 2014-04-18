@@ -28,9 +28,9 @@ Communicator::Communicator (void)
 {
     BrokerSettings settings;
 
-    persistence_connection_info.type = settings.getPersistenceLayerBindAddress().type;
-    msgrelay_connection_info.type = settings.getMessageRelayBindAddress().type;
-    webapp_connection_info.type = settings.getWebappBindAddress().type;
+    persistence_connection_info = settings.getPersistenceLayerAddress();
+    msgrelay_connection_info = settings.getMessageRelayAddress();
+    webapp_connection_info = settings.getWebappAddress();
 
     try {
 	if ( persistence_connection_info.type == connectionType::UNIX )
@@ -106,12 +106,13 @@ vector<Receivable*> Communicator::receiveMessages(void)
 
     if ( n_ready > 0 && n_ready < 3 ) // Should be the most likely case
     {
+	// Those pointers are later handled by shared_ptr so we don't have to worry about memory leaks.
 	vector<Receivable*> return_vec(n_ready,nullptr);
 
-	for ( unsigned short i = 0; i < n_ready; i++ )
+	for ( unsigned short i = 0; i < n_ready; i++ ) // Most likely: n_ready == 1
 	{
 	    // We receive only one message. epoll works level-triggered here, so we receive the
-	    // second one immediately.
+	    // second one immediately on the next call to receiveMessages()
 	    if ( getSocketType(ready_for_recv[i]) == connectionType::UNIX )
 		return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
 	    else
