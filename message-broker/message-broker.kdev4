@@ -1,0 +1,4 @@
+[Project]
+Name=message-broker
+Manager=KDevCMakeManager
+VersionControl=

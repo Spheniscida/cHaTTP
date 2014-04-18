@@ -1,0 +1,27 @@
+# message-broker
+
+This is the asynchronous cHaTTP message broker.
+
+## Build process
+
+Build this application using these commands:
+
+    cmake CMakeLists.txt
+    make [-jx] # with x build processes in parallel
+
+### Dependencies
+
+You will need the `pthread` and the `libsocket` library. The former should already exist on your
+system, the latter may be obtained from [github](https://github.com/dermesser/libsocket)
+
+This sub-project uses unit testing to avoid implementation errors. For the tests to work, you
+have to install the Boost test framework and its headers (e.g. libboost-test1.55-dev in Debian).
+
+To build the unit tests (`tests/test-main.cpp`), pass the following switch to CMake: `-Dunit_test=1`
+
+## Documentation
+
+Build the documentation (if you have graphviz available) using doxygen and the `doxyconf`
+configuration file.
+
+Otherwise, there should be a current version available on-line [here](http://lbo.spheniscida.de/doc/cHaTTP/message-broker/).
