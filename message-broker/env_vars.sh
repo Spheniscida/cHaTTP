@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Message broker configuration.
-# May also used to initialize other parts of cHaTTP
+# May also used to initialize other parts of cHaTTP.
+# Just source this script (`source env_vars.sh`)
 
 export CHATTP_WEBAPP_ADDR="/tmp/path"
 export CHATTP_WEBAPP_FAMILY="UNIX"
