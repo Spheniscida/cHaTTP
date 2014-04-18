@@ -9,6 +9,11 @@ void initializeUrandomSource(void)
 
 std::string generateChannelId(void)
 {
+    // If someone forgets to initialize the file. Not used yet.
+    /*
+    if ( ! urandom.is_open() )
+	initializeUrandomSource();
+    */
     char channel_id[65];
 
     channel_id[64] = 0;

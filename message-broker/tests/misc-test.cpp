@@ -10,6 +10,7 @@
 # include <sequence-number.hpp>
 # include <message-relay.hpp>
 # include <webapp-proto.hpp>
+# include <broker-util.hpp>
 
 /*
  * For parts of the program that are not important enough to have a dedicated
@@ -94,6 +95,21 @@ BOOST_AUTO_TEST_CASE(receivable_correct_senders_in_messages)
     BOOST_CHECK(pr.sender == MessageOrigin::fromPersistence);
     BOOST_CHECK(mrr.sender == MessageOrigin::fromMessageRelay);
     BOOST_CHECK(wr.sender == MessageOrigin::fromWebApp);
+}
+
+BOOST_AUTO_TEST_CASE(channel_id_length)
+{
+    initializeUrandomSource();
+    string chanid(generateChannelId());
+
+    BOOST_CHECK_EQUAL(chanid.size(),64);
+}
+
+BOOST_AUTO_TEST_CASE(channel_id_difference)
+{
+    string chanid1(generateChannelId()), chanid2(generateChannelId());
+
+    BOOST_CHECK_NE(chanid1,chanid2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -18,26 +18,28 @@ void ProtocolDispatcher::dispatch(void)
 	{
 	    switch ( received_messages[i]->sender )
 	    {
+		// shared_ptr -- because the delivered message is dynamically allocated.
 		case MessageOrigin::fromPersistence:
-		    handlePersistenceMessage(received_messages[i]);
+		    handlePersistenceMessage(shared_ptr<Receivable>(received_messages[i]));
 		    break;
 		case MessageOrigin::fromWebApp:
-		    handleWebappMessage(received_messages[i]);
+		    handleWebappMessage(shared_ptr<Receivable>(received_messages[i]));
 		    break;
 		case MessageOrigin::fromMessageRelay:
-		    handleMessagerelayMessage(received_messages[i]);
+		    handleMessagerelayMessage(shared_ptr<Receivable>(received_messages[i]));
 		    break;
 		default:
 		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
 	    }
+	    // Shared pointers are destroyed automatically until control is here.
 	}
     }
 }
 /***************************** Message handlers ****************************/
 
-void ProtocolDispatcher::handlePersistenceMessage(Receivable* msg)
+void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<Receivable> msg)
 {
-    PersistenceLayerResponse* response = dynamic_cast<PersistenceLayerResponse*>(msg);
+    shared_ptr<PersistenceLayerResponse> response = dynamic_pointer_cast<PersistenceLayerResponse>(msg);
 
     if ( ! response )
 	throw BrokerError(ErrorType::genericImplementationError,"handlePersistenceMessage(): Expected type PersistenceLayerResponse, but dynamic_cast failed.");
@@ -68,9 +70,9 @@ void ProtocolDispatcher::handlePersistenceMessage(Receivable* msg)
     }
 }
 
-void ProtocolDispatcher::handleWebappMessage(Receivable* msg)
+void ProtocolDispatcher::handleWebappMessage(shared_ptr<Receivable> msg)
 {
-    WebappRequest* request = dynamic_cast<WebappRequest*>(msg);
+    shared_ptr<WebappRequest> request = dynamic_pointer_cast<WebappRequest>(msg);
 
     if ( ! request )
 	throw BrokerError(ErrorType::genericImplementationError,"handleWebappMessage(): Expected type WebappRequest, but dynamic_cast failed.");
@@ -95,9 +97,9 @@ void ProtocolDispatcher::handleWebappMessage(Receivable* msg)
     }
 }
 
-void ProtocolDispatcher::handleMessagerelayMessage(Receivable* msg)
+void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<Receivable> msg)
 {
-    MessageRelayResponse* response = dynamic_cast<MessageRelayResponse*>(msg);
+    shared_ptr<MessageRelayResponse> response = dynamic_pointer_cast<MessageRelayResponse>(msg);
 
     if ( ! response )
 	throw BrokerError(ErrorType::genericImplementationError,"handleMessagerelayMessage(): Expected type MessageRelayResponse, but dynamic_cast failed.");

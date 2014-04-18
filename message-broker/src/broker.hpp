@@ -2,8 +2,11 @@
 # define BROKER_HPP
 
 # include <unordered_map>
+# include <memory>
 
+using std::shared_ptr;
 using std::unordered_map;
+using std::dynamic_pointer_cast;
 
 # include "webapp-proto.hpp"
 # include "persistent.hpp"
@@ -46,9 +49,9 @@ public:
 private:
     Communicator communicator;
 
-    void handlePersistenceMessage(Receivable* msg);
-    void handleWebappMessage(Receivable* msg);
-    void handleMessagerelayMessage(Receivable* msg);
+    void handlePersistenceMessage(std::shared_ptr< Receivable > msg);
+    void handleWebappMessage(std::shared_ptr<Receivable> msg);
+    void handleMessagerelayMessage(std::shared_ptr< Receivable > msg);
 };
 
 enum class OutstandingType {
