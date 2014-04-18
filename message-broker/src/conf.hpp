@@ -69,7 +69,6 @@ private:
     connectionInformation webapp_bind_info;
 
     connectionInformation extractConnInfo(const char* addr_var, const char* family_var, const char* port_var);
-    bool checkSanity(void);
 };
 
 # endif

@@ -85,8 +85,3 @@ connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, con
 
     return conninfo;
 }
-
-bool BrokerSettings::checkSanity (void)
-{
-    return true;
-}
