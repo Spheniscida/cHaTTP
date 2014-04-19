@@ -183,7 +183,7 @@ void Communicator::send(const PersistenceLayerCommand& cmd)
 void Communicator::send(const WebappResponse& cmd)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log<string>("Sent to WebApp (response): " + cmd.toString());
+	debug_log("Sent to WebApp (response): " + cmd.toString());
 
     if ( unix_webapp_sock )
 	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);

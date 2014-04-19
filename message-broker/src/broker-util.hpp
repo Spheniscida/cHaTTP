@@ -17,21 +17,22 @@ extern std::fstream urandom;
 void vDebugWrite(void);
 
 template<typename T>
-void removeStringNewlines(T arg)
+const T removeStringNewlines(const T arg)
 {
-    return;
+    return arg;
 }
+
 template<>
-void removeStringNewlines(string& msg);
+const string removeStringNewlines(const string orig_msg);
 
 template<typename T>
-void vDebugWrite(T arg)
+void vDebugWrite(const T arg)
 {
-    std::cerr << arg << std::endl;
+    std::cerr << removeStringNewlines(arg) << std::endl;
 }
 
 template<typename T, typename ... Ts>
-void vDebugWrite(T arg, Ts ... args)
+void vDebugWrite(const T arg, const Ts ... args)
 {
     std::cerr << removeStringNewlines(arg);
     vDebugWrite(args...);

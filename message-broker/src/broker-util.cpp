@@ -33,7 +33,11 @@ void vDebugWrite(void)
     return;
 }
 
-void removeStringNewlines(string& msg)
+template<>
+const string removeStringNewlines(const string orig_msg)
 {
+    string msg = orig_msg;
     for_each(msg.begin(),msg.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
+
+    return msg;
 }
