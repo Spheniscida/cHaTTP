@@ -3,6 +3,7 @@
 
 # include <string>
 # include <chrono>
+# include <atomic>
 
 using std::string;
 using std::chrono::time_point;
@@ -12,11 +13,18 @@ using std::chrono::steady_clock;
 const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
 const unsigned int max_raw_message_size = 12288;
+
+extern thread_local unsigned int thread_id;
+
 const bool debugging_mode = true;
+
+
 const string message_broker_name = "localhost";
 
+const unsigned int number_of_threads = 4;
+
 extern time_point<steady_clock> start_time;
-extern unsigned int packets_processed;
+extern std::atomic<unsigned int> packets_processed;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

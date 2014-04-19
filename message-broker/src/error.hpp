@@ -3,6 +3,7 @@
 
 # include "conf.hpp"
 # include "broker-util.hpp"
+# include "synchronization.hpp"
 
 # include <string>
 
@@ -38,9 +39,16 @@ struct BrokerError
     string error_message;
 };
 
+/**
+ * @brief Synchronized debugging output.
+ *
+ * debug_log() uses a mutex to control access to stdout.
+ */
 template<typename ... Ts>
 void debug_log(Ts... args)
 {
+    lock_guard<mutex> output_lock(output_mutex);
+
     std::cerr << "DBG : ";
     vDebugWrite(args...);
 }

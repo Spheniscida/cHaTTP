@@ -7,6 +7,8 @@
 # include "broker-util.hpp"
 # include "broker.hpp"
 
+# include "synchronization.hpp"
+
 /**
  * @brief Initialize Message Broker thread.
  *
@@ -44,13 +46,35 @@ double messagesPerSec(void)
     return (static_cast<double>(packets_processed) / duration);
 }
 
+void startThread(ProtocolDispatcher& dispatch, unsigned int tid)
+{
+    thread_id = tid;
+    initMessageBrokerThread();
+
+    while ( true )
+    {
+	try {
+	    dispatch.dispatch();
+	} catch (BrokerError e)
+	{
+	    debug_log(e.toString());
+	} catch (libsocket::socket_exception exc)
+	{
+	    debug_log(exc.mesg);
+	    // This is most probably only some error from sndto or rcvfrom -- log it and ignore it.
+// 	    throw exc;
+	}
+    }
+
+
+}
 
 int main(int argc, char** argv)
 {
     start_time = steady_clock::now();
     // Only one thread yet.
-    initMessageBrokerThread();
     initMessageBroker();
+    initMessageBrokerThread();
 
     // This is only testing yet.
     try {
@@ -58,11 +82,22 @@ int main(int argc, char** argv)
 
 	ProtocolDispatcher dispatcher;
 
-	dispatcher.dispatch();
+	for ( unsigned int i = 0; i < number_of_threads; i++ )
+	{
+	    // Thread id starts with 1.
+	    std::thread dispatcher_thread([&dispatcher,i]() -> void { startThread(dispatcher,i+1); });
+	    dispatcher_thread.detach();
+	}
+
+	// We are thread #0
+	startThread(dispatcher,0);
 
     } catch (BrokerError e)
     {
-	std::cerr << e.toString();
+	debug_log(e.toString());
+    } catch (libsocket::socket_exception exc)
+    {
+	debug_log(exc.mesg);
     }
 
     return 0;

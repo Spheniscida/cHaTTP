@@ -16,10 +16,6 @@ using std::dynamic_pointer_cast;
 
 class OutstandingTransaction;
 
-// NOTE: Introduce locks (mutexes) for multithreaded operation! (respectively atomicity for ints)
-extern unordered_map<sequence_t,OutstandingTransaction> transactions;
-extern unordered_map<sequence_t,WebappRequest> webapp_requests;
-
 /**
  * @brief Broker "main" class
  *
