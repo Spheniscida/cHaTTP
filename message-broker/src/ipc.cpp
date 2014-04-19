@@ -1,5 +1,6 @@
 # include "ipc.hpp"
 # include <cstring>
+# include <thread>
 
 using std::vector;
 
@@ -133,7 +134,7 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
 
     if ( debugging_mode ) // string() is expensive
-	debug_log("Received message (unix): " + string(message_receiver_buffer));
+	debug_log("tid ", thread_id," Received message (unix): " + string(message_receiver_buffer));
 
     packets_processed++;
     if ( sock == unix_webapp_sock )
@@ -152,7 +153,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
 
     if ( debugging_mode ) // string() is expensive
-	debug_log("Received message (inet): " + string(message_receiver_buffer));
+	debug_log("tid ", thread_id, " Received message (inet): " + string(message_receiver_buffer));
 
     packets_processed++;
     if ( sock == inet_webapp_sock )
