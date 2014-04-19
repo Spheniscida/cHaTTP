@@ -1,6 +1,5 @@
 # include "ipc.hpp"
 # include <cstring>
-# include <thread>
 
 using std::vector;
 
