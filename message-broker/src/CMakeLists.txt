@@ -11,6 +11,7 @@ ipc.cpp
 message-relay.cpp
 broker.cpp
 synchronization.cpp
+cache.cpp
 )
 
 set(execsrc

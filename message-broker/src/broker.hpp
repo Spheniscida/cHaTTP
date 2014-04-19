@@ -62,6 +62,7 @@ enum class OutstandingType {
     persistenceSndmsgSenderULKDUP,
     persistenceSndmsgReceiverULKDUP,
     persistenceUonlqULKDUP,
+    persistenceLoginULKDUP,
     persistenceLogoutULKDUP,
     persistenceUREGD,
 

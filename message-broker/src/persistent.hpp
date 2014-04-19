@@ -103,7 +103,7 @@ public:
     string toString(void) const;
     /// This one is initialized automatically. We need to expose it so the function using this class may store the generated
     /// sequence number.
-    const sequence_t sequence_number;
+    sequence_t sequence_number;
 private:
 
     PersistenceLayerCommandCode request_type;
