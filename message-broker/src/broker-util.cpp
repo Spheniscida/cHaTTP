@@ -27,3 +27,13 @@ std::string generateChannelId(void)
 
     return std::string(channel_id);
 }
+
+void vDebugWrite(void)
+{
+    return;
+}
+
+void removeStringNewlines(string& msg)
+{
+    for_each(msg.begin(),msg.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
+}

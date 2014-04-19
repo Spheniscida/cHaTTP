@@ -55,13 +55,3 @@ string BrokerError::toString(void)
 
     return full_message;
 }
-
-void debug_log(const string& msg)
-{
-    if ( debugging_mode )
-    {
-	string without_newlines = msg;
-	for_each(without_newlines.begin(),without_newlines.end(),[](char& c) { c == '\n' ? c = ' ' : 0; });
-	cerr << "DBG : " << without_newlines << std::endl;
-    }
-}

@@ -2,6 +2,8 @@
 # define ERROR_HPP
 
 # include "conf.hpp"
+# include "broker-util.hpp"
+
 # include <string>
 
 using std::string;
@@ -36,6 +38,11 @@ struct BrokerError
     string error_message;
 };
 
-extern void debug_log(const string& msg);
+template<typename ... Ts>
+void debug_log(Ts... args)
+{
+    std::cerr << "DBG : ";
+    vDebugWrite(args...);
+}
 
 # endif
