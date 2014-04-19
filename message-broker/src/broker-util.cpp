@@ -1,4 +1,9 @@
 # include "broker-util.hpp"
+# include "synchronization.hpp"
+
+# include <algorithm>
+
+using std::for_each;
 
 std::fstream urandom;
 
@@ -9,16 +14,13 @@ void initializeUrandomSource(void)
 
 std::string generateChannelId(void)
 {
-    // If someone forgets to initialize the file. Not used yet.
-    /*
-    if ( ! urandom.is_open() )
-	initializeUrandomSource();
-    */
     char channel_id[65];
 
     channel_id[64] = 0;
 
-    urandom.get(channel_id,64);
+    unique_lock<mutex> urandom_lock(urandom_mutex);
+	urandom.get(channel_id,64);
+    urandom_lock.unlock();
 
     for ( unsigned int i = 0; i < 64; i++ )
     {

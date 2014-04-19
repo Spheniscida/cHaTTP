@@ -3,6 +3,7 @@
 
 # include <string>
 # include <chrono>
+# include <atomic>
 
 using std::string;
 using std::chrono::time_point;
@@ -23,7 +24,7 @@ const string message_broker_name = "localhost";
 const unsigned int number_of_threads = 4;
 
 extern time_point<steady_clock> start_time;
-extern unsigned int packets_processed;
+extern std::atomic<unsigned int> packets_processed;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

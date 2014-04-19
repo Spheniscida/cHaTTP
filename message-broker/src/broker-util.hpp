@@ -4,9 +4,6 @@
 # include <string>
 # include <fstream>
 # include <iostream>
-# include <algorithm>
-
-using std::for_each;
 
 using std::string;
 
