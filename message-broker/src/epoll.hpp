@@ -141,7 +141,7 @@ namespace libsocket
 	struct epoll_event new_event;
 
 	new_event.data.ptr = 0; // ptr is the largest field in that union (8 bytes on amd64/ia64)
-	new_event.events = 0;
+	new_event.events = EPOLLET;
 
 	if ( method & LIBSOCKET_READ )
 	    new_event.events |= EPOLLIN;
