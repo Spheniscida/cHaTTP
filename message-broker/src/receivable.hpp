@@ -6,7 +6,8 @@
 enum class MessageOrigin {
     fromWebApp,
     fromMessageRelay,
-    fromPersistence
+    fromPersistence,
+    fromBroker
 };
 
 /**

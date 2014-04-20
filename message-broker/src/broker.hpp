@@ -41,13 +41,16 @@ public:
     void onPersistenceMSGSVD(const PersistenceLayerResponse& rp);
     void onPersistenceMSGS(const PersistenceLayerResponse& rp);
     void onMessagerelayMSGSNT(const MessageRelayResponse& rp);
+    void onB2BSNDMSG(const B2BIncoming& msg);
+    void onB2BMSGSNT(const B2BIncoming& msg);
 
 private:
     Communicator communicator;
 
-    void handlePersistenceMessage(std::shared_ptr< Receivable > msg);
-    void handleWebappMessage(std::shared_ptr<Receivable> msg);
-    void handleMessagerelayMessage(std::shared_ptr< Receivable > msg);
+    void handlePersistenceMessage(shared_ptr<Receivable> msg);
+    void handleWebappMessage(shared_ptr<Receivable> msg);
+    void handleMessagerelayMessage(shared_ptr<Receivable> msg);
+    void handleBrokerMessage(shared_ptr<Receivable> msg);
 };
 
 enum class OutstandingType {
@@ -70,7 +73,11 @@ enum class OutstandingType {
     persistenceMSGSVD,
 
     // for MSGSNT
-    messagerelayMSGSNT
+    messagerelayMSGSNT,
+    messagerelayB2BMSGSNT,
+
+    // b2b msgsnt
+    b2bMSGSNT
 };
 
 /**

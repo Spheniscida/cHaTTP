@@ -16,7 +16,6 @@
  */
 void initMessageBrokerThread(void)
 {
-    initWebappProtocolParser();
     initIPC();
 }
 
@@ -78,11 +77,9 @@ int main(int argc, char** argv)
 
     // This is only testing yet.
     try {
-	BrokerSettings b;
-
 	ProtocolDispatcher dispatcher;
 
-	for ( unsigned int i = 0; i < number_of_threads; i++ )
+	for ( unsigned int i = 0; i < global_broker_settings.getNumberOfThreads(); i++ )
 	{
 	    // Thread id starts with 1.
 	    std::thread dispatcher_thread([&dispatcher,i]() -> void { startThread(dispatcher,i+1); });

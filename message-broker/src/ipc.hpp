@@ -13,6 +13,7 @@
 # include "persistent.hpp"
 # include "webapp-proto.hpp"
 # include "message-relay.hpp"
+# include "broker2broker.hpp"
 
 using libsocket::inet_dgram_server;
 using libsocket::unix_dgram_server;
@@ -33,17 +34,19 @@ class Communicator
 public:
     Communicator(void);
     ~Communicator(void);
+    Communicator(const Communicator&) = delete;
 
     void send(const PersistenceLayerCommand& cmd);
     void send(const WebappResponse& cmd);
     void send(const MessageForRelay& cmd);
+    void send(const MessageForB2B& cmd, const string& broker);
 
     unsigned int receiveMessages(std::vector< Receivable* >& return_vec);
 private:
-    connectionInformation persistence_connection_info, webapp_connection_info, msgrelay_connection_info;
+    connectionInformation persistence_connection_info, webapp_connection_info, msgrelay_connection_info, b2b_connection_info;
     epollset<libsocket::socket> e_set;
 
-    inet_dgram_server *inet_persistence_sock, *inet_webapp_sock, *inet_msgrelay_sock;
+    inet_dgram_server *inet_persistence_sock, *inet_webapp_sock, *inet_msgrelay_sock, *inet_b2b_sock;
     unix_dgram_server *unix_persistence_sock, *unix_webapp_sock, *unix_msgrelay_sock;
 
     connectionType getSocketType(libsocket::socket* sock);

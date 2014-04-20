@@ -27,13 +27,17 @@ namespace
     const char* broker_persistence_bind_addr_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_ADDR";
     const char* broker_persistence_bind_port_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_PORT";
 
-    const char* broker_b2b_bind_port_var	= "CHATTP_MSGBROKER_B2B_BIND_PORT";
+    const char* broker_b2b_bind_address_var	= "CHATTP_MSGBROKER_BROKER_NAME";
+
+    const char* broker_thread_number_var	= "CHATTP_MSGBROKER_NUMBER_THREADS";
 }
 
 time_point<steady_clock> start_time;
 std::atomic<unsigned int> packets_processed;
 
 thread_local unsigned int thread_id;
+
+BrokerSettings global_broker_settings;
 
 /**
  * @brief Fetch configuration from environment.
@@ -52,6 +56,22 @@ BrokerSettings::BrokerSettings(void)
     message_relay_bind_info = extractConnInfo(broker_msgrelay_bind_addr_var, mesg_relay_family_env_var, broker_msgrelay_bind_port_var);
     persistence_bind_info = extractConnInfo(broker_persistence_bind_addr_var, persistence_family_env_var, broker_persistence_bind_port_var);
     webapp_bind_info = extractConnInfo(broker_webapp_bind_addr_var, webapp_family_env_var, broker_webapp_bind_port_var);
+
+    if ( getenv(broker_b2b_bind_address_var) )
+	b2b_bind_info.address = getenv(broker_b2b_bind_address_var);
+    else
+	throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
+
+    b2b_bind_info.port = message_broker_port;
+    b2b_bind_info.type = connectionType::INET;
+
+    // Fetch number of threads
+    if ( getenv(broker_thread_number_var) )
+    {
+	std::istringstream var(getenv(broker_thread_number_var));
+	var >> n_threads;
+    } else
+	n_threads = 1;
 }
 
 connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, const char* family_var, const char* port_var)

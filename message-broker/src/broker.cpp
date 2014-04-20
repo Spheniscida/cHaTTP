@@ -2,6 +2,8 @@
 # include "broker-util.hpp"
 # include "synchronization.hpp"
 # include "cache.hpp"
+# include "conf.hpp"
+# include "broker2broker.hpp"
 
 /*
  * LOCKING POLICY
@@ -13,7 +15,7 @@
  * currently no signs that one transaction object may be used by two threads concurrently (if the other servers
  * are implementing the protocol correctly). The only situtation in which a catastrophe (unrestricted concurrent access
  * to data) could happen is if, for example, Persistence sends two messages with the same sequence number in a very short interval.
- * In that case, two threads might access the same map key; however, it is very unlikely that this will happen.
+ * I that case, two threads might access the same map key; however, it is very unlikely that this will happen.
  *
  */
 
@@ -29,6 +31,9 @@ shared_mutex transactions_mutex;
 
 unordered_map<sequence_t,WebappRequest> webapp_requests;
 shared_mutex webapp_requests_mutex;
+
+unordered_map<sequence_t,string> b2b_origins;
+shared_mutex b2b_origins_mutex;
 
 /**
  * @brief Receive and process incoming messages.
@@ -63,6 +68,8 @@ void ProtocolDispatcher::dispatch(void)
 		case MessageOrigin::fromMessageRelay:
 		    handleMessagerelayMessage(shared_ptr<Receivable>(received_messages[i]));
 		    break;
+		case MessageOrigin::fromBroker:
+		    handleBrokerMessage(shared_ptr<Receivable>(received_messages[i]));
 		default:
 		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
 	    }
@@ -142,7 +149,66 @@ void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<Receivable> msg)
     onMessagerelayMSGSNT(*response);
 }
 
+void ProtocolDispatcher::handleBrokerMessage(shared_ptr<Receivable> msg)
+{
+    shared_ptr<B2BIncoming> message = dynamic_pointer_cast<B2BIncoming>(msg);
+
+    switch ( message->type )
+    {
+	case B2BMessageType::B2BSNDMSG:
+	    onB2BSNDMSG(*message);
+	    break;
+	case B2BMessageType::B2BMSGSNT:
+	    onB2BMSGSNT(*message);
+	    break;
+    }
+}
+
 /***************************** Event handlers ******************************/
+
+void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
+{
+    MessageForRelay relaymsg(msg.message,msg.channel_id);
+
+    OutstandingTransaction transaction;
+
+    transaction.type = OutstandingType::messagerelayB2BMSGSNT;
+    transaction.original_sequence_number = msg.sequence_number;
+
+    unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
+	b2b_origins[msg.sequence_number] = msg.origin_broker;
+    b2b_wr_lck.unlock();
+
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	transactions[relaymsg.seq_num] = transaction;
+    ta_wr_lck.unlock();
+
+    communicator.send(relaymsg);
+}
+
+void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
+{
+    shared_lock<shared_mutex> ta_lck(transactions_mutex);
+	OutstandingTransaction& transaction = transactions[msg.sequence_number];
+    ta_lck.unlock();
+
+    // We know the original sequence number, that's the main point.
+//     shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+// 	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
+//     wa_lck.unlock();
+
+    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::acceptedMessage,msg.status);
+
+    communicator.send(resp);
+
+    unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
+	b2b_origins.erase(transaction.original_sequence_number);
+    b2b_wr_lck.unlock();
+
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	transactions.erase(msg.sequence_number);
+    ta_wr_lck.unlock();
+}
 
 void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
 {
@@ -301,7 +367,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    return;
 	}
 	// Send to message relay (other implementation in onPersistenceULKDUP
-	if ( receiver.online && receiver.broker_name == message_broker_name )
+	if ( receiver.online && receiver.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
 	    MessageForRelay msg(rq.message, receiver.channel_id);
 
@@ -312,9 +378,17 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    ta_wr_lck.unlock();
 
 	    communicator.send(msg);
-	} else if ( receiver.online && receiver.broker_name != message_broker_name )
+	} else if ( receiver.online ) // ...and not on this broker
 	{
-	    // broker2broker
+	    MessageForB2B broker_message(rq.message,receiver.channel_id);
+
+	    transaction.type = OutstandingType::b2bMSGSNT;
+
+	    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+		transactions[broker_message.sequence_number] = transaction;
+	    ta_wr_lck.unlock();
+
+	    communicator.send(broker_message,receiver.channel_id);
 	} else if ( ! receiver.online )
 	{
 	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message);
@@ -445,7 +519,7 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
     } else
     {
 	channel_id_t channel_id = generateChannelId();
-	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::logIn,original_webapp_request.user,message_broker_name,channel_id);
+	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::logIn,original_webapp_request.user,global_broker_settings.getMessageBrokerName(),channel_id);
 
 	/* Here, we're doing something which is not very clean: We save the channel id in the "original" webapp request
 	 * although that didn't actually bear a channel id. However, this is necessary so the onPersistenceLGDIN() handler
@@ -488,7 +562,7 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
     wa_lck.unlock();
     WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,original_webapp_request.channel_id);
     // We receive the LOGIN, so the user's on this broker. →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→↓
-    insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,message_broker_name,true);
+    insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
 
     communicator.send(resp);
 
@@ -534,7 +608,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
-	if ( (! rp.online) || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != message_broker_name )
+	if ( (! rp.online) || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    // Unauthorized sender!
 	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false);
@@ -575,7 +649,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// Is receiver online? If so, send to message relay, else send to persistence
 	if ( rp.online )
 	{
-	    if ( rp.broker_name == message_broker_name ) // User is on this broker?
+	    if ( rp.broker_name == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
 	    {
 		MessageForRelay msg(original_webapp_request.message, rp.channel_id);
 
@@ -588,7 +662,18 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		communicator.send(msg);
 	    } else
-		throw BrokerError(ErrorType::unimplemented,"Broker2Broker not implemented yet.");
+	    {
+		MessageForB2B broker_message(original_webapp_request.message,rp.channel_id);
+
+		transaction.type = OutstandingType::b2bMSGSNT;
+
+		unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+		    transactions[broker_message.sequence_number] = transaction;
+		    transactions.erase(seqnum);
+		ta_wr_lck.unlock();
+
+		communicator.send(broker_message,rp.broker_name);
+	    }
 
 	} else // Save message to persistence layer
 	{
@@ -635,7 +720,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
-	if ( rp.online == true && rp.channel_id == original_webapp_request.channel_id && rp.broker_name == message_broker_name )
+	if ( rp.online == true && rp.channel_id == original_webapp_request.channel_id && rp.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
 	    // User is authorized to log off.
 	    // Now mark user as offline in persistence.
@@ -795,20 +880,34 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 	return;
     }
 
-    if ( transaction.type != OutstandingType::messagerelayMSGSNT )
-	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayMSGSNT: Expected transaction type to be messagerelayMSGSNT, but received other.");
+    if ( transaction.type == OutstandingType::messagerelayMSGSNT )
+    {
+	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
+	wa_lck.unlock();
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
 
-    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
+	communicator.send(resp);
 
-    communicator.send(resp);
+	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
+	    webapp_requests.erase(transaction.original_sequence_number);
+	wa_wr_lck.unlock();
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests.erase(transaction.original_sequence_number);
-    wa_wr_lck.unlock();
+    } else if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT ) // The last SNDMSG was triggered by an external message.
+    {
+	shared_lock<shared_mutex> b2b_lck(b2b_origins_mutex);
+	    const string& message_sender_broker = b2b_origins[transaction.original_sequence_number];
+	b2b_lck.unlock();
+
+	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
+
+	communicator.send(mesg,message_sender_broker);
+
+	unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
+	    b2b_origins.erase(transaction.original_sequence_number);
+	b2b_wr_lck.unlock();
+    }
 
     unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions.erase(seqnum);
