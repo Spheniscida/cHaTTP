@@ -352,9 +352,12 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions[cmd.sequence_number] = transaction;
-    ta_lck.unlock();
+    ta_wr_lck.unlock();
+    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
+	webapp_requests[rq.sequence_number] = rq;
+    wa_wr_lck.unlock();
 
     // We only need the sequence number later (saved in original_sequence_number), therefore no webapp_requests access.
 
@@ -593,8 +596,18 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP )
     {
+	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
+	wa_lck.unlock();
+
 	// Respond to the "is user online?" request.
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online);
+
+	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+
+	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
+	    webapp_requests.erase(transaction.original_sequence_number);
+	wa_wr_lck.unlock();
 
 	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	    transactions.erase(seqnum);
