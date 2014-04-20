@@ -193,10 +193,15 @@ void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 	OutstandingTransaction& transaction = transactions[msg.sequence_number];
     ta_lck.unlock();
 
-    // We know the original sequence number, that's the main point.
-//     shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-// 	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-//     wa_lck.unlock();
+    if ( ! transaction.original_sequence_number )
+    {
+	debug_log("Received dangling transaction (B2B MSGSNT)");
+
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	    transactions.erase(msg.sequence_number);
+	ta_wr_lck.unlock();
+	return;
+    }
 
     WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::acceptedMessage,msg.status);
 
