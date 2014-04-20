@@ -47,10 +47,21 @@ struct BrokerError
 template<typename ... Ts>
 void debug_log(Ts... args)
 {
-    lock_guard<mutex> output_lock(output_mutex);
+    if ( debugging_mode )
+    {
+	lock_guard<mutex> output_lock(output_mutex);
 
-    std::cerr << "DBG : ";
-    vDebugWrite(args...);
+	std::cerr << "DBG : ";
+	stderrWrite(args...);
+    }
 }
 
+template<typename ... Ts>
+void error_log(Ts... args)
+{
+    lock_guard<mutex> output_lock(output_mutex);
+
+    std::cerr << "ERR : ";
+    stderrWrite(args...);
+}
 # endif

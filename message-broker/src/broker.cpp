@@ -6,6 +6,8 @@
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
+# include <chrono>
+
 TransactionMap transaction_cache;
 
 /*
@@ -42,6 +44,7 @@ void ProtocolDispatcher::dispatch(void)
     unsigned int received_size = 0;
 
     received_messages.resize(3);
+    std::chrono::time_point<std::chrono::steady_clock> start, end;
 
     while ( true )
     {
@@ -50,6 +53,7 @@ void ProtocolDispatcher::dispatch(void)
 
 	for ( unsigned int i = 0; i < received_size; i++ )
 	{
+	    start = std::chrono::steady_clock::now();
 	    switch ( received_messages[i]->sender )
 	    {
 		// shared_ptr -- because the delivered message is dynamically allocated.
@@ -68,6 +72,9 @@ void ProtocolDispatcher::dispatch(void)
 		default:
 		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
 	    }
+	    end = std::chrono::steady_clock::now();
+
+	    error_log("Processed message in ",std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count()," ns");
 	    // Shared pointers are destroyed automatically until control is here.
 	}
     }
