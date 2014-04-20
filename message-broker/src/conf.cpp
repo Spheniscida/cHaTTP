@@ -47,36 +47,42 @@ BrokerSettings global_broker_settings;
  */
 BrokerSettings::BrokerSettings(void)
 {
-    // Fetch services.
-    message_relay_info = extractConnInfo(mesg_relay_addr_env_var,mesg_relay_family_env_var,mesg_relay_port_env_var);
-    persistence_layer_info = extractConnInfo(persistence_addr_env_var,persistence_family_env_var,persistence_port_env_var);
-    webapp_info = extractConnInfo(webapp_addr_env_var,webapp_family_env_var,webapp_port_env_var);
+    try {
+	// Fetch services.
+	message_relay_info = extractConnInfo(mesg_relay_addr_env_var,mesg_relay_family_env_var,mesg_relay_port_env_var);
+	persistence_layer_info = extractConnInfo(persistence_addr_env_var,persistence_family_env_var,persistence_port_env_var);
+	webapp_info = extractConnInfo(webapp_addr_env_var,webapp_family_env_var,webapp_port_env_var);
 
-    // Fetch bind info.
-    message_relay_bind_info = extractConnInfo(broker_msgrelay_bind_addr_var, mesg_relay_family_env_var, broker_msgrelay_bind_port_var);
-    persistence_bind_info = extractConnInfo(broker_persistence_bind_addr_var, persistence_family_env_var, broker_persistence_bind_port_var);
-    webapp_bind_info = extractConnInfo(broker_webapp_bind_addr_var, webapp_family_env_var, broker_webapp_bind_port_var);
+	// Fetch bind info.
+	message_relay_bind_info = extractConnInfo(broker_msgrelay_bind_addr_var, mesg_relay_family_env_var, broker_msgrelay_bind_port_var);
+	persistence_bind_info = extractConnInfo(broker_persistence_bind_addr_var, persistence_family_env_var, broker_persistence_bind_port_var);
+	webapp_bind_info = extractConnInfo(broker_webapp_bind_addr_var, webapp_family_env_var, broker_webapp_bind_port_var);
 
-    if ( getenv(broker_b2b_bind_address_var) )
-	b2b_bind_info.address = getenv(broker_b2b_bind_address_var);
-    else
-	throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
+	if ( getenv(broker_b2b_bind_address_var) )
+	    b2b_bind_info.address = getenv(broker_b2b_bind_address_var);
+	else
+	    throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
 
-    b2b_bind_info.port = message_broker_port;
-    b2b_bind_info.type = connectionType::INET;
+	b2b_bind_info.port = message_broker_port;
+	b2b_bind_info.type = connectionType::INET;
 
-    if ( getenv(broker_b2b_bind_address_var) )
-	message_broker_name = getenv(broker_b2b_bind_address_var);
-    else
-	throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
+	if ( getenv(broker_b2b_bind_address_var) )
+	    message_broker_name = getenv(broker_b2b_bind_address_var);
+	else
+	    throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
 
-    // Fetch number of threads
-    if ( getenv(broker_thread_number_var) )
+	// Fetch number of threads
+	if ( getenv(broker_thread_number_var) )
+	{
+	    std::istringstream var(getenv(broker_thread_number_var));
+	    var >> n_threads;
+	} else
+	    n_threads = 1;
+    } catch (BrokerError e)
     {
-	std::istringstream var(getenv(broker_thread_number_var));
-	var >> n_threads;
-    } else
-	n_threads = 1;
+	error_log(e.toString());
+	throw e;
+    }
 }
 
 connectionInformation BrokerSettings::extractConnInfo (const char* addr_var, const char* family_var, const char* port_var)
