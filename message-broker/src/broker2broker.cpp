@@ -43,8 +43,8 @@ string MessageForB2B::toString(void) const
     return outgoing.str();
 }
 
-B2BIncoming::B2BIncoming(const string& message, const string& origin)
-    : origin_broker(origin)
+B2BIncoming::B2BIncoming(const string& message, const string& origin_b)
+    : origin_broker(origin_b)
 {
     sender = MessageOrigin::fromBroker;
     parseMessage(message);

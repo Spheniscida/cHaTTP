@@ -47,7 +47,7 @@ void ProtocolDispatcher::dispatch(void)
     vector<Receivable*> received_messages;
     unsigned int received_size = 0;
 
-    received_messages.reserve(3);
+    received_messages.resize(3);
 
     while ( true )
     {
@@ -70,6 +70,7 @@ void ProtocolDispatcher::dispatch(void)
 		    break;
 		case MessageOrigin::fromBroker:
 		    handleBrokerMessage(shared_ptr<Receivable>(received_messages[i]));
+		    break;
 		default:
 		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
 	    }
@@ -388,7 +389,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		transactions[broker_message.sequence_number] = transaction;
 	    ta_wr_lck.unlock();
 
-	    communicator.send(broker_message,receiver.channel_id);
+	    communicator.send(broker_message,receiver.broker_name);
 	} else if ( ! receiver.online )
 	{
 	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message);

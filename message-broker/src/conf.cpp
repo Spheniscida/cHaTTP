@@ -65,6 +65,11 @@ BrokerSettings::BrokerSettings(void)
     b2b_bind_info.port = message_broker_port;
     b2b_bind_info.type = connectionType::INET;
 
+    if ( getenv(broker_b2b_bind_address_var) )
+	message_broker_name = getenv(broker_b2b_bind_address_var);
+    else
+	throw BrokerError(ErrorType::configurationError,string("No ") + broker_b2b_bind_address_var + " environment variable available.");
+
     // Fetch number of threads
     if ( getenv(broker_thread_number_var) )
     {

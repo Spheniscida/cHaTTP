@@ -22,6 +22,7 @@ namespace
 void initIPC ( void )
 {
     last_message_size = max_raw_message_size;
+    last_inet_sender_size = 256;
 }
 
 
@@ -152,7 +153,7 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 		if ( received_messages >= max_vector_size )
 		    return_vec.resize(++max_vector_size);
 
-		return_vec.push_back(return_value);
+		return_vec[received_messages] = return_value;
 		received_messages++;
 	    }
 	}
@@ -210,7 +211,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     last_inet_sender_size = strlen(inet_sender);
 
     if ( debugging_mode ) // string() is expensive
-	debug_log("tid ", thread_id, " Received message (inet): " + string(message_receiver_buffer));
+	debug_log("tid ", thread_id, " Received message (inet): ", string(message_receiver_buffer));
 
     packets_processed++;
     if ( sock == inet_webapp_sock )
