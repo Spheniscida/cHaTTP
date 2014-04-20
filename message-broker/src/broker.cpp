@@ -153,13 +153,13 @@ void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::registerUser,rq.user,rq.password);
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions[cmd.sequence_number] = transaction;
-    ta_lck.unlock();
+    ta_wr_lck.unlock();
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	webapp_requests[rq.sequence_number] = rq;
-    wa_lck.unlock();
+    wa_wr_lck.unlock();
 
     communicator.send(cmd);
 }
@@ -186,13 +186,13 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions[cmd.sequence_number] = transaction;
-    ta_lck.unlock();
+    ta_wr_lck.unlock();
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	webapp_requests[rq.sequence_number] = rq;
-    wa_lck.unlock();
+    wa_wr_lck.unlock();
 
     communicator.send(cmd);
 }
@@ -206,6 +206,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
     if ( cache_entry.found && (! cache_entry.online || cache_entry.channel_id != rq.channel_id ) )
     {
+	// offline or unauthenticated -- deny!
 	WebappResponse resp(rq.sequence_number,WebappResponseCode::loggedOut,false);
 
 	communicator.send(resp);
@@ -213,6 +214,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	return;
     } else if ( cache_entry.found && cache_entry.online && cache_entry.channel_id == rq.channel_id )
     {
+	// Online and authenticated -- logout!
 	transaction.type = OutstandingType::persistenceLGDOUT;
 	transaction.original_sequence_number = rq.sequence_number;
 
@@ -231,13 +233,13 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	new_seqnum = cmd.sequence_number;
     }
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
+    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions[new_seqnum] = transaction;
-    ta_lck.unlock();
+    ta_wr_lck.unlock();
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	webapp_requests[rq.sequence_number] = rq;
-    wa_lck.unlock();
+    wa_wr_lck.unlock();
 
 }
 
@@ -256,13 +258,13 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 	communicator.send(cmd);
 
-	shared_lock<shared_mutex> ta_lck(transactions_mutex);
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	    transactions[cmd.sequence_number] = transaction;
-	ta_lck.unlock();
+	ta_wr_lck.unlock();
 
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	    webapp_requests[rq.sequence_number] = rq;
-	wa_lck.unlock();
+	wa_wr_lck.unlock();
 
     } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
     {
@@ -280,13 +282,13 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.dest_user);
 	communicator.send(cmd);
 
-	shared_lock<shared_mutex> ta_lck(transactions_mutex);
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	    transactions[cmd.sequence_number] = transaction;
-	ta_lck.unlock();
+	ta_wr_lck.unlock();
 
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	    webapp_requests[rq.sequence_number] = rq;
-	wa_lck.unlock();
+	wa_wr_lck.unlock();
 
     } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache.
     {
@@ -326,9 +328,9 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    communicator.send(cmd);
 	}
 
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
+	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	    webapp_requests[rq.sequence_number] = rq;
-	wa_lck.unlock();
+	wa_wr_lck.unlock();
     }
     // Next up: onPersistenceULKDUP (sender) → onPersistenceULKDUP (receiver) → onMessagerelayMSGSNT/onPersistenceMSGSVD
 }
@@ -344,7 +346,6 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 
     if ( cache_entry.found )
     {
-	debug_log("UONLQ user cache hit for ",rq.user);
 	WebappResponse resp(rq.sequence_number,WebappResponseCode::isOnline,cache_entry.online);
 
 	communicator.send(resp);
@@ -357,6 +358,7 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
     unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
 	transactions[cmd.sequence_number] = transaction;
     ta_wr_lck.unlock();
+
     unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
 	webapp_requests[rq.sequence_number] = rq;
     wa_wr_lck.unlock();
@@ -410,7 +412,10 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
-	transactions.erase(seqnum);
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	    transactions.erase(seqnum);
+	ta_wr_lck.unlock();
+
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
@@ -469,7 +474,10 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
-	transactions.erase(seqnum);
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	    transactions.erase(seqnum);
+	ta_wr_lck.unlock();
+
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
@@ -733,7 +741,10 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 
     if ( ! transaction.original_sequence_number )
     {
-	transactions.erase(seqnum);
+	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
+	    transactions.erase(seqnum);
+	ta_wr_lck.unlock();
+
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
