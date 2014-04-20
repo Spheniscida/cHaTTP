@@ -36,13 +36,13 @@ Communicator::Communicator (void)
 	if ( persistence_connection_info.type == connectionType::UNIX )
 	{
 	    inet_persistence_sock = nullptr;
-	    unix_persistence_sock = new unix_dgram_server(settings.getPersistenceLayerBindAddress().address);
+	    unix_persistence_sock = new unix_dgram_server(settings.getPersistenceLayerBindAddress().address,SOCK_NONBLOCK);
 
 	    e_set.add_fd(unix_persistence_sock,LIBSOCKET_READ);
 	} else if ( persistence_connection_info.type == connectionType::INET )
 	{
 	    unix_persistence_sock = nullptr;
-	    inet_persistence_sock = new inet_dgram_server(settings.getPersistenceLayerBindAddress().address,settings.getPersistenceLayerBindAddress().port,LIBSOCKET_BOTH);
+	    inet_persistence_sock = new inet_dgram_server(settings.getPersistenceLayerBindAddress().address,settings.getPersistenceLayerBindAddress().port,LIBSOCKET_BOTH,SOCK_NONBLOCK);
 
 	    e_set.add_fd(inet_persistence_sock,LIBSOCKET_READ);
 	}
@@ -50,12 +50,12 @@ Communicator::Communicator (void)
 	if ( msgrelay_connection_info.type == connectionType::UNIX )
 	{
 	    inet_msgrelay_sock = nullptr;
-	    unix_msgrelay_sock = new unix_dgram_server(settings.getMessageRelayBindAddress().address);
+	    unix_msgrelay_sock = new unix_dgram_server(settings.getMessageRelayBindAddress().address,SOCK_NONBLOCK);
 	    e_set.add_fd(unix_msgrelay_sock,LIBSOCKET_READ);
 	} else if ( msgrelay_connection_info.type == connectionType::INET )
 	{
 	    unix_msgrelay_sock = nullptr;
-	    inet_msgrelay_sock = new inet_dgram_server(settings.getMessageRelayBindAddress().address,settings.getMessageRelayBindAddress().port,LIBSOCKET_BOTH);
+	    inet_msgrelay_sock = new inet_dgram_server(settings.getMessageRelayBindAddress().address,settings.getMessageRelayBindAddress().port,LIBSOCKET_BOTH,SOCK_NONBLOCK);
 
 	    e_set.add_fd(inet_msgrelay_sock,LIBSOCKET_READ);
 	}
@@ -63,14 +63,14 @@ Communicator::Communicator (void)
 	if ( webapp_connection_info.type == connectionType::UNIX )
 	{
 	    inet_webapp_sock = nullptr;
-	    unix_webapp_sock = new unix_dgram_server(settings.getWebappBindAddress().address);
+	    unix_webapp_sock = new unix_dgram_server(settings.getWebappBindAddress().address,SOCK_NONBLOCK);
 
 	    e_set.add_fd(unix_webapp_sock,LIBSOCKET_READ);
 
 	} else if ( webapp_connection_info.type == connectionType::INET )
 	{
 	    unix_webapp_sock = nullptr;
-	    inet_webapp_sock = new inet_dgram_server(settings.getWebappBindAddress().address,settings.getWebappBindAddress().port,LIBSOCKET_BOTH);
+	    inet_webapp_sock = new inet_dgram_server(settings.getWebappBindAddress().address,settings.getWebappBindAddress().port,LIBSOCKET_BOTH,SOCK_NONBLOCK);
 
 	    e_set.add_fd(inet_webapp_sock,LIBSOCKET_READ);
 	}
@@ -98,26 +98,48 @@ Communicator::~Communicator (void)
 	delete unix_webapp_sock;
 }
 
-vector<Receivable*> Communicator::receiveMessages(void)
+unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 {
-    epollset<libsocket::socket>::ready_socks ready_for_recv = e_set.wait();
+    Receivable* return_value;
+    unsigned int received_messages = 0, max_vector_size = return_vec.size();
 
-    unsigned short n_ready = ready_for_recv.size();
+    epollset<libsocket::socket>::ready_socks ready_for_recv;
 
-    // Those pointers are later handled by shared_ptr so we don't have to worry about memory leaks.
-    vector<Receivable*> return_vec(n_ready,nullptr);
+    // Output argument!
+    int n_ready = e_set.wait(ready_for_recv);
 
     for ( unsigned short i = 0; i < n_ready; i++ ) // Most likely: n_ready == 1
     {
 	// We receive only one message. epoll works level-triggered here, so we receive the
 	// second one immediately on the next call to receiveMessages()
 	if ( getSocketType(ready_for_recv[i]) == connectionType::UNIX )
-	    return_vec[i] = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]));
+	{
+	    // Returns nullptr if there are no messages anymore.
+	    // This "algorithm" has to be used because we use edge-triggered epoll.
+	    while ( (return_value = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]))) )
+	    {
+		// Only resize if the vector is already full -- this is quite unlikely, so we save us some memory operations.
+		if ( received_messages >= max_vector_size )
+		    return_vec.resize(++max_vector_size);
+
+		return_vec[received_messages] = return_value;
+		received_messages++;
+	    }
+	}
 	else
-	    return_vec[i] = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]));
+	{
+	    while ( nullptr != (return_value = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]))) )
+	    {
+		if ( received_messages >= max_vector_size )
+		    return_vec.resize(++max_vector_size);
+
+		return_vec.push_back(return_value);
+		received_messages++;
+	    }
+	}
     }
 
-    return return_vec; // return_vec.size() may be 0
+    return received_messages;
 }
 
 connectionType Communicator::getSocketType(libsocket::socket* sock)
@@ -129,8 +151,15 @@ connectionType Communicator::getSocketType(libsocket::socket* sock)
 
 Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 {
+    int received_size;
     memset(message_receiver_buffer,0,last_message_size);
-    last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
+
+    received_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0);
+
+    if ( received_size < 0 )
+	return nullptr;
+    else
+	last_message_size = received_size;
 
     if ( debugging_mode ) // string() is expensive
 	debug_log("tid ", thread_id," Received message (unix): " + string(message_receiver_buffer));
@@ -148,8 +177,15 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 
 Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 {
+    int received_size;
     memset(message_receiver_buffer,0,last_message_size);
-    last_message_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
+
+    received_size = sock->rcvfrom(message_receiver_buffer, max_raw_message_size, nullptr, 0, nullptr, 0, 0, true);
+
+    if ( received_size < 0 )
+	return nullptr;
+    else
+	last_message_size = received_size;
 
     if ( debugging_mode ) // string() is expensive
 	debug_log("tid ", thread_id, " Received message (inet): " + string(message_receiver_buffer));

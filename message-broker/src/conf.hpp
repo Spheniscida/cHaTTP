@@ -21,7 +21,7 @@ const bool debugging_mode = true;
 
 const string message_broker_name = "localhost";
 
-const unsigned int number_of_threads = 4;
+const unsigned int number_of_threads = 5;
 
 extern time_point<steady_clock> start_time;
 extern std::atomic<unsigned int> packets_processed;

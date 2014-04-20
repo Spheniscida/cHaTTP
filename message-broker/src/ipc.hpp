@@ -38,7 +38,7 @@ public:
     void send(const WebappResponse& cmd);
     void send(const MessageForRelay& cmd);
 
-    std::vector<Receivable*> receiveMessages(void);
+    unsigned int receiveMessages(std::vector< Receivable* >& return_vec);
 private:
     connectionInformation persistence_connection_info, webapp_connection_info, msgrelay_connection_info;
     epollset<libsocket::socket> e_set;

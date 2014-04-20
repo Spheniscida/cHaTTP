@@ -40,14 +40,16 @@ shared_mutex webapp_requests_mutex;
 void ProtocolDispatcher::dispatch(void)
 {
     vector<Receivable*> received_messages;
-    unsigned int received_size = 0, i = 0;
+    unsigned int received_size = 0;
+
+    received_messages.reserve(3);
 
     while ( true )
     {
-	received_messages = communicator.receiveMessages();
-	received_size = received_messages.size();
+	// received_messages is an output argument!
+	received_size = communicator.receiveMessages(received_messages);
 
-	for ( i = 0; i < received_size; i++ )
+	for ( unsigned int i = 0; i < received_size; i++ )
 	{
 	    switch ( received_messages[i]->sender )
 	    {
