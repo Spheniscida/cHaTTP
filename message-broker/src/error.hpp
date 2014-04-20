@@ -35,8 +35,8 @@ struct BrokerError
     BrokerError(ErrorType t, const string& message);
     string toString(void);
 
-    ErrorType type;
     string error_message;
+    ErrorType type;
 };
 
 /**

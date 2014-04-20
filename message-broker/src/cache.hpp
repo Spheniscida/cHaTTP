@@ -22,9 +22,9 @@ extern shared_mutex user_cache_mutex;
  */
 struct CachedUser
 {
-    bool found;
     string channel_id;
     string broker_name;
+    bool found;
     bool online;
 };
 

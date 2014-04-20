@@ -57,9 +57,6 @@ public:
     WebappRequest(const string&);
     WebappRequest(void) = default;
 
-    WebappRequestCode request_type;
-    sequence_t sequence_number;
-
     /// for UREG, LOGIN, LOGOUT, UONLQ, SNDMSG (sender's user name)
     string user;
     /// for UREG, LOGIN
@@ -72,6 +69,8 @@ public:
     /// for SNDMSG
     string message;
 
+    sequence_t sequence_number;
+    WebappRequestCode request_type;
 private:
     void parseWebappRequest(const string& rq);
 };
@@ -104,13 +103,11 @@ public:
 
     string toString(void) const;
 private:
-    sequence_t sequence_number;
-    WebappResponseCode response_type;
-
-    bool status;
-
     /// e.g. LGDIN <channel id>
     string payload;
+    sequence_t sequence_number;
+    WebappResponseCode response_type;
+    bool status;
 };
 
 

@@ -189,7 +189,7 @@ namespace libsocket
 	ready_socks ready;
 
 	if ( 0 > (nfds = epoll_wait(epollfd, events, maxevents, timeout)) )
-	    throw socket_exception(__FILE__,__LINE__,string("epoll_wait failed: ") + strerror(errno));
+	    throw socket_exception(__FILE__,__LINE__,string("epoll_wait failed."));
 
 	for ( int i = 0; i < nfds; i++ )
 	{

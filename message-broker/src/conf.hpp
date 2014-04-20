@@ -39,12 +39,12 @@ enum class connectionType { UNIX, INET };
  */
 struct connectionInformation
 {
-    /// The connection type
-    connectionType type;
     /// The socket address
     string address;
     /// for inet sockets
     string port;
+    /// The connection type
+    connectionType type;
 };
 
 /**
