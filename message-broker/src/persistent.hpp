@@ -47,20 +47,21 @@ class PersistenceLayerResponse : public Receivable
 public:
     PersistenceLayerResponse(const string&);
 
-    PersistenceLayerResponseCode response_type;
+    /// Field for message retrieval responses. Not used yet.
+    vector<string> messages;
+
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
     sequence_t sequence_number;
-    /// Success?
-    bool status;
-
-    // Fields for Lookup Responses.
-    bool online;
     string broker_name;
     string channel_id;
 
-    // Field for message retrieval responses.
-    vector<string> messages;
+    /// OK/FAIL?
+    bool status;
 
+    /// for ULKDUP
+    bool online;
+
+    PersistenceLayerResponseCode response_type;
 private:
     void parsePersistenceResponse(const string& message);
 
@@ -103,11 +104,8 @@ public:
     string toString(void) const;
     /// This one is initialized automatically. We need to expose it so the function using this class may store the generated
     /// sequence number.
-    const sequence_t sequence_number;
+    sequence_t sequence_number;
 private:
-
-    PersistenceLayerCommandCode request_type;
-
     string user_name;
 
     // Those are mutually exclusive. {
@@ -116,5 +114,6 @@ private:
     // }
 
     string channel_id;
+    PersistenceLayerCommandCode request_type;
 };
 # endif

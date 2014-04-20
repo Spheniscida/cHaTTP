@@ -2,8 +2,10 @@
 # define ERROR_HPP
 
 # include "conf.hpp"
+# include "broker-util.hpp"
+# include "synchronization.hpp"
+
 # include <string>
-# include <iostream>
 
 using std::string;
 
@@ -33,14 +35,22 @@ struct BrokerError
     BrokerError(ErrorType t, const string& message);
     string toString(void);
 
-    ErrorType type;
     string error_message;
+    ErrorType type;
 };
 
-inline void debug_log(const string& msg)
+/**
+ * @brief Synchronized debugging output.
+ *
+ * debug_log() uses a mutex to control access to stdout.
+ */
+template<typename ... Ts>
+void debug_log(Ts... args)
 {
-    if ( debugging_mode )
-	std::cerr << "DBG <> " << msg << std::endl;
+    lock_guard<mutex> output_lock(output_mutex);
+
+    std::cerr << "DBG : ";
+    vDebugWrite(args...);
 }
 
 # endif

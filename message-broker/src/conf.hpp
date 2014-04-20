@@ -3,20 +3,27 @@
 
 # include <string>
 # include <chrono>
+# include <atomic>
 
 using std::string;
 using std::chrono::time_point;
 using std::chrono::steady_clock;
 
+class BrokerSettings;
+
 /// Maximum message size accepted by this program (message: text sent from a user).
 const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
 const unsigned int max_raw_message_size = 12288;
-const bool debugging_mode = true;
-const string message_broker_name = "localhost";
 
+const string message_broker_port = "27533";
+
+extern BrokerSettings global_broker_settings;
+const bool debugging_mode = true;
+
+extern thread_local unsigned int thread_id;
 extern time_point<steady_clock> start_time;
-extern unsigned int packets_processed;
+extern std::atomic<unsigned int> packets_processed;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP
@@ -31,12 +38,12 @@ enum class connectionType { UNIX, INET };
  */
 struct connectionInformation
 {
-    /// The connection type
-    connectionType type;
     /// The socket address
     string address;
     /// for inet sockets
     string port;
+    /// The connection type
+    connectionType type;
 };
 
 /**
@@ -53,13 +60,18 @@ class BrokerSettings
 public:
     BrokerSettings(void);
 
-    connectionInformation getMessageRelayAddress(void) { return message_relay_info; };
-    connectionInformation getPersistenceLayerAddress(void) { return persistence_layer_info; };
-    connectionInformation getWebappAddress(void) { return webapp_info; };
+    connectionInformation getMessageRelayAddress(void) const { return message_relay_info; };
+    connectionInformation getPersistenceLayerAddress(void) const { return persistence_layer_info; };
+    connectionInformation getWebappAddress(void) const { return webapp_info; };
 
-    connectionInformation getMessageRelayBindAddress(void) { return message_relay_bind_info; };
-    connectionInformation getPersistenceLayerBindAddress(void) { return persistence_bind_info; };
-    connectionInformation getWebappBindAddress(void) { return webapp_bind_info; };
+    connectionInformation getMessageRelayBindAddress(void) const { return message_relay_bind_info; };
+    connectionInformation getPersistenceLayerBindAddress(void) const { return persistence_bind_info; };
+    connectionInformation getWebappBindAddress(void) const { return webapp_bind_info; };
+    connectionInformation getB2BBindAddress(void) const { return b2b_bind_info; };
+
+    const string& getMessageBrokerName(void) const { return message_broker_name; };
+
+    int getNumberOfThreads(void) const { return n_threads; };
 private:
     connectionInformation message_relay_info;
     connectionInformation persistence_layer_info;
@@ -68,7 +80,12 @@ private:
     connectionInformation persistence_bind_info;
     connectionInformation webapp_bind_info;
 
+    connectionInformation b2b_bind_info;
+
     connectionInformation extractConnInfo(const char* addr_var, const char* family_var, const char* port_var);
+
+    string message_broker_name;
+    unsigned int n_threads;
 };
 
 # endif

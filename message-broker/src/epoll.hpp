@@ -77,7 +77,7 @@ namespace libsocket
 
 	void add_fd( SocketT* sock, int method );
 	void del_fd(const SocketT* sock);
-	ready_socks wait(int timeout = -1);
+	    int wait(ready_socks& ready, int timeout = -1);
 
     private:
 
@@ -141,7 +141,7 @@ namespace libsocket
 	struct epoll_event new_event;
 
 	new_event.data.ptr = 0; // ptr is the largest field in that union (8 bytes on amd64/ia64)
-	new_event.events = 0;
+	new_event.events = EPOLLET;
 
 	if ( method & LIBSOCKET_READ )
 	    new_event.events |= EPOLLIN;
@@ -169,11 +169,9 @@ namespace libsocket
     /**
      * @brief Wait for an event on any file descriptor.
      *
+     * @param ready A reference to a vector (for better efficiency) that will be filled with sockets which are ready for I/O.
      * @param timeout (default: -1) Timeout, in milliseconds, after which to return if no event has occurred yet. -1 for
      * indefinite waiting, 0 for non-blocking access.
-     *
-     * @return A pair of vectors containing pointers to SocketTs: (ready_for_reading[],ready_for_writing[]). With `r` being
-     * the returned pair, access the sockets using statements like `r.first.size() > 0 ? r.first[0] : nullptr` or the like.
      *
      * *Hint*: If you need to know what socket has been returned, maintain a mapping from socket pointers to some identification
      * code. Using that mapping, you will be able to identify the sockets.
@@ -183,20 +181,22 @@ namespace libsocket
      * a bug in the libsocket implementation or usual behavior of epoll.
      */
     template<typename SocketT>
-    typename epollset<SocketT>::ready_socks epollset<SocketT>::wait (int timeout)
+    int epollset<SocketT>::wait(ready_socks& ready, int timeout)
     {
 	int nfds;
-	ready_socks ready;
 
 	if ( 0 > (nfds = epoll_wait(epollfd, events, maxevents, timeout)) )
-	    throw socket_exception(__FILE__,__LINE__,string("epoll_wait failed: ") + strerror(errno));
+	    throw socket_exception(__FILE__,__LINE__,string("epoll_wait failed."));
+
+	ready.reserve(nfds);
 
 	for ( int i = 0; i < nfds; i++ )
 	{
 	    if ( events[i].events == EPOLLIN )
-		ready.push_back(static_cast<SocketT*>(events[i].data.ptr));
+		ready[i] = static_cast<SocketT*>(events[i].data.ptr);
 	}
-	return ready;
+
+	return nfds;
     }
 
 }

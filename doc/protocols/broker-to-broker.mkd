@@ -1,0 +1,51 @@
+# Broker-To-Broker protocol
+
+This protocol specification described a protocol used to interconnect several message brokers so they
+may exchange messages.
+
+It is similar to the message-broker-message-relay protocol.
+
+This specification uses the keywords indicated by RFC 2119.
+
+This protocol works like the other one (the one between persistence layer and message broker):
+
+    <sequence number> <REQUEST TYPE> [additional information]
+
+    <sequence number> <RESPONSE TYPE> {OK [additional information]|FAIL [additional information]}
+
+The sequence number (`<seqn>`) *n* SHALL be smaller than 2^64 and SHALL be greater than 0. 0 is reserved (for parsing failures).
+The sequence number MUST be a base-10 number written in ASCII.
+
+The sequence number SHOULD be unique. If one sequence number is used twice, participating applications may show
+undefined behavior. Applications SHOULD be safe against a non-unique sequence number if that number is used
+twice with an interval of, say, 30 minutes or more, between the two uses.
+
+Two message referring to the same operation (*transaction*) MUST bear the same sequence number.
+
+The response type MUST be uppercase and SHOULD give a hint on the operation (e.g. register user: UREG).
+
+The keywords `OK` and `FAIL` may be followed by arbitrary information having the same format for all messages with
+a given response type.
+
+The individual protocol fields MUST be separated by newlines (`\n`).
+
+## Configuration
+
+* `CHATTP_MSGBROKER_BROKER_NAME` - the hostname of the machine running the message broker. The message broker will listen on UDP port 27533 on that host.
+
+The address is determined by the "broker name"; each broker instance has its address hardcoded as the global
+variable `message_broker_name`. Another broker is found per DNS: If persistence replies with `1 ULKDUP OK broker1.example.net channel-id`,
+then the broker of that user is reachable per UDP at `broker1.example.net`, port `CHATTP_MSGBROKER_B2B_BIND_PORT`.
+
+## Command types
+
+### Send a message
+
+    # Request
+    <seqn> SNDMSG <channel id> <message>
+    # Response
+    <seqn> MSGSNT {OK|FAIL}
+
+Send a message to the given channel. The channel is known to the sending broker because of the consistent data store
+accessed by the persistence layer.
+

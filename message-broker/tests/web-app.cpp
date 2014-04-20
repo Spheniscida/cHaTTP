@@ -17,7 +17,6 @@ BOOST_AUTO_TEST_SUITE(WebAppBrokerTests)
 BOOST_AUTO_TEST_CASE(parse_request_codes)
 {
     // Init
-    initWebappProtocolParser();
     initializeGlobalSequenceNumber();
 
     // Test

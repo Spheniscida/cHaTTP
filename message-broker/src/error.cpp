@@ -1,4 +1,9 @@
 # include "error.hpp"
+# include <algorithm>
+# include <iostream>
+
+using std::cerr;
+using std::for_each;
 
 /**
  * @brief Constructor
@@ -9,7 +14,7 @@
  * @param message An arbitrary, human-readable message with details about the error.
  */
 BrokerError::BrokerError(ErrorType t, const string& message)
-    : type(t), error_message(message)
+    : error_message(message), type(t)
 {
 }
 

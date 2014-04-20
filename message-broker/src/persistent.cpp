@@ -154,8 +154,8 @@ void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user)
     : sequence_number(getNewSequenceNumber()),
-    request_type(code),
-    user_name(user)
+    user_name(user),
+    request_type(code)
 {
     switch ( code )
     {
@@ -176,8 +176,8 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string data)
     : sequence_number(getNewSequenceNumber()),
-    request_type(code),
-    user_name(user)
+    user_name(user),
+    request_type(code)
 {
     switch ( code )
     {
@@ -199,10 +199,10 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string broker, string channel)
     : sequence_number(getNewSequenceNumber()),
-    request_type(code),
     user_name(user),
     broker_name(broker),
-    channel_id(channel)
+    channel_id(channel),
+    request_type(code)
 {
     if ( code != PersistenceLayerCommandCode::logIn )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: LOGIN, but got other command type.");

@@ -7,8 +7,6 @@
 
 using libsocket::unix_dgram_client;
 
-BrokerSettings config;
-
 void fail(const char* msg)
 {
     std::cout << "Terminating: " << msg << std::endl;
@@ -17,10 +15,10 @@ void fail(const char* msg)
 
 void persistenceDummy(void)
 {
-    if ( config.getPersistenceLayerAddress().type != connectionType::UNIX )
+    if ( global_broker_settings.getPersistenceLayerAddress().type != connectionType::UNIX )
 	fail("wrong address family");
 
-    unix_dgram_client sock(config.getPersistenceLayerAddress().address);
+    unix_dgram_client sock(global_broker_settings.getPersistenceLayerAddress().address);
 
     pid_t pid = fork();
 
@@ -35,7 +33,7 @@ void persistenceDummy(void)
 
 	    std::for_each(input.begin(),input.end(),[](char& c) { c == ' ' ? c = '\n' : 0; });
 
-	    sock.sndto(input,config.getPersistenceLayerBindAddress().address);
+	    sock.sndto(input,global_broker_settings.getPersistenceLayerBindAddress().address);
 	}
     } else // parent -- receiving, writing to stdout
     {
@@ -56,10 +54,10 @@ void persistenceDummy(void)
 
 void webappDummy(void)
 {
-    if ( config.getWebappAddress().type != connectionType::UNIX )
+    if ( global_broker_settings.getWebappAddress().type != connectionType::UNIX )
 	fail("wrong address family");
 
-    unix_dgram_client sock(config.getWebappAddress().address);
+    unix_dgram_client sock(global_broker_settings.getWebappAddress().address);
 
     pid_t pid = fork();
 
@@ -74,7 +72,7 @@ void webappDummy(void)
 
 	    std::for_each(input.begin(),input.end(),[](char& c) { c == ' ' ? c = '\n' : 0; });
 
-	    sock.sndto(input,config.getWebappBindAddress().address);
+	    sock.sndto(input,global_broker_settings.getWebappBindAddress().address);
 	}
     } else // parent -- receiving, writing to stdout
     {
@@ -95,10 +93,10 @@ void webappDummy(void)
 
 void messagerelayDummy(void)
 {
-    if ( config.getMessageRelayAddress().type != connectionType::UNIX )
+    if ( global_broker_settings.getMessageRelayAddress().type != connectionType::UNIX )
 	fail("wrong address family");
 
-    unix_dgram_client sock(config.getMessageRelayAddress().address);
+    unix_dgram_client sock(global_broker_settings.getMessageRelayAddress().address);
 
     pid_t pid = fork();
 
@@ -113,7 +111,7 @@ void messagerelayDummy(void)
 
 	    std::for_each(input.begin(),input.end(),[](char& c) { c == ' ' ? c = '\n' : c; });
 
-	    sock.sndto(input,config.getMessageRelayBindAddress().address);
+	    sock.sndto(input,global_broker_settings.getMessageRelayBindAddress().address);
 	}
     } else // parent -- receiving, writing to stdout
     {

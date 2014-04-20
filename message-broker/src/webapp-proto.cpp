@@ -8,20 +8,9 @@ using std::ostringstream;
 
 namespace
 {
-    thread_local char* current_message;
+    thread_local char current_message[max_message_size];
     const string ok_code = "OK";
     const string fail_code = "FAIL";
-}
-
-/**
- * @brief initialize webapp subsystem for current thread.
- *
- * this function's main purpose is allocating a larger block of memory to
- * store incoming messages.
- */
-void initWebappProtocolParser(void)
-{
-    current_message = new char[max_message_size];
 }
 
 /**
@@ -81,7 +70,7 @@ void WebappRequest::parseWebappRequest(const string& request)
 	rqstream.getline(current_message,0);
 	rqstream.getline(current_message,max_message_size);
 
-	current_message[8191] = 0; // Terminate it in either case.
+	current_message[max_message_size-1] = 0; // Terminate it in either case.
 
 	message = current_message;
 
