@@ -12,6 +12,7 @@ message-relay.cpp
 broker.cpp
 synchronization.cpp
 cache.cpp
+broker2broker.cpp
 )
 
 set(execsrc

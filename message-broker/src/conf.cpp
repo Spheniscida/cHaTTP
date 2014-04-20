@@ -26,6 +26,8 @@ namespace
     const char* broker_msgrelay_bind_port_var	= "CHATTP_MSGBROKER_MSGRELAY_BIND_PORT";
     const char* broker_persistence_bind_addr_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_ADDR";
     const char* broker_persistence_bind_port_var= "CHATTP_MSGBROKER_PERSISTENCE_BIND_PORT";
+
+    const char* broker_b2b_bind_port_var	= "CHATTP_MSGBROKER_B2B_BIND_PORT";
 }
 
 time_point<steady_clock> start_time;
