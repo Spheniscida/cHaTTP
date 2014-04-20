@@ -192,7 +192,7 @@ void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 
     WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::acceptedMessage,msg.status);
 
-    transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
     transaction_cache.eraseTransaction(msg.sequence_number);
 
