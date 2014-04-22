@@ -42,7 +42,7 @@ then the broker of that user is reachable per UDP at `broker1.example.net`, port
 ### Send a message
 
     # Request
-    <seqn> SNDMSG <channel id> <message>
+    <seqn> SNDMSG <sender's user name> <channel id> <message>
     # Response
     <seqn> MSGSNT {OK|FAIL}
 

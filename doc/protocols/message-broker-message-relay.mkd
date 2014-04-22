@@ -33,7 +33,7 @@ fields MUST NOT contain newline characters.
 ### Send message
 
     # Request
-    <seqn> SNDMSG <channel id> <message>
+    <seqn> SNDMSG <sender's user name> <channel id> <message>
     # Response
     <seqn> MSGSNT {OK|FAIL}
 
