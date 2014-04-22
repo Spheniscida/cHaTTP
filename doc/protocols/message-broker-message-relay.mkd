@@ -40,3 +40,12 @@ fields MUST NOT contain newline characters.
 Send a message to the given channel (session). This SHALL fail if there is no such channel; in this case, the message
 which was tried to be sent will be stored persistently in the Persistence Layer.
 
+### Delete channel
+
+Once a user has logged out, the channel is not needed anymore and may be dropped.
+
+    # Request
+    <seqn> DELCHAN <channel id>
+    # Response
+    <seqn> DELTDCHAN {OK|FAIL}
+

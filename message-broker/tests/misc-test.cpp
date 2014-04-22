@@ -60,6 +60,21 @@ BOOST_AUTO_TEST_CASE(message_relay_parser2)
     }
 }
 
+BOOST_AUTO_TEST_CASE(message_relay_parser3)
+{
+    try {
+	MessageRelayResponse resp("23876123\nDELTDCHAN\nOK");
+
+	BOOST_CHECK_EQUAL(resp.sequence_number,23876123);
+	BOOST_CHECK_EQUAL(resp.status,true);
+	BOOST_CHECK(resp.type == MessageRelayResponseType::channelDeleted);
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+}
+
 BOOST_AUTO_TEST_CASE(message_relay_generator1)
 {
     initializeGlobalSequenceNumber();
@@ -67,6 +82,20 @@ BOOST_AUTO_TEST_CASE(message_relay_generator1)
 	MessageForRelay mesg("sender","Hello, World.","aa5128");
 
 	BOOST_CHECK_EQUAL(mesg.toString(),"1\nSNDMSG\nsender\naa5128\nHello, World.");
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(message_relay_generator2)
+{
+    initializeGlobalSequenceNumber();
+    try {
+	MessageForRelay mesg("asdjhasdkjh");
+
+	BOOST_CHECK_EQUAL(mesg.toString(),"1\nDELCHAN\nasdjhasdkjh");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");

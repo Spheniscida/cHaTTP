@@ -75,6 +75,7 @@ enum class OutstandingType {
     // for MSGSNT
     messagerelayMSGSNT,
     messagerelayB2BMSGSNT,
+    messagerelayDELTDCHAN,
 
     // b2b msgsnt
     b2bMSGSNT

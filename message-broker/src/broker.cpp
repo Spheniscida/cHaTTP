@@ -701,16 +701,22 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 
     const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    // online predicate is checked before broker_name and channel_id; those are left empty.
-    insertUserInCache(original_webapp_request.user,string(),string(),false);
-
+    // We send "OK" back regardless of what the message relay returned because it's only a question of keeping nginx tidy.
     WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,true);
 
     communicator.send(resp);
 
-    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+    // online predicate is checked before broker_name and channel_id; those are left empty.
+    insertUserInCache(original_webapp_request.user,string(),string(),false);
 
-    transaction_cache.eraseTransaction(seqnum);
+    transaction.type = OutstandingType::messagerelayDELTDCHAN;
+
+    MessageForRelay delchanmsg(original_webapp_request.channel_id);
+
+    transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
+
+    communicator.send(delchanmsg);
+
 }
 
 void ProtocolDispatcher::onPersistenceMSGS(const PersistenceLayerResponse& rp)
@@ -754,7 +760,9 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 	communicator.send(mesg,message_sender_broker);
 
 	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
+    } else if ( transaction.type == OutstandingType::messagerelayDELTDCHAN )
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
     }
-
     transaction_cache.eraseTransaction(seqnum);
 }
