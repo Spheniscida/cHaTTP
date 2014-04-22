@@ -22,7 +22,7 @@ executable webapp
   ghc-options:         -threaded -with-rtsopts=-N
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.6 && <4.7, network >= 2, parsec >= 3, directory >= 1.2, unix >= 2.6, bytestring >= 0.10.4, hashtables >= 1.1
+  build-depends:       base >=4.6 && <4.7, network >= 2, parsec >= 3, directory >= 1.2, unix >= 2.6, bytestring >= 0.10.4, hashtables >= 1.1, fastcgi >= 3000
   -- hs-source-dirs:
   default-language:    Haskell2010
 
