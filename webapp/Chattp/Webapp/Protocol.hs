@@ -1,11 +1,13 @@
 module Chattp.Webapp.Protocol where
 
 import Text.Parsec
-import Text.Parsec.ByteString.Lazy
+import Text.Parsec.ByteString.Lazy hiding (Parser)
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.ByteString.Builder
 import Data.Monoid
+
+type Parser = Parsec BS.ByteString ()
 
 -- Protocol types
 -- cf. /doc/protocols/webapp-message-broker.mkd
@@ -99,7 +101,7 @@ requestToByteString (BrokerRequestMessage seqn (QueryStatus name)) = toLazyByteS
 ------------- Parse answers ---------------
 
 parseAnswer :: BS.ByteString -> Either ParseError BrokerAnswerMessage
-parseAnswer raw = parse protocolParser "proto-msg" raw
+parseAnswer = parse protocolParser "proto-msg"
 
 protocolParser :: Parser BrokerAnswerMessage
 protocolParser = do
@@ -137,6 +139,7 @@ parseRest seqn UREGD = do
     return $ BrokerAnswerMessage seqn (UserRegistered status)
 
 parseStatus :: Parser AnswerStatus
-parseStatus = choice [string (show OK) >> return OK, string (show FAIL) >> return FAIL]
+parseStatus = choice [string (show OK) >> return OK,
+                      string (show FAIL) >> return FAIL]
 
 
