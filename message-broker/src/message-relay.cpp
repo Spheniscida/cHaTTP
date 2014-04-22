@@ -6,9 +6,10 @@
 using std::istringstream;
 using std::ostringstream;
 
-MessageForRelay::MessageForRelay ( const string& mesg, const string& chan_id )
+MessageForRelay::MessageForRelay (const string& sender, const string& mesg, const string& chan_id )
     : seq_num(getNewSequenceNumber()),
     message(mesg),
+    sender_user(sender),
     channel_id(chan_id)
 {
 }
@@ -17,10 +18,7 @@ string MessageForRelay::toString ( void ) const
 {
     ostringstream message_to_send;
 
-    message_to_send << seq_num << "\n";
-    message_to_send << "SNDMSG\n";
-    message_to_send << channel_id << "\n";
-    message_to_send << message;
+    message_to_send << seq_num << "\n" << "SNDMSG\n" << sender_user << '\n' << channel_id << '\n' << message;
 
     return message_to_send.str();
 }

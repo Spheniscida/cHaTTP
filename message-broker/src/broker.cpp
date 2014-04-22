@@ -170,7 +170,7 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 
     transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
 
-    MessageForRelay relaymsg(msg.message,msg.channel_id);
+    MessageForRelay relaymsg(msg.sender_username,msg.message,msg.channel_id);
 
     transaction_cache.insertTransaction(relaymsg.seq_num,transaction);
 
@@ -251,7 +251,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
     CachedUser cache_entry = lookupUserInCache(rq.user);
 
-    if ( cache_entry.found && (! cache_entry.online || cache_entry.channel_id != rq.channel_id ) ) // Unauthorized/invalid
+    if ( cache_entry.found && (! cache_entry.online || cache_entry.channel_id != rq.channel_id || cache_entry.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
 	// offline or unauthenticated -- deny!
 	WebappResponse resp(rq.sequence_number,WebappResponseCode::loggedOut,false);
@@ -259,7 +259,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	communicator.send(resp);
 
 	return;
-    } else if ( cache_entry.found && cache_entry.online && cache_entry.channel_id == rq.channel_id ) // Authorized
+    } else if ( cache_entry.found ) // Authorized
     {
 	// Online and authenticated -- logout!
 	transaction.type = OutstandingType::persistenceLGDOUT;
@@ -308,7 +308,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
     } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
     {
 	// Unauthorized!
-	if ( ! sender.online || (rq.channel_id != sender.channel_id) )
+	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false);
 	    communicator.send(resp);
@@ -338,7 +338,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Send to message relay (other implementation is in onPersistenceULKDUP)
 	if ( receiver.online && receiver.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
-	    MessageForRelay msg(rq.message, receiver.channel_id);
+	    MessageForRelay msg(rq.user,rq.message, receiver.channel_id);
 
 	    transaction.type = OutstandingType::messagerelayMSGSNT;
 
@@ -347,7 +347,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    communicator.send(msg);
 	} else if ( receiver.online ) // ...and not on this broker
 	{
-	    MessageForB2B broker_message(rq.message,receiver.channel_id);
+	    MessageForB2B broker_message(rq.user,rq.message,receiver.channel_id);
 
 	    transaction.type = OutstandingType::b2bMSGSNT;
 
@@ -558,7 +558,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    if ( rp.broker_name == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
 	    {
-		MessageForRelay msg(original_webapp_request.message, rp.channel_id);
+		MessageForRelay msg(original_webapp_request.user,original_webapp_request.message, rp.channel_id);
 
 		transaction.type = OutstandingType::messagerelayMSGSNT;
 
@@ -567,7 +567,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		communicator.send(msg);
 	    } else // B2B communication!
 	    {
-		MessageForB2B broker_message(original_webapp_request.message,rp.channel_id);
+		MessageForB2B broker_message(original_webapp_request.user,original_webapp_request.message,rp.channel_id);
 
 		transaction.type = OutstandingType::b2bMSGSNT;
 

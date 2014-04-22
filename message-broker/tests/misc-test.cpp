@@ -64,9 +64,9 @@ BOOST_AUTO_TEST_CASE(message_relay_generator1)
 {
     initializeGlobalSequenceNumber();
     try {
-	MessageForRelay mesg("Hello, World.","aa5128");
+	MessageForRelay mesg("sender","Hello, World.","aa5128");
 
-	BOOST_CHECK_EQUAL(mesg.toString(),"1\nSNDMSG\naa5128\nHello, World.");
+	BOOST_CHECK_EQUAL(mesg.toString(),"1\nSNDMSG\nsender\naa5128\nHello, World.");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -133,9 +133,9 @@ BOOST_AUTO_TEST_CASE(b2b_outgoing_tostring3)
 {
     initializeGlobalSequenceNumber();
 
-    MessageForB2B mesg("Hello, World!","channel_id");
+    MessageForB2B mesg("sender","Hello, World!","channel_id");
 
-    BOOST_CHECK_EQUAL(mesg.toString(),"1\nSNDMSG\nchannel_id\nHello, World!");
+    BOOST_CHECK_EQUAL(mesg.toString(),"1\nSNDMSG\nsender\nchannel_id\nHello, World!");
 }
 
 BOOST_AUTO_TEST_CASE(b2b_incoming1)
@@ -149,9 +149,10 @@ BOOST_AUTO_TEST_CASE(b2b_incoming1)
 
 BOOST_AUTO_TEST_CASE(b2b_incoming2)
 {
-    B2BIncoming mesg("87\nSNDMSG\nchannel-id\nHello, World!","localhost");
+    B2BIncoming mesg("87\nSNDMSG\nsender\nchannel-id\nHello, World!","localhost");
 
     BOOST_CHECK_EQUAL(mesg.sequence_number,87);
+    BOOST_CHECK_EQUAL(mesg.sender_username,"sender");
     BOOST_CHECK_EQUAL(mesg.channel_id,"channel-id");
     BOOST_CHECK_EQUAL(mesg.message,"Hello, World!");
     BOOST_CHECK(mesg.type == B2BMessageType::B2BSNDMSG);
