@@ -1,0 +1,42 @@
+# Mesg-Broker-to-Mesg-Relay protocol
+
+The protocol described by this document is used to send messages from the message broker
+to the message relay, which, in turn, relays them to the nginx web server.
+
+## Protocol syntax
+
+This protocol works like the others (the one between persistence layer and message broker):
+
+    <sequence number> <REQUEST TYPE> [additional information]
+
+    <sequence number> <RESPONSE TYPE> {OK [additional information]|FAIL [additional information]}
+
+The sequence number (`<seqn>`) *n* SHALL be smaller than 2^64 and SHALL be greater than 0. 0 is reserved (for parsing failures).
+The sequence number MUST be a base-10 number written in ASCII.
+
+The sequence number SHOULD be unique. If one sequence number is used twice, participating applications may show
+undefined behavior. Applications SHOULD be safe against a non-unique sequence number if that number is used
+twice with an interval of, say, 30 minutes or more, between the two uses.
+
+Two message referring to the same operation MUST bear the same sequence number.
+
+The response type MUST be uppercase and SHOULD give a hint on the operation (e.g. register user: UREG).
+
+The keywords `OK` and `FAIL` may be followed by arbitrary information having the same format for all messages with
+a given response type.
+
+Individual fields of such a message SHOULD be separated by newline characters (LF, ASCII: 0x0a). The information
+fields MUST NOT contain newline characters.
+
+## Command types
+
+### Send message
+
+    # Request
+    <seqn> SNDMSG <sender's user name> <channel id> <message>
+    # Response
+    <seqn> MSGSNT {OK|FAIL}
+
+Send a message to the given channel (session). This SHALL fail if there is no such channel; in this case, the message
+which was tried to be sent will be stored persistently in the Persistence Layer.
+
