@@ -2,6 +2,7 @@ module Chattp.Webapp.IPC where
 
 import Chattp.Webapp.Conf
 import Chattp.Webapp.Protocol
+import Chattp.Webapp.InternalCommunication
 
 import Control.Concurrent
 import qualified Data.ByteString.Lazy.Char8 as BS
@@ -14,11 +15,11 @@ import qualified Network.Socket.ByteString as NBS
 -- Thread code handling incoming messages
 -- This thread parses the messages before sending them to "center"; we will have several threads so there's no
 -- performance problem.
-socketIncoming :: Socket -> Chan BrokerAnswerMessage -> IO ()
+socketIncoming :: Socket -> Chan CenterRequestOrResponse -> IO ()
 socketIncoming sock chanToCenter = do
     (contents,_addr) <- NBS.recvFrom sock 16384
     case parseAnswer (BS.fromStrict contents) of
-        Right msg -> writeChan chanToCenter msg >> socketIncoming sock chanToCenter
+        Right msg -> writeChan chanToCenter (BrokerCenterResponse msg) >> socketIncoming sock chanToCenter
         Left _ -> socketIncoming sock chanToCenter
 
 -- Thread code handling outgoing messages

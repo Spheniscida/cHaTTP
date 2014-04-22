@@ -1,5 +1,3 @@
-module MainTest where
-
 import Data.ByteString.Lazy.Char8 as BS
 import Chattp.Webapp.Protocol
 
