@@ -4,6 +4,8 @@ import Chattp.Webapp.Conf
 import Chattp.Webapp.Protocol
 import Chattp.Webapp.InternalCommunication
 
+import Data.Attoparsec.ByteString.Lazy
+
 import Control.Concurrent
 import qualified Data.ByteString.Lazy.Char8 as BS
 import System.Directory
@@ -20,7 +22,7 @@ socketIncoming sock chanToCenter = do
     (contents,_addr) <- NBS.recvFrom sock 16384
     case parseAnswer (BS.fromStrict contents) of
         Right msg -> writeChan chanToCenter (BrokerCenterResponse msg) >> socketIncoming sock chanToCenter
-        Left _ -> socketIncoming sock chanToCenter
+        Left _err -> socketIncoming sock chanToCenter
 
 -- Thread code handling outgoing messages
 socketOutgoing :: WebappConfiguration -> Socket -> Chan BrokerRequestMessage -> IO ()

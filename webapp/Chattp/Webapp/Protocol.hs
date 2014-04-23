@@ -1,13 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Chattp.Webapp.Protocol where
 
-import Text.Parsec
-import Text.Parsec.ByteString.Lazy hiding (Parser)
+import Data.Attoparsec.ByteString.Lazy hiding (satisfy)
+import Data.Attoparsec.ByteString.Char8 hiding (parse,Result, Done, Fail)
 
+import qualified Data.Char
 import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.ByteString.Char8 as SBS -- Strict ByteStrings
 import Data.ByteString.Builder
 import Data.Monoid
 
-type Parser = Parsec BS.ByteString ()
+type ProtoParser = Parser BrokerAnswerMessage
 
 -- Protocol types
 -- cf. /doc/protocols/webapp-message-broker.mkd
@@ -51,7 +55,7 @@ instance Show UserStatus where
 
 ----------- Assemble requests ------------
 bldNewline :: Builder
-bldNewline = char8 '\n'
+bldNewline = Data.ByteString.Builder.char8 '\n'
 
 bldBS :: BS.ByteString -> Builder
 bldBS = lazyByteString
@@ -100,12 +104,15 @@ requestToByteString (BrokerRequestMessage seqn (QueryStatus name)) = toLazyByteS
 
 ------------- Parse answers ---------------
 
-parseAnswer :: BS.ByteString -> Either ParseError BrokerAnswerMessage
-parseAnswer = parse protocolParser "proto-msg"
+parseAnswer :: BS.ByteString -> Either String BrokerAnswerMessage
+parseAnswer input = case parse protocolParser input of
+                        Done _ answ -> Right answ
+                        Fail _ _ err -> Left err
 
-protocolParser :: Parser BrokerAnswerMessage
+--------------------------------------------------
+protocolParser :: ProtoParser
 protocolParser = do
-    seqn_str <- many1 (digit)
+    seqn_str <- many1 digit
     char '\n'
     response_type <- choice [try (string "UONL") >> return UONL,
                             string "ACCMSG" >> return ACCMSG,
@@ -115,10 +122,11 @@ protocolParser = do
     char '\n'
     parseRest (read seqn_str) response_type
 
-parseRest :: Int -> BrokerAnswerType -> Parser BrokerAnswerMessage
+--------------------------------------------------
+parseRest :: Int -> BrokerAnswerType -> ProtoParser
 parseRest seqn UONL = do
-    status <- choice [string (show ONLINE) >> return ONLINE,
-                      string (show OFFLINE) >> return OFFLINE]
+    status <- choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
+                      string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
     return $ BrokerAnswerMessage seqn (UserStatus status)
 parseRest seqn ACCMSG = do
     status <- parseStatus
@@ -128,7 +136,7 @@ parseRest seqn LGDIN = do
     if status /= FAIL
      then do
         char '\n'
-        chanid <- many1 lower
+        chanid <- many1 (satisfy Data.Char.isLower)
         return $ BrokerAnswerMessage seqn (UserLoggedIn status (Just (BS.pack chanid)))
      else return $ BrokerAnswerMessage seqn (UserLoggedIn status Nothing)
 parseRest seqn LGDOUT = do
@@ -138,8 +146,8 @@ parseRest seqn UREGD = do
     status <- parseStatus
     return $ BrokerAnswerMessage seqn (UserRegistered status)
 
+-------------------------------------------------
 parseStatus :: Parser AnswerStatus
-parseStatus = choice [string (show OK) >> return OK,
-                      string (show FAIL) >> return FAIL]
-
+parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
+                      string (SBS.pack . show $ FAIL) >> return FAIL]
 
