@@ -26,11 +26,11 @@ socketIncoming sock chanToCenter = do
 
 -- Thread code handling outgoing messages
 socketOutgoing :: WebappConfiguration -> Socket -> Chan BrokerRequestMessage -> IO ()
-socketOutgoing conf sock chanFromCenter = do
-    msg <- readChan chanFromCenter
+socketOutgoing conf sock outgoingchan = do
+    msg <- readChan outgoingchan
     let rawMessage = BS.toStrict $ requestToByteString msg
     NBS.sendTo sock rawMessage (brokerSockAddr conf)
-    socketOutgoing conf sock chanFromCenter
+    socketOutgoing conf sock outgoingchan
 
 -- Socket setup
 

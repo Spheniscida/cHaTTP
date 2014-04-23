@@ -113,7 +113,6 @@ parseAnswer input = case parse protocolParser input of
                         Done _ answ -> Right answ
                         Fail _ _ err -> Left err
 
---------------------------------------------------
 protocolParser :: ProtoParser
 protocolParser = do
     seqn_str <- many1 digit
@@ -126,7 +125,6 @@ protocolParser = do
     char '\n'
     parseRest (read seqn_str) response_type
 
---------------------------------------------------
 parseRest :: Int -> BrokerAnswerType -> ProtoParser
 parseRest seqn UONL = do
     status <- choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
@@ -155,7 +153,7 @@ parseStatus :: Parser AnswerStatus
 parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
                       string (SBS.pack . show $ FAIL) >> return FAIL]
 
--- JSON responses
+-- JSON responses to web clients
 
 responseToJSON :: BrokerAnswer -> BS.ByteString
 responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["status" .= True, "channel_id" .= T.decodeUtf8 chan_id]

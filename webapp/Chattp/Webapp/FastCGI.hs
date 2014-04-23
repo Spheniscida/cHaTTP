@@ -25,7 +25,7 @@ fcgiMain channels = do
         WebRegister -> handleRegister channels
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
-        VoidRequest -> outputError 404 "Malformed request!" []
+        VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
 
@@ -172,13 +172,13 @@ data UrlOp = WebLogin
            | WebRegister
            | WebSendMessage
            | WebStatusRequest
-           | VoidRequest -- malformed request URL
+           | VoidRequest String -- malformed request URL
            deriving Show
 
 getOpType :: BS.ByteString -> UrlOp
 getOpType url = case parse opParser url of
                     Done _ op -> op
-                    Fail _ _ _ -> VoidRequest
+                    Fail _ _ s -> VoidRequest s
 
 opParser :: Parser UrlOp
 opParser = do
@@ -189,5 +189,5 @@ opParser = do
             string "logout" >> return WebLogout,
             string "register" >> return WebRegister,
             string "login" >> return WebLogin,
-            many1 anyChar >> return VoidRequest]
+            many1 anyChar >>= \rq -> return (VoidRequest rq)]
 
