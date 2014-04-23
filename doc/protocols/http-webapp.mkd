@@ -3,7 +3,8 @@
 This document describes how clients submit requests to a cHaTTP system via
 HTTP (over FastCGI). It uses the keywords indicated by RFC 2119.
 
-For sending a request to the server, both HTTP GET and HTTP POST may be used.
+Requests MUST use the HTTP method `GET`, except for the "send message" request
+which MUST use `POST`.
 
 In general, non-ASCII characters are forbidden in user names and passwords. They are
 transmitted in request URLs and we don't provide any logic yet to decode them.
@@ -12,7 +13,7 @@ transmitted in request URLs and we don't provide any logic yet to decode them.
 
 * Base path (`$base`): This is the path common to all other paths used by cHaTTP. It may be an arbitrary
 path on the web server.
-* Request path: The request path is `$base/ctl`.
+* Request path: The request path is `$base/chattp_request`.
 * Poll path: The polling path is `$base/get`. It should be followed by a `?` character and a key value
 pair with `chan_id` as the key and a ASCII string of usually 64 characters as value. Example:
 `GET $base/get?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea`. The web
@@ -27,20 +28,13 @@ If HTTP GET is used, the parameters have to be carried in the request string; e.
 `user`, value `john_doe`: `GET /foo/chattp?user=john_doe` etc. Several parameters are separated
 by a `&` character.
 
+If a request lacks parameters needed for an operation, it SHALL fail with HTTP status 400.
+
 ### Request types
 
 #### Log-in
 
-    GET $base/ctl/login?user_name=<user>&password=<password> HTTP/1.1
-
-or
-
-    POST $base/ctl/login HTTP/1.1
-    Host: ...
-    Content-Type: application/x-www-form-urlencoded
-    Content-Length: 36
-
-    user_name=<user>&password=<password>
+    GET $base/chattp_request/login?user_name=<user>&password=<password> HTTP/1.1
 
 The `login` subcommand checks if the user is authorized to log-in and if he is, he marks
 the user as online.
@@ -59,35 +53,31 @@ did succeed or not) and, if it did succeed, the channel id:
     Transfer-Encoding: chunked
     Connection: keep-alive
 
-    {"status":true,"channel_id":"rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa"}
+    {"type":"logged-in","status":true,"channel_id":"rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa"}
     # or, if it failed:
-    {"status":false,"channel_id":""}
+    {"type":"logged-in","status":false,"channel_id":""}
 
 #### Log-out
 
-    GET $base/ctl/logout?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa HTTP/1.1
-
-(or POST, respectively.)
+    GET $base/chattp_request/logout?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa HTTP/1.1
 
 Marks a user as offline (so new incoming messages are saved). This needs the channel id as authentication token
 so not everyone may log out anyone else.
 
-The reply is again in JSON, with a single "status" field (boolean).
+The reply is again in JSON, with a "type" field set to "logged-out" and a boolean "status" field.
 
 #### Register a new user
 
-    GET $base/ctl/register?user_name=<user>&password=<password>
-
-(or POST)
+    GET $base/chattp_request/register?user_name=<user>&password=<password>
 
 Registers a user with the given user name and password.
 
-The reply is a JSON object with a boolean "status" field, indicating if the operation succeeded or not. This operation
+The reply is a JSON object with a "type" field set to "registered", and a boolean "status" field, indicating if the operation succeeded or not. This operation
 does not perform a log-in.
 
 #### Send message
 
-    POST $base/ctl/send?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa&dest_user=<user2> HTTP/1.1
+    POST $base/chattp_request/send?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa&dest_user=<user2> HTTP/1.1
     Host: ...
     Content-Type: text/plain
     Content-Length: 13
@@ -98,22 +88,19 @@ This command is a little different in what HTTP methods are allowed to be used. 
 parameters are sent in the request string, the message is sent in the body. This avoids having the message encoded which
 in turn allows any characters to be used in the message content. You may want to set the encoding in the HTTP headers appropriately.
 
-The response will again contain a JSON object containing a sole boolean field "status".
+The response will again contain a JSON object containing a boolean field "status" and a "type" field with the value "message-accepted".
 
 #### Query status of user
 
-    GET $base/ctl/isonline?user=<user>
-
-(or POST)
+    GET $base/chattp_request/isonline?user=<user>
 
 Asks if the specified user is online. If he is, the JSON object in the reply body will have its "status" field set to `true`, else to `false`.
-
-It is also set to `false` if the specified user doesn't exist.
+It is also set to `false` if the specified user doesn't exist. The "type" field is set to "isonline".
 
 ### Receiving messages
 
 
-    GET $base/get?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea HTTP/1.1
+    GET $base/chattp_receive?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea HTTP/1.1
 
 As described, the `get` path with the `chan_id` parameter is used for waiting for a new message. Upon receiving the request,
 the server will not return an answer until a new message has arrived.

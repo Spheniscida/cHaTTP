@@ -5,6 +5,10 @@ module Chattp.Webapp.Protocol where
 import Data.Attoparsec.ByteString.Lazy hiding (satisfy)
 import Data.Attoparsec.ByteString.Char8 hiding (parse,Result, Done, Fail)
 
+import qualified Data.Text.Lazy.Encoding as T
+import Data.Aeson.Encode
+import Data.Aeson.Types hiding (Parser, parse)
+
 import qualified Data.Char
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.ByteString.Char8 as SBS -- Strict ByteStrings
@@ -150,4 +154,21 @@ parseRest seqn UREGD = do
 parseStatus :: Parser AnswerStatus
 parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
                       string (SBS.pack . show $ FAIL) >> return FAIL]
+
+-- JSON responses
+
+responseToJSON :: BrokerAnswer -> BS.ByteString
+responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["status" .= True, "channel_id" .= T.decodeUtf8 chan_id]
+responseToJSON (UserLoggedIn _ _) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
+                                                     "status" .= False,
+                                                     "channel_id" .= T.decodeUtf8 ""]
+responseToJSON (UserRegistered status) = encode $ object ["type" .= T.decodeUtf8 "registered",
+                                                          "status" .= if status == OK then True else False]
+responseToJSON (UserLoggedOut status) = encode $ object ["type" .= T.decodeUtf8 "logged-out",
+                                                         "status" .= if status == OK then True else False]
+responseToJSON (MessageAccepted status) = encode $ object ["type" .= T.decodeUtf8 "message-accepted",
+                                                           "status" .= if status == OK then True else False]
+responseToJSON (UserStatus status) = encode $ object ["type" .= T.decodeUtf8 "isonline",
+                                                      "status" .= if status == ONLINE then True else False]
+
 

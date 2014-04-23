@@ -46,4 +46,3 @@ export CHATTP_MSGBROKER_BROKER_NAME="vostro-linux.virt.goebo.site"
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"
 
-

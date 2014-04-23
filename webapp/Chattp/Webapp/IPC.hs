@@ -49,7 +49,7 @@ createUnixSocket conf = do
 createInetSocket conf = do
     addrinfos <- getAddrInfo (Just (defaultHints {addrFlags = [],
                                     addrFamily = AF_UNSPEC,
-                                    addrSocketType = Datagram }) ) 
+                                    addrSocketType = Datagram }) )
                             (Just (bindAddress conf))
                             (Just (show $ bindPort conf))
     if null addrinfos

@@ -4,8 +4,11 @@ import Chattp.Webapp.Conf
 import Chattp.Webapp.IPC
 import Chattp.Webapp.Protocol
 import Chattp.Webapp.InternalCommunication
+import Chattp.Webapp.FastCGI
 
 import Control.Concurrent
+
+import Network.FastCGI
 
 main = do
     config <- getConfig
@@ -22,4 +25,5 @@ main = do
     forkOS (sequenceNumberManager seqchan)
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
+    runFastCGIConcurrent 50 (fcgiMain chaninfo)
     return ()

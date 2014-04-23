@@ -8,30 +8,31 @@ import qualified Data.HashTable.IO as HT
 
 type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan BrokerAnswer)
 
-data CenterRequestOrResponse =  FCGICenterRequest(SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
+data CenterRequestOrResponse =  FCGICenterRequest (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
 
 data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterRequestOrResponse,
                            brokerRequestChan :: Chan BrokerRequestMessage,
-                           sequenceCounterChan :: Chan SequenceNumber }
+                           sequenceCounterChan :: Chan (Chan SequenceNumber) }
 
 -- This thread ensures unique sequence numbers.
-sequenceNumberManager :: Chan SequenceNumber -> IO ()
+sequenceNumberManager :: Chan (Chan SequenceNumber) -> IO ()
 sequenceNumberManager seqchan = manager 1 seqchan
     where manager i chan = do
-                        _rq <- readChan chan -- Receive any number
-                        writeChan chan i
+                        backchan <- readChan chan -- Receive any number
+                        writeChan backchan i
                         manager (i+1) chan
 
 -- This thread dispatches incoming messages to FCGI threads.
 centerThread :: Chan CenterRequestOrResponse -> IO ()
-centerThread info = do
+centerThread centerchan = do
     ht <- HT.new :: IO DispatcherTable
-    manager info ht
+    manager centerchan ht
+
     where manager :: Chan CenterRequestOrResponse -> DispatcherTable -> IO ()
           manager chan tbl = do -- Loop
             msg <- readChan chan
             case msg of
-                FCGICenterRequest(seqn,backchan) -> HT.insert tbl seqn backchan
+                FCGICenterRequest (seqn,backchan) -> HT.insert tbl seqn backchan
                 BrokerCenterResponse (BrokerAnswerMessage seqn answer) -> sendResponseToFCGI tbl seqn answer
             manager chan tbl
           ----------------------------------------------------------------------------------
