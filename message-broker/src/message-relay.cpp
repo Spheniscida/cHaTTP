@@ -6,31 +6,50 @@
 using std::istringstream;
 using std::ostringstream;
 
-MessageForRelay::MessageForRelay ( const string& mesg, const string& chan_id )
+MessageForRelay::MessageForRelay (const string& sender, const string& mesg, const string& chan_id )
     : seq_num(getNewSequenceNumber()),
     message(mesg),
-    channel_id(chan_id)
+    sender_user(sender),
+    channel_id(chan_id),
+    type(MessageForRelayType::sendMessage)
 {
+}
+
+MessageForRelay::MessageForRelay(const string& chan_id)
+    : seq_num(getNewSequenceNumber()),
+    channel_id(chan_id),
+    type(MessageForRelayType::deleteChannel)
+{
+
 }
 
 string MessageForRelay::toString ( void ) const
 {
     ostringstream message_to_send;
 
-    message_to_send << seq_num << "\n";
-    message_to_send << "SNDMSG\n";
-    message_to_send << channel_id << "\n";
-    message_to_send << message;
+    switch ( type )
+    {
+	case MessageForRelayType::sendMessage:
+	    message_to_send << seq_num << "\n" << "SNDMSG\n" << sender_user << '\n' << channel_id << '\n' << message;
+	    break;
+	case MessageForRelayType::deleteChannel:
+	    message_to_send << seq_num << "\n" << "DELCHAN\n" << channel_id;
+    }
 
     return message_to_send.str();
 }
 
 MessageRelayResponse::MessageRelayResponse ( const string& response )
 {
-    istringstream response_stream(response);
-    string response_type, response_status;
-
     sender = MessageOrigin::fromMessageRelay;
+
+    parseMessage(response);
+}
+
+void MessageRelayResponse::parseMessage(const string& mesg)
+{
+    istringstream response_stream(mesg);
+    string response_type, response_status;
 
     response_stream >> sequence_number;
     response_stream >> response_type;
@@ -38,12 +57,20 @@ MessageRelayResponse::MessageRelayResponse ( const string& response )
 
     if ( sequence_number == 0 )
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid sequence number.");
-    if ( response_type != "MSGSNT" )
+
+    if ( response_type == "MSGSNT" )
+	type = MessageRelayResponseType::messageSent;
+    else if ( response_type == "DELTDCHAN" )
+	type = MessageRelayResponseType::channelDeleted;
+    else
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid response type.");
+
+
     if ( response_status == "OK" )
 	status = true;
     else if ( response_status == "FAIL" )
 	status = false;
     else
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid response status code.");
+
 }

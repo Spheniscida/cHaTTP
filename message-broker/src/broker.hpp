@@ -14,7 +14,7 @@ using std::dynamic_pointer_cast;
 # include "ipc.hpp"
 # include "error.hpp"
 
-class OutstandingTransaction;
+struct OutstandingTransaction;
 
 /**
  * @brief Broker "main" class
@@ -75,6 +75,7 @@ enum class OutstandingType {
     // for MSGSNT
     messagerelayMSGSNT,
     messagerelayB2BMSGSNT,
+    messagerelayDELTDCHAN,
 
     // b2b msgsnt
     b2bMSGSNT
@@ -83,9 +84,8 @@ enum class OutstandingType {
 /**
  * An awaited request.
  */
-class OutstandingTransaction
+struct OutstandingTransaction
 {
-public:
     OutstandingType type;
     /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;

@@ -22,7 +22,7 @@ class MessageForB2B
 {
 public:
     // for SNDMSG
-    MessageForB2B(const string& message, const string& channel_id);
+    MessageForB2B(const string& sender, const string& message, const string& channel_id);
     // for MSGSNT
     MessageForB2B(sequence_t sequence_number, bool status);
 
@@ -33,6 +33,7 @@ public:
 private:
 
     string message;
+    string sender_username;
     string channel_id;
     B2BMessageType type;
     bool status;
@@ -49,6 +50,7 @@ public:
     sequence_t sequence_number;
     string message;
     string channel_id;
+    string sender_username;
     string origin_broker;
     B2BMessageType type;
     bool status;

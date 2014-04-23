@@ -4,6 +4,9 @@
 # include "cache.hpp"
 # include "conf.hpp"
 # include "broker2broker.hpp"
+# include "transaction-maps.hpp"
+
+TransactionMap transaction_cache;
 
 /*
  * LOCKING POLICY
@@ -25,15 +28,6 @@
  * A user's information is cached whenever there has been a ULKUP which was not triggered by UONLQ (in that case, no information is saved),
  * and LOGIN/LOGOUT operations update that information.
  */
-
-unordered_map<sequence_t,OutstandingTransaction> transactions;
-shared_mutex transactions_mutex;
-
-unordered_map<sequence_t,WebappRequest> webapp_requests;
-shared_mutex webapp_requests_mutex;
-
-unordered_map<sequence_t,string> b2b_origins;
-shared_mutex b2b_origins_mutex;
 
 /**
  * @brief Receive and process incoming messages.
@@ -169,46 +163,40 @@ void ProtocolDispatcher::handleBrokerMessage(shared_ptr<Receivable> msg)
 
 void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 {
-    MessageForRelay relaymsg(msg.message,msg.channel_id);
-
     OutstandingTransaction transaction;
 
     transaction.type = OutstandingType::messagerelayB2BMSGSNT;
     transaction.original_sequence_number = msg.sequence_number;
 
-    unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
-	b2b_origins[msg.sequence_number] = msg.origin_broker;
-    b2b_wr_lck.unlock();
+    transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions[relaymsg.seq_num] = transaction;
-    ta_wr_lck.unlock();
+    MessageForRelay relaymsg(msg.sender_username,msg.message,msg.channel_id);
+
+    transaction_cache.insertTransaction(relaymsg.seq_num,transaction);
 
     communicator.send(relaymsg);
 }
 
 void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 {
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[msg.sequence_number];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(msg.sequence_number);
 
-    // We know the original sequence number, that's the main point.
-//     shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-// 	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-//     wa_lck.unlock();
+    if ( ! transaction.original_sequence_number )
+    {
+	debug_log("Received dangling transaction (B2B MSGSNT)");
+
+	transaction_cache.eraseTransaction(msg.sequence_number);
+
+	return;
+    }
 
     WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::acceptedMessage,msg.status);
 
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+
+    transaction_cache.eraseTransaction(msg.sequence_number);
+
     communicator.send(resp);
-
-    unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
-	b2b_origins.erase(transaction.original_sequence_number);
-    b2b_wr_lck.unlock();
-
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(msg.sequence_number);
-    ta_wr_lck.unlock();
 }
 
 void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
@@ -220,13 +208,9 @@ void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::registerUser,rq.user,rq.password);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions[cmd.sequence_number] = transaction;
-    ta_wr_lck.unlock();
+    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests[rq.sequence_number] = rq;
-    wa_wr_lck.unlock();
+    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
     communicator.send(cmd);
 }
@@ -253,13 +237,9 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions[cmd.sequence_number] = transaction;
-    ta_wr_lck.unlock();
+    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests[rq.sequence_number] = rq;
-    wa_wr_lck.unlock();
+    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
     communicator.send(cmd);
 }
@@ -271,7 +251,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
     CachedUser cache_entry = lookupUserInCache(rq.user);
 
-    if ( cache_entry.found && (! cache_entry.online || cache_entry.channel_id != rq.channel_id ) )
+    if ( cache_entry.found && (! cache_entry.online || cache_entry.channel_id != rq.channel_id || cache_entry.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
 	// offline or unauthenticated -- deny!
 	WebappResponse resp(rq.sequence_number,WebappResponseCode::loggedOut,false);
@@ -279,7 +259,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	communicator.send(resp);
 
 	return;
-    } else if ( cache_entry.found && cache_entry.online && cache_entry.channel_id == rq.channel_id )
+    } else if ( cache_entry.found ) // Authorized
     {
 	// Online and authenticated -- logout!
 	transaction.type = OutstandingType::persistenceLGDOUT;
@@ -291,6 +271,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	new_seqnum = cmd.sequence_number;
     } else // not found
     {
+	// Do procedure via ULKUP
 	transaction.type = OutstandingType::persistenceLogoutULKDUP;
 	transaction.original_sequence_number = rq.sequence_number;
 
@@ -300,13 +281,8 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	new_seqnum = cmd.sequence_number;
     }
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions[new_seqnum] = transaction;
-    ta_wr_lck.unlock();
-
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests[rq.sequence_number] = rq;
-    wa_wr_lck.unlock();
+    transaction_cache.insertTransaction(new_seqnum,transaction);
+    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
 }
 
@@ -325,18 +301,14 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 	communicator.send(cmd);
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions[cmd.sequence_number] = transaction;
-	ta_wr_lck.unlock();
+	transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests[rq.sequence_number] = rq;
-	wa_wr_lck.unlock();
+	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
     } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
     {
 	// Unauthorized!
-	if ( ! sender.online || (rq.channel_id != sender.channel_id) )
+	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false);
 	    communicator.send(resp);
@@ -349,13 +321,9 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.dest_user);
 	communicator.send(cmd);
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions[cmd.sequence_number] = transaction;
-	ta_wr_lck.unlock();
+	transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests[rq.sequence_number] = rq;
-	wa_wr_lck.unlock();
+	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
     } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache.
     {
@@ -367,27 +335,23 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 	    return;
 	}
-	// Send to message relay (other implementation in onPersistenceULKDUP
+	// Send to message relay (other implementation is in onPersistenceULKDUP)
 	if ( receiver.online && receiver.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
-	    MessageForRelay msg(rq.message, receiver.channel_id);
+	    MessageForRelay msg(rq.user,rq.message, receiver.channel_id);
 
 	    transaction.type = OutstandingType::messagerelayMSGSNT;
 
-	    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		transactions[msg.seq_num] = transaction;
-	    ta_wr_lck.unlock();
+	    transaction_cache.insertTransaction(msg.seq_num,transaction);
 
 	    communicator.send(msg);
 	} else if ( receiver.online ) // ...and not on this broker
 	{
-	    MessageForB2B broker_message(rq.message,receiver.channel_id);
+	    MessageForB2B broker_message(rq.user,rq.message,receiver.channel_id);
 
 	    transaction.type = OutstandingType::b2bMSGSNT;
 
-	    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		transactions[broker_message.sequence_number] = transaction;
-	    ta_wr_lck.unlock();
+	    transaction_cache.insertTransaction(broker_message.sequence_number,transaction);
 
 	    communicator.send(broker_message,receiver.broker_name);
 	} else if ( ! receiver.online )
@@ -396,16 +360,12 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 	    transaction.type = OutstandingType::persistenceMSGSVD;
 
-	    unique_lock<shared_mutex> ta_wr_lock(transactions_mutex);
-		transactions[cmd.sequence_number] = transaction;
-	    ta_wr_lock.unlock();
+	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
 	    communicator.send(cmd);
 	}
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests[rq.sequence_number] = rq;
-	wa_wr_lck.unlock();
+	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
     }
     // Next up: onPersistenceULKDUP (sender) → onPersistenceULKDUP (receiver) → onMessagerelayMSGSNT/onPersistenceMSGSVD
 }
@@ -430,15 +390,9 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions[cmd.sequence_number] = transaction;
-    ta_wr_lck.unlock();
+    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests[rq.sequence_number] = rq;
-    wa_wr_lck.unlock();
-
-    // We only need the sequence number later (saved in original_sequence_number), therefore no webapp_requests access.
+    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
 
     communicator.send(cmd);
 }
@@ -447,13 +401,9 @@ void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 {
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
-    shared_lock<shared_mutex> wa_lck(transactions_mutex);
-	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
@@ -465,14 +415,9 @@ void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 
     communicator.send(resp);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests.erase(transaction.original_sequence_number);
-    wa_wr_lck.unlock();
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(seqnum);
-    ta_wr_lck.unlock();
-
+    transaction_cache.eraseTransaction(seqnum);
 }
 
 void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& rp)
@@ -481,15 +426,11 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
@@ -498,10 +439,7 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
     if ( transaction.type != OutstandingType::persistenceCHKDPASS )
 	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceCHKDPASS: Expected transaction.type to be persistenceCHKDPASS.");
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	// No const for modifying channel_id.
-	WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+    WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
     // Password/user incorrect?
     if ( rp.status == false )
@@ -510,13 +448,9 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 
 	communicator.send(resp);
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests.erase(original_webapp_request.sequence_number);
-	wa_wr_lck.unlock();
+	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
     } else
     {
 	channel_id_t channel_id = generateChannelId();
@@ -536,10 +470,7 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 
 	transaction.type = OutstandingType::persistenceLGDIN;
 
-	unique_lock<shared_mutex> ta_wr_lock(transactions_mutex);
-	    transactions[cmd.sequence_number] = transaction;
-	    transactions.erase(seqnum);
-	ta_wr_lock.unlock();
+	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
 	communicator.send(cmd);
     }
@@ -549,37 +480,29 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 {
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
     // That's this hacky construction again -- the channel_id was not actually in that request!
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
     WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,original_webapp_request.channel_id);
+
     // We receive the LOGIN, so the user's on this broker. →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→↓
     insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
 
     communicator.send(resp);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests.erase(seqnum);
-    wa_wr_lck.unlock();
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(seqnum);
-    ta_wr_lck.unlock();
+    transaction_cache.eraseTransaction(seqnum);
 }
 
 void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
@@ -588,18 +511,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     sequence_t seqnum = rp.sequence_number;
 
-    // This (rp) is an answer. Someone did send a request; what transaction was it?
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
     {
 	debug_log("Received dangling transaction reference. (Persistence)");
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	return;
     }
@@ -609,9 +527,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     // respond with an error.
     if ( transaction.type == OutstandingType::persistenceSndmsgSenderULKDUP )
     {
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
@@ -621,13 +537,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false);
 	    communicator.send(wr);
 
-	    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-		webapp_requests.erase(original_webapp_request.sequence_number);
-	    wa_wr_lck.unlock();
-
-	    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		transactions.erase(seqnum);
-	    ta_wr_lck.unlock();
+	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
+	    transaction_cache.eraseTransaction(seqnum);
 
 	    return;
 	}
@@ -637,19 +548,14 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// Next message will be a ULKDUP for the receiver
 	transaction.type = OutstandingType::persistenceSndmsgReceiverULKDUP;
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions[cmd.sequence_number] = transaction;
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
 	communicator.send(cmd);
 
     } else if ( transaction.type == OutstandingType::persistenceSndmsgReceiverULKDUP )
     {
 	// send to persistence
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	insertUserInCache(original_webapp_request.dest_user,rp.channel_id,rp.broker_name,rp.online);
 
@@ -658,26 +564,20 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    if ( rp.broker_name == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
 	    {
-		MessageForRelay msg(original_webapp_request.message, rp.channel_id);
+		MessageForRelay msg(original_webapp_request.user,original_webapp_request.message, rp.channel_id);
 
 		transaction.type = OutstandingType::messagerelayMSGSNT;
 
-		unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		    transactions[msg.seq_num] = transaction;
-		    transactions.erase(seqnum);
-		ta_wr_lck.unlock();
+		transaction_cache.eraseAndInsertTransaction(seqnum,msg.seq_num,transaction);
 
 		communicator.send(msg);
-	    } else
+	    } else // B2B communication!
 	    {
-		MessageForB2B broker_message(original_webapp_request.message,rp.channel_id);
+		MessageForB2B broker_message(original_webapp_request.user,original_webapp_request.message,rp.channel_id);
 
 		transaction.type = OutstandingType::b2bMSGSNT;
 
-		unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		    transactions[broker_message.sequence_number] = transaction;
-		    transactions.erase(seqnum);
-		ta_wr_lck.unlock();
+		transaction_cache.eraseAndInsertTransaction(seqnum,broker_message.sequence_number,transaction);
 
 		communicator.send(broker_message,rp.broker_name);
 	    }
@@ -688,45 +588,35 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	    transaction.type = OutstandingType::persistenceMSGSVD;
 
-	    unique_lock<shared_mutex> ta_wr_lock(transactions_mutex);
-		transactions[cmd.sequence_number] = transaction;
-		transactions.erase(seqnum);
-	    ta_wr_lock.unlock();
+	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
 	    communicator.send(cmd);
 	}
 
     } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP )
     {
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	// Respond to the "is user online?" request.
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online);
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests.erase(transaction.original_sequence_number);
-	wa_wr_lck.unlock();
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	communicator.send(resp);
     } else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP )
     {
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	if ( original_webapp_request.request_type != WebappRequestCode::logOut )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type logOut; however, this is not the case.");
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
+	// May log off (authenticated).
 	if ( rp.online == true && rp.channel_id == original_webapp_request.channel_id && rp.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
 	    // User is authorized to log off.
@@ -735,10 +625,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	    transaction.type = OutstandingType::persistenceLGDOUT;
 
-	    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-		transactions[cmd.sequence_number] = transaction;
-		transactions.erase(seqnum);
-	    ta_wr_lck.unlock();
+	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
 	    communicator.send(cmd);
 	} else
@@ -748,21 +635,15 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	    communicator.send(resp);
 
-	    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-		webapp_requests.erase(transaction.original_sequence_number);
-	    wa_wr_lck.unlock();
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-	    unique_lock<shared_mutex> ta_wr_lck(webapp_requests_mutex);
-		transactions.erase(seqnum);
-	    ta_wr_lck.unlock();
+	    transaction_cache.eraseTransaction(seqnum);
 	}
     } else if ( transaction.type == OutstandingType::persistenceLoginULKDUP )
     {
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	if ( rp.online || !rp.status ) // must be offline to log-in
+	if ( rp.online || !rp.status ) // must be offline and registered to log-in
 	{
 	    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,false);
 
@@ -775,10 +656,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	communicator.send(cmd);
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions[cmd.sequence_number] = transaction;
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
     } else
 	throw BrokerError(ErrorType::genericImplementationError,"Unhandled transaction type in onPersistenceULKDUP.");
@@ -789,15 +667,11 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
 {
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number )
     {
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
@@ -806,59 +680,49 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
     if ( transaction.type != OutstandingType::persistenceMSGSVD )
 	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGSVD: Expected transaction type to be persistenceMSGSVD, but received other.");
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
     WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
 
     communicator.send(resp);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests.erase(transaction.original_sequence_number);
-    wa_wr_lck.unlock();
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(seqnum);
-    ta_wr_lck.unlock();
+    transaction_cache.eraseTransaction(seqnum);
 }
 
 void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 {
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number )
     {
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	debug_log("Received dangling transaction reference. (Persistence)");
 	return;
     }
 
-    shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-    wa_lck.unlock();
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    // online predicate is checked before broker_name and channel_id; those are left empty.
-    insertUserInCache(original_webapp_request.user,string(),string(),false);
-
+    // We send "OK" back regardless of what the message relay returned because it's only a question of keeping nginx tidy.
     WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,true);
 
     communicator.send(resp);
 
-    unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	webapp_requests.erase(transaction.original_sequence_number);
-    wa_wr_lck.unlock();
+    // online predicate is checked before broker_name and channel_id; those are left empty.
+    insertUserInCache(original_webapp_request.user,string(),string(),false);
 
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(seqnum);
-    ta_wr_lck.unlock();
+    transaction.type = OutstandingType::messagerelayDELTDCHAN;
+
+    MessageForRelay delchanmsg(original_webapp_request.channel_id);
+
+    transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
+
+    communicator.send(delchanmsg);
+
 }
 
 void ProtocolDispatcher::onPersistenceMSGS(const PersistenceLayerResponse& rp)
@@ -872,51 +736,39 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
     sequence_t seqnum = rp.sequence_number;
 
-    shared_lock<shared_mutex> ta_lck(transactions_mutex);
-	OutstandingTransaction& transaction = transactions[seqnum];
-    ta_lck.unlock();
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number )
     {
 	debug_log("Received dangling transaction reference. (message relay)");
 
-	unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	    transactions.erase(seqnum);
-	ta_wr_lck.unlock();
+	transaction_cache.eraseTransaction(seqnum);
 
 	return;
     }
 
     if ( transaction.type == OutstandingType::messagerelayMSGSNT )
     {
-	shared_lock<shared_mutex> wa_lck(webapp_requests_mutex);
-	    const WebappRequest& original_webapp_request = webapp_requests[transaction.original_sequence_number];
-	wa_lck.unlock();
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
 
 	communicator.send(resp);
 
-	unique_lock<shared_mutex> wa_wr_lck(webapp_requests_mutex);
-	    webapp_requests.erase(transaction.original_sequence_number);
-	wa_wr_lck.unlock();
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
     } else if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT ) // The last SNDMSG was triggered by an external message.
     {
-	shared_lock<shared_mutex> b2b_lck(b2b_origins_mutex);
-	    const string& message_sender_broker = b2b_origins[transaction.original_sequence_number];
-	b2b_lck.unlock();
+	const string& message_sender_broker = transaction_cache.lookupB2BOrigin(transaction.original_sequence_number);
 
 	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
 
 	communicator.send(mesg,message_sender_broker);
 
-	unique_lock<shared_mutex> b2b_wr_lck(b2b_origins_mutex);
-	    b2b_origins.erase(transaction.original_sequence_number);
-	b2b_wr_lck.unlock();
+	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
+    } else if ( transaction.type == OutstandingType::messagerelayDELTDCHAN )
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
     }
-
-    unique_lock<shared_mutex> ta_wr_lck(transactions_mutex);
-	transactions.erase(seqnum);
-    ta_wr_lck.unlock();
+    transaction_cache.eraseTransaction(seqnum);
 }

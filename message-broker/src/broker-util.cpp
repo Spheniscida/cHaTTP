@@ -30,7 +30,7 @@ std::string generateChannelId(void)
     return std::string(channel_id);
 }
 
-void vDebugWrite(void)
+void stderrWrite(void)
 {
     return;
 }

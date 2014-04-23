@@ -13,6 +13,7 @@ broker.cpp
 synchronization.cpp
 cache.cpp
 broker2broker.cpp
+transaction-maps.cpp
 )
 
 set(execsrc

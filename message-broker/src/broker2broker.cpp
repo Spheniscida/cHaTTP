@@ -1,5 +1,6 @@
 # include "broker2broker.hpp"
 # include <sstream>
+#include <sys/socket.h>
 
 namespace {
     const char* ok_code = "OK";
@@ -11,9 +12,10 @@ namespace {
 /**
  * @brief Initialize an outgoing message of SNDMSG type.
  */
-MessageForB2B::MessageForB2B(const string& msg, const string& chan_id)
+MessageForB2B::MessageForB2B(const string& sender,const string& msg, const string& chan_id)
     : sequence_number(getNewSequenceNumber()),
     message(msg),
+    sender_username(sender),
     channel_id(chan_id),
     type(B2BMessageType::B2BSNDMSG)
 {
@@ -38,7 +40,7 @@ string MessageForB2B::toString(void) const
     if ( type == B2BMessageType::B2BMSGSNT )
 	outgoing << "MSGSNT\n" << (status ? ok_code : fail_code);
     else if ( type == B2BMessageType::B2BSNDMSG )
-	outgoing << "SNDMSG\n" << channel_id << '\n' << message;
+	outgoing << "SNDMSG\n" << sender_username << '\n' << channel_id << '\n' << message;
 
     return outgoing.str();
 }
@@ -67,6 +69,7 @@ void B2BIncoming::parseMessage(const string& msg)
     {
 	type = B2BMessageType::B2BSNDMSG;
 
+	msg_stream >> sender_username;
 	msg_stream >> channel_id;
 
 	msg_stream.getline(current_message,0); // Remove \n from stream

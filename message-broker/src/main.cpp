@@ -56,10 +56,10 @@ void startThread(ProtocolDispatcher& dispatch, unsigned int tid)
 	    dispatch.dispatch();
 	} catch (BrokerError e)
 	{
-	    debug_log(e.toString());
+	    error_log(e.toString());
 	} catch (libsocket::socket_exception exc)
 	{
-	    debug_log(exc.mesg);
+	    error_log(exc.mesg);
 	    // This is most probably only some error from sndto or rcvfrom -- log it and ignore it.
 // 	    throw exc;
 	}
@@ -91,10 +91,10 @@ int main(int argc, char** argv)
 
     } catch (BrokerError e)
     {
-	debug_log(e.toString());
+	error_log(e.toString());
     } catch (libsocket::socket_exception exc)
     {
-	debug_log(exc.mesg);
+	error_log(exc.mesg);
     }
 
     return 0;
