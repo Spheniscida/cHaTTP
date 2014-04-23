@@ -140,8 +140,18 @@ void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<Receivable> msg)
     if ( ! response )
 	throw BrokerError(ErrorType::genericImplementationError,"handleMessagerelayMessage(): Expected type MessageRelayResponse, but dynamic_cast failed.");
 
-    // only one type.
-    onMessagerelayMSGSNT(*response);
+    switch ( response->type )
+    {
+	case MessageRelayResponseType::messageSent:
+	    onMessagerelayMSGSNT(*response);
+	    break;
+	case MessageRelayResponseType::channelDeleted:
+	    onMessagerelayDELTDCHAN(*response);
+	    break;
+	case MessageRelayResponseType::channelCreated:
+	    onMessagerelayCHANCREAT(*response);
+	    break;
+    }
 }
 
 void ProtocolDispatcher::handleBrokerMessage(shared_ptr<Receivable> msg)
@@ -299,11 +309,11 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	transaction.type = OutstandingType::persistenceSndmsgSenderULKDUP;
 
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
-	communicator.send(cmd);
 
 	transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
 	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
+	communicator.send(cmd);
 
     } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
     {
@@ -319,11 +329,11 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	transaction.type = OutstandingType::persistenceSndmsgReceiverULKDUP;
 
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.dest_user);
-	communicator.send(cmd);
 
 	transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 
 	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
+	communicator.send(cmd);
 
     } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache.
     {
@@ -411,13 +421,22 @@ void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    WebappResponse resp(original_webapp_request.sequence_number, WebappResponseCode::registeredUser, rp.status);
+    if ( transaction.type == OutstandingType::persistenceUREGD )
+    {
+	WebappResponse resp(original_webapp_request.sequence_number, WebappResponseCode::registeredUser, rp.status);
 
-    communicator.send(resp);
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
-    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
-    transaction_cache.eraseTransaction(seqnum);
+	communicator.send(resp);
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceUREGD: Expected transaction type persistenceUREG, but received other.");
+    }
 }
 
 void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& rp)
@@ -436,43 +455,43 @@ void ProtocolDispatcher::onPersistenceCHKDPASS(const PersistenceLayerResponse& r
 	return;
     }
 
-    if ( transaction.type != OutstandingType::persistenceCHKDPASS )
-	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceCHKDPASS: Expected transaction.type to be persistenceCHKDPASS.");
-
-    WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
-
-    // Password/user incorrect?
-    if ( rp.status == false )
+    if ( transaction.type == OutstandingType::persistenceCHKDPASS )
     {
-	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedIn,false);
+	WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	communicator.send(resp);
+	// Password/user incorrect?
+	if ( rp.status == false )
+	{
+	    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedIn,false);
 
-	transaction_cache.eraseTransaction(seqnum);
+	    transaction_cache.eraseTransaction(seqnum);
 
-	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
+	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
+
+	    communicator.send(resp);
+	} else
+	{
+	    channel_id_t channel_id = generateChannelId();
+	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::logIn,original_webapp_request.user,global_broker_settings.getMessageBrokerName(),channel_id);
+
+	    /* Here, we're doing something which is not very clean: We save the channel id in the "original" webapp request
+	    * although that didn't actually bear a channel id. However, this is necessary so the onPersistenceLGDIN() handler
+	    * may reply with a sequence number.
+	    */
+	    original_webapp_request.channel_id = channel_id;
+
+	    transaction.type = OutstandingType::persistenceLGDIN;
+
+	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
+
+	    communicator.send(cmd);
+	}
     } else
     {
-	channel_id_t channel_id = generateChannelId();
-	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::logIn,original_webapp_request.user,global_broker_settings.getMessageBrokerName(),channel_id);
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
-	/* Here, we're doing something which is not very clean: We save the channel id in the "original" webapp request
-	 * although that didn't actually bear a channel id. However, this is necessary so the onPersistenceLGDIN() handler
-	 * may reply with a sequence number.
-	 */
-	original_webapp_request.channel_id = channel_id;
-
-	/* Here, we're doing something which is not very clean: We save the channel id in the "original" webapp request
-	 * although that didn't actually bear a channel id. However, this is necessary so the onPersistenceLGDIN() handler
-	 * may reply with a sequence number.
-	 */
-	original_webapp_request.channel_id = channel_id;
-
-	transaction.type = OutstandingType::persistenceLGDIN;
-
-	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
-
-	communicator.send(cmd);
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceCHKDPASS: Expected transaction type persistenceCHKDPASS, but received other.");
     }
 }
 
@@ -490,19 +509,25 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    // That's this hacky construction again -- the channel_id was not actually in that request!
-    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+    if ( transaction.type == OutstandingType::persistenceLGDIN )
+    {
+	// That's this hacky construction again -- the channel_id was not actually in that request!
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,original_webapp_request.channel_id);
+	MessageForRelay newchanmsg(original_webapp_request.channel_id,MessageForRelayType::createChannel);
 
-    // We receive the LOGIN, so the user's on this broker. →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→↓
-    insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+	transaction.type = OutstandingType::messagerelayCHANCREAT;
 
-    communicator.send(resp);
+	transaction_cache.eraseAndInsertTransaction(seqnum,newchanmsg.seq_num,transaction);
 
-    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	communicator.send(newchanmsg);
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
-    transaction_cache.eraseTransaction(seqnum);
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceLGDIN: Expected transaction type persistenceLGDIN, but received other.");
+    }
 }
 
 void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
@@ -535,10 +560,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    // Unauthorized sender!
 	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false);
-	    communicator.send(wr);
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
+	    communicator.send(wr);
 
 	    return;
 	}
@@ -633,11 +658,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    // User is not authorized to do a LOGOUT operation.
 	    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,false);
 
-	    communicator.send(resp);
-
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
 	    transaction_cache.eraseTransaction(seqnum);
+
+	    communicator.send(resp);
 	}
     } else if ( transaction.type == OutstandingType::persistenceLoginULKDUP )
     {
@@ -654,13 +679,16 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	transaction.type = OutstandingType::persistenceCHKDPASS;
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::checkPassword,original_webapp_request.user,original_webapp_request.password);
 
-	communicator.send(cmd);
-
 	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 
+	communicator.send(cmd);
     } else
-	throw BrokerError(ErrorType::genericImplementationError,"Unhandled transaction type in onPersistenceULKDUP.");
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceULKDUP: Unexpected transaction type.");
+    }
 }
 
 void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
@@ -677,18 +705,20 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    if ( transaction.type != OutstandingType::persistenceMSGSVD )
-	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGSVD: Expected transaction type to be persistenceMSGSVD, but received other.");
+    if ( transaction.type == OutstandingType::persistenceMSGSVD )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
 
-    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
+	communicator.send(resp);
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
-    communicator.send(resp);
-
-    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-
-    transaction_cache.eraseTransaction(seqnum);
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGSVD: Expected transaction type persistenceMSGSVD, but received other.");
+    }
 }
 
 void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
@@ -705,23 +735,31 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+    if ( transaction.type == OutstandingType::persistenceLGDOUT )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    // We send "OK" back regardless of what the message relay returned because it's only a question of keeping nginx tidy.
-    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,true);
+	// We send "OK" back regardless of what the message relay returned because it's only a question of keeping nginx tidy.
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,true);
 
-    communicator.send(resp);
+	communicator.send(resp);
 
-    // online predicate is checked before broker_name and channel_id; those are left empty.
-    insertUserInCache(original_webapp_request.user,string(),string(),false);
+	// online predicate is checked before broker_name and channel_id; those may be left empty.
+	insertUserInCache(original_webapp_request.user,string(),string(),false);
 
-    transaction.type = OutstandingType::messagerelayDELTDCHAN;
+	MessageForRelay delchanmsg(original_webapp_request.channel_id,MessageForRelayType::deleteChannel);
 
-    MessageForRelay delchanmsg(original_webapp_request.channel_id);
+	transaction.type = OutstandingType::messagerelayDELTDCHAN;
+	transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
 
-    transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
+	communicator.send(delchanmsg);
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
-    communicator.send(delchanmsg);
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceLGDOUT: Expected transaction type persistencLGDOUT, but received other.");
+    }
 
 }
 
@@ -753,9 +791,10 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
 
-	communicator.send(resp);
-
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	communicator.send(resp);
 
     } else if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT ) // The last SNDMSG was triggered by an external message.
     {
@@ -763,12 +802,70 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
 
-	communicator.send(mesg,message_sender_broker);
-
 	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
-    } else if ( transaction.type == OutstandingType::messagerelayDELTDCHAN )
+	transaction_cache.eraseTransaction(seqnum);
+
+	communicator.send(mesg,message_sender_broker);
+    } else
+    {
+	transaction_cache.eraseTransaction(seqnum);
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayMSGSNT: Expected transaction type messagerelayMSGSNT or messagerelayB2BMSGSNT, but received other.");
+    }
+}
+
+void ProtocolDispatcher::onMessagerelayDELTDCHAN(const MessageRelayResponse& rp)
+{
+    sequence_t seqnum = rp.sequence_number;
+
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+
+    if ( ! transaction.original_sequence_number )
+    {
+	debug_log("Received dangling transaction reference. (message relay)");
+
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+    // practically no-op
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+    transaction_cache.eraseTransaction(seqnum);
+}
+
+void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
+{
+    sequence_t seqnum = rp.sequence_number;
+
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+
+    if ( ! transaction.original_sequence_number )
+    {
+	debug_log("Received dangling transaction reference. (message relay)");
+
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+
+    if ( transaction.type == OutstandingType::messagerelayCHANCREAT )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,original_webapp_request.channel_id);
+
+	// We receive the LOGIN, so the user's on this broker. →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→↓
+	insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	communicator.send(resp);
+    } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayCHANCREAT: Expected transaction type messagerelayCHANCREAT, but received other.");
     }
-    transaction_cache.eraseTransaction(seqnum);
 }

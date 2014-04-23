@@ -10,6 +10,7 @@ using std::string;
 
 enum class MessageForRelayType {
     sendMessage,
+    createChannel,
     deleteChannel
 };
 
@@ -17,7 +18,7 @@ class MessageForRelay
 {
 public:
     MessageForRelay(const string& sender, const string& mesg, const string& chan_id);
-    MessageForRelay(const string& chan_id);
+    MessageForRelay(const string& chan_id, MessageForRelayType action_type);
 
     string toString(void) const;
     const sequence_t seq_num;
@@ -30,6 +31,7 @@ private:
 
 enum class MessageRelayResponseType {
     messageSent,
+    channelCreated,
     channelDeleted
 };
 

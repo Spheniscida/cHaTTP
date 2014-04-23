@@ -27,12 +27,13 @@ the essential "Nginx HTTP push module" ([website](https://pushmodule.slact.net/)
             location /sub {
                 set $push_channel_id $arg_id;
                 push_subscriber long-poll;
+                push_subscriber_concurrency first;
                 default_type text/plain;
+                push_authorized_channels_only on;
             }
             location /pub {
                 set $push_channel_id $arg_id;
                 push_publisher;
-                push_authorized_channels_only on;
                 push_store_messages on;
                 default_type text/plain;
                 push_message_buffer_length 1;
