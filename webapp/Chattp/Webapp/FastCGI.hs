@@ -18,12 +18,14 @@ fcgiMain :: ChanInfo -> CGI CGIResult
 fcgiMain channels = do
     params <- getFCGIConf
     let rq_type = getOpType (docUri params)
+
     case rq_type of
         WebLogin -> handleLogin channels
         WebLogout -> handleLogout channels
         WebRegister -> handleRegister channels
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
+        VoidRequest -> outputError 404 "Malformed request!" []
 
 -- Op handlers
 
@@ -143,19 +145,20 @@ handleStatusRequest chans = do
 data FCGIParams = Params { bodyLength :: Int,
                            body :: BS.ByteString,
                            docUri :: BS.ByteString
-}
+} deriving Show
 
 getFCGIConf :: CGI FCGIParams
 getFCGIConf = do
-    content_length_raw <- getInput "CONTENT_LENGTH"
+    content_length_raw <- getVar "CONTENT_LENGTH"
     rq_body <- getBodyFPS
-    uri_raw <- getInputFPS "DOCUMENT_URI"
+    uri_raw <- getVar "DOCUMENT_URI"
     let content_length = case content_length_raw of
                             Nothing -> 0
+                            Just "" -> 0
                             Just l -> read l
     let uri = case uri_raw of
                 Nothing -> ""
-                Just u -> u
+                Just u -> BS.pack u
     return Params { bodyLength = content_length,
                     body = rq_body,
                     docUri = uri

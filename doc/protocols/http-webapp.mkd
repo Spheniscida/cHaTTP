@@ -25,7 +25,7 @@ If HTTP POST is used, the Content-Type field MUST be set to `application/x-www-f
 Additionally, the length of the request string MUST be specified in the `Content-Length` field.
 
 If HTTP GET is used, the parameters have to be carried in the request string; e.g.: Parameter
-`user`, value `john_doe`: `GET /foo/chattp?user=john_doe` etc. Several parameters are separated
+`user`, value `john_doe`: `GET /foo/chattp?user_name=john_doe` etc. Several parameters are separated
 by a `&` character.
 
 If a request lacks parameters needed for an operation, it SHALL fail with HTTP status 400.
@@ -92,7 +92,7 @@ The response will again contain a JSON object containing a boolean field "status
 
 #### Query status of user
 
-    GET $base/chattp_request/isonline?user=<user>
+    GET $base/chattp_request/isonline?user_name=<user>
 
 Asks if the specified user is online. If he is, the JSON object in the reply body will have its "status" field set to `true`, else to `false`.
 It is also set to `false` if the specified user doesn't exist. The "type" field is set to "isonline".
