@@ -41,6 +41,8 @@ public:
     void onPersistenceMSGSVD(const PersistenceLayerResponse& rp);
     void onPersistenceMSGS(const PersistenceLayerResponse& rp);
     void onMessagerelayMSGSNT(const MessageRelayResponse& rp);
+    void onMessagerelayCHANCREAT(const MessageRelayResponse& rp);
+    void onMessagerelayDELTDCHAN(const MessageRelayResponse& rp);
     void onB2BSNDMSG(const B2BIncoming& msg);
     void onB2BMSGSNT(const B2BIncoming& msg);
 
@@ -76,6 +78,7 @@ enum class OutstandingType {
     messagerelayMSGSNT,
     messagerelayB2BMSGSNT,
     messagerelayDELTDCHAN,
+    messagerelayCHANCREAT,
 
     // b2b msgsnt
     b2bMSGSNT

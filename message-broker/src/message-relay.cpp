@@ -15,10 +15,10 @@ MessageForRelay::MessageForRelay (const string& sender, const string& mesg, cons
 {
 }
 
-MessageForRelay::MessageForRelay(const string& chan_id)
+MessageForRelay::MessageForRelay(const string& chan_id, MessageForRelayType action_type)
     : seq_num(getNewSequenceNumber()),
     channel_id(chan_id),
-    type(MessageForRelayType::deleteChannel)
+    type(action_type)
 {
 
 }
@@ -34,6 +34,10 @@ string MessageForRelay::toString ( void ) const
 	    break;
 	case MessageForRelayType::deleteChannel:
 	    message_to_send << seq_num << "\n" << "DELCHAN\n" << channel_id;
+	    break;
+	case MessageForRelayType::createChannel:
+	    message_to_send << seq_num << "\n" << "NEWCHAN\n" << channel_id;
+	    break;
     }
 
     return message_to_send.str();
@@ -62,9 +66,10 @@ void MessageRelayResponse::parseMessage(const string& mesg)
 	type = MessageRelayResponseType::messageSent;
     else if ( response_type == "DELTDCHAN" )
 	type = MessageRelayResponseType::channelDeleted;
+    else if ( response_type == "CHANCREAT" )
+	type = MessageRelayResponseType::channelCreated;
     else
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid response type.");
-
 
     if ( response_status == "OK" )
 	status = true;

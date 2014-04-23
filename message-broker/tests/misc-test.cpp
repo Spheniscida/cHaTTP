@@ -93,9 +93,23 @@ BOOST_AUTO_TEST_CASE(message_relay_generator2)
 {
     initializeGlobalSequenceNumber();
     try {
-	MessageForRelay mesg("asdjhasdkjh");
+	MessageForRelay mesg("asdjhasdkjh",MessageForRelayType::deleteChannel);
 
 	BOOST_CHECK_EQUAL(mesg.toString(),"1\nDELCHAN\nasdjhasdkjh");
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(message_relay_generator3)
+{
+    initializeGlobalSequenceNumber();
+    try {
+	MessageForRelay mesg("asdjhasdkjh",MessageForRelayType::createChannel);
+
+	BOOST_CHECK_EQUAL(mesg.toString(),"1\nNEWCHAN\nasdjhasdkjh");
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
