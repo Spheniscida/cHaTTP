@@ -161,12 +161,12 @@ responseToJSON (UserLoggedIn _ _) = encode $ object ["type" .= T.decodeUtf8 "log
                                                      "status" .= False,
                                                      "channel_id" .= T.decodeUtf8 ""]
 responseToJSON (UserRegistered status) = encode $ object ["type" .= T.decodeUtf8 "registered",
-                                                          "status" .= if status == OK then True else False]
+                                                          "status" .= (status == OK)]
 responseToJSON (UserLoggedOut status) = encode $ object ["type" .= T.decodeUtf8 "logged-out",
-                                                         "status" .= if status == OK then True else False]
+                                                         "status" .= (status == OK)]
 responseToJSON (MessageAccepted status) = encode $ object ["type" .= T.decodeUtf8 "message-accepted",
-                                                           "status" .= if status == OK then True else False]
+                                                           "status" .= (status == OK)]
 responseToJSON (UserStatus status) = encode $ object ["type" .= T.decodeUtf8 "isonline",
-                                                      "status" .= if status == ONLINE then True else False]
+                                                      "status" .= (status == ONLINE)]
 
 

@@ -35,7 +35,7 @@ handleLogin chans = do
     pwd_raw <- getInputFPS "password"
     case (usr_raw,pwd_raw) of
         (Just usr, Just pwd) -> do
-                    seqchan <- liftIO $ newChan
+                    seqchan <- liftIO newChan
                     liftIO $ writeChan (sequenceCounterChan chans) seqchan
                     seqn <- liftIO $ readChan seqchan
 
@@ -57,7 +57,7 @@ handleLogout chans = do
     channel_raw <- getInputFPS "channel_id"
     case (usr_raw,channel_raw) of
         (Just usr, Just channel) -> do
-                    seqchan <- liftIO $ newChan
+                    seqchan <- liftIO newChan
                     liftIO $ writeChan (sequenceCounterChan chans) seqchan
                     seqn <- liftIO $ readChan seqchan
 
