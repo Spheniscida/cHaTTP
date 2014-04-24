@@ -829,7 +829,7 @@ void ProtocolDispatcher::onMessagerelayDELTDCHAN(const MessageRelayResponse& rp)
 
 	return;
     }
-    // practically no-op
+
     transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
     transaction_cache.eraseTransaction(seqnum);
 }
@@ -855,8 +855,11 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,original_webapp_request.channel_id);
 
-	// We receive the LOGIN, so the user's on this broker. →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→↓
-	insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+        if ( rp.status )
+            insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+        else
+            insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
+
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
 
