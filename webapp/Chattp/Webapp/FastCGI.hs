@@ -76,7 +76,7 @@ handleLogout chans = do
 handleRegister :: ChanInfo -> CGI CGIResult
 handleRegister chans = do
     usr_raw <- getInputFPS "user_name"
-    pwd_raw <- getInputFPS "channel_id"
+    pwd_raw <- getInputFPS "password"
     case (usr_raw,pwd_raw) of
         (Just usr, Just pwd) -> do
                     seqchan <- liftIO $ newChan

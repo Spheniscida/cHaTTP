@@ -28,8 +28,8 @@ Two message referring to the same operation MUST bear the same sequence number.
 
 The response type MUST be uppercase and SHOULD give a hint on the operation (e.g. register user: UREG).
 
-The keywords `OK` and `FAIL` may be followed by arbitrary information having the same format for all messages with
-a given response type.
+The keyword `OK` may be followed by arbitrary information having the same format for all messages with
+a given response type. The keyword `FAIL` SHOULD be followed by an error description.
 
 Individual fields of such a message SHOULD be separated by newline characters (LF, ASCII: 0x0a). The information
 fields MUST NOT contain newline characters.
@@ -78,8 +78,6 @@ Fails if user is already offline or user name and channel id mismatch.
     <seqn> ACCMSG {OK|FAIL}
 
 Request delivery of a message `<message>` to the user `<destination user name>`. Both fields MUST NOT contain LF characters.
-
-It is recommended that the message text contain a time stamp. However, this is not required.
 
 The message broker SHOULD refuse to accept a message if the specified user is not registered. In any other case, it should accept
 the message.

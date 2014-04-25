@@ -30,7 +30,19 @@ by a `&` character.
 
 If a request lacks parameters needed for an operation, it SHALL fail with HTTP status 400.
 
-### Request types
+## Receiving answers
+### JSON fields
+
+The answers from the web server MUST be in JSON format. Fields that are always available in returned JSON objects are:
+
+* "status" (boolean) -- success or fail
+* "error" (string) -- reason for fail, empty on success
+* "type" (string) -- type of transaction; this may be `logged-in`, `registered`, `logged-out`, `message-accepted` and `isonline`.
+The names stay the same on errors; `message-accepted` with `status == false` means that the message hasn't been accepted.
+
+Additional fields are described for each command.
+
+## Request types
 
 #### Log-in
 
@@ -64,16 +76,13 @@ did succeed or not) and, if it did succeed, the channel id:
 Marks a user as offline (so new incoming messages are saved). This needs the channel id as authentication token
 so not everyone may log out anyone else.
 
-The reply is again in JSON, with a "type" field set to "logged-out" and a boolean "status" field.
-
 #### Register a new user
 
     GET $base/chattp_request/register?user_name=<user>&password=<password>
 
 Registers a user with the given user name and password.
 
-The reply is a JSON object with a "type" field set to "registered", and a boolean "status" field, indicating if the operation succeeded or not. This operation
-does not perform a log-in.
+This command does not perform a log-in.
 
 #### Send message
 
@@ -88,8 +97,6 @@ This command is a little different in what HTTP methods are allowed to be used. 
 parameters are sent in the request string, the message is sent in the body. This avoids having the message encoded which
 in turn allows any characters to be used in the message content. You may want to set the encoding in the HTTP headers appropriately.
 
-The response will again contain a JSON object containing a boolean field "status" and a "type" field with the value "message-accepted".
-
 #### Query status of user
 
     GET $base/chattp_request/isonline?user_name=<user>
@@ -98,7 +105,6 @@ Asks if the specified user is online. If he is, the JSON object in the reply bod
 It is also set to `false` if the specified user doesn't exist. The "type" field is set to "isonline".
 
 ### Receiving messages
-
 
     GET $base/chattp_receive?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea HTTP/1.1
 

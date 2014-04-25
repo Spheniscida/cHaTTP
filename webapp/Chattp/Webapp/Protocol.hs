@@ -5,6 +5,7 @@ module Chattp.Webapp.Protocol where
 import Data.Attoparsec.ByteString.Lazy hiding (satisfy)
 import Data.Attoparsec.ByteString.Char8 hiding (parse,Result, Done, Fail)
 
+import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
 import Data.Aeson.Encode
 import Data.Aeson.Types hiding (Parser, parse)
@@ -31,7 +32,7 @@ type MessageContent = BS.ByteString
 
 data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ deriving Show
 
-data AnswerStatus = OK | FAIL deriving (Show,Eq)
+data AnswerStatus = OK | FAIL BS.ByteString deriving (Show,Eq)
 data UserStatus = ONLINE | OFFLINE deriving Eq
 data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL deriving Show
 
@@ -71,6 +72,7 @@ requestToByteString :: BrokerRequestMessage -> BS.ByteString
 requestToByteString (BrokerRequestMessage seqn (RegisterUser name pwd)) = toLazyByteString $ bldShow seqn
                                                                             <> bldNewline
                                                                             <> bldShow UREG
+                                                                            <> bldNewline
                                                                             <> bldBS name
                                                                             <> bldNewline
                                                                             <> bldBS pwd
@@ -135,12 +137,12 @@ parseRest seqn ACCMSG = do
     return $ BrokerAnswerMessage seqn (MessageAccepted status)
 parseRest seqn LGDIN = do
     status <- parseStatus
-    if status /= FAIL
-     then do
-        char '\n'
-        chanid <- many1 (satisfy Data.Char.isLower)
-        return $ BrokerAnswerMessage seqn (UserLoggedIn status (Just (BS.pack chanid)))
-     else return $ BrokerAnswerMessage seqn (UserLoggedIn status Nothing)
+    case status of
+        OK -> do
+            char '\n'
+            chanid <- many1 (satisfy Data.Char.isLower)
+            return $ BrokerAnswerMessage seqn (UserLoggedIn status (Just (BS.pack chanid)))
+        FAIL _ -> return $ BrokerAnswerMessage seqn (UserLoggedIn status Nothing)
 parseRest seqn LGDOUT = do
     status <- parseStatus
     return $ BrokerAnswerMessage seqn (UserLoggedOut status)
@@ -151,22 +153,41 @@ parseRest seqn UREGD = do
 -------------------------------------------------
 parseStatus :: Parser AnswerStatus
 parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
-                      string (SBS.pack . show $ FAIL) >> return FAIL]
+                      parseFAIL]
+
+parseFAIL :: Parser AnswerStatus
+parseFAIL = do
+    string (SBS.pack "FAIL")
+    mesg <- choice [char '\n' >> many1 anyChar,
+                    return ""]
+    return (FAIL $ BS.pack mesg)
+
 
 -- JSON responses to web clients
 
 responseToJSON :: BrokerAnswer -> BS.ByteString
-responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["status" .= True, "channel_id" .= T.decodeUtf8 chan_id]
-responseToJSON (UserLoggedIn _ _) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
-                                                     "status" .= False,
-                                                     "channel_id" .= T.decodeUtf8 ""]
+responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
+                                                                   "status" .= True,
+                                                                   "channel_id" .= T.decodeUtf8 chan_id,
+                                                                   "error" .= T.decodeUtf8 ""]
+responseToJSON (UserLoggedIn (FAIL reason) _) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
+                                                                 "status" .= False,
+                                                                 "channel_id" .= T.decodeUtf8 "",
+                                                                 "error" .= T.decodeUtf8 reason]
 responseToJSON (UserRegistered status) = encode $ object ["type" .= T.decodeUtf8 "registered",
-                                                          "status" .= (status == OK)]
+                                                          "status" .= (status == OK),
+                                                          "error" .= statusToError status]
 responseToJSON (UserLoggedOut status) = encode $ object ["type" .= T.decodeUtf8 "logged-out",
-                                                         "status" .= (status == OK)]
+                                                         "status" .= (status == OK),
+                                                         "error" .= statusToError status]
 responseToJSON (MessageAccepted status) = encode $ object ["type" .= T.decodeUtf8 "message-accepted",
-                                                           "status" .= (status == OK)]
+                                                           "status" .= (status == OK),
+                                                           "error" .= statusToError status]
 responseToJSON (UserStatus status) = encode $ object ["type" .= T.decodeUtf8 "isonline",
-                                                      "status" .= (status == ONLINE)]
+                                                      "status" .= (status == ONLINE),
+                                                      "error" .= T.pack ""]
 
+statusToError :: AnswerStatus -> T.Text
+statusToError OK = ""
+statusToError (FAIL msg) = T.decodeUtf8 msg
 
