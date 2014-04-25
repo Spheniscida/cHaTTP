@@ -71,7 +71,7 @@ public:
 
     const string& getMessageBrokerName(void) const { return message_broker_name; };
 
-    int getNumberOfThreads(void) const { return n_threads; };
+    unsigned int getNumberOfThreads(void) const { return n_threads; };
 private:
     connectionInformation message_relay_info;
     connectionInformation persistence_layer_info;

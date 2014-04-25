@@ -97,12 +97,14 @@ enum class WebappResponseCode {
 class WebappResponse
 {
 public:
-    WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status = true, const string& response_data = "");
+    WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status = true, const string& error_message = "", const string& response_data = "");
 
     string toString(void) const;
 private:
     /// e.g. LGDIN <channel id>
     string payload;
+    /// an error message appended after FAIL
+    string error_message;
     sequence_t sequence_number;
     WebappResponseCode response_type;
     bool status;

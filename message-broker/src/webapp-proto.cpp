@@ -108,8 +108,9 @@ void WebappRequest::parseWebappRequest(const string& request)
 
 /****************************** Responses *******************************/
 
-WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status, const string& response_data)
-    : sequence_number(seq_num),
+WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status, const string& error_desc, const string& response_data)
+    : error_message(error_desc),
+      sequence_number(seq_num),
       response_type(type),
       status(response_status)
 {
@@ -131,6 +132,9 @@ string WebappResponse::toString(void) const
 	case WebappResponseCode::loggedOut: ostr << "LGDOUT\n" << (status ? ok_code  : fail_code); break;
 	case WebappResponseCode::registeredUser: ostr << "UREGD\n" << (status ? ok_code : fail_code); break;
     }
+
+    if ( ! status )
+	ostr << "\n" << error_message;
 
     return ostr.str();
 }
