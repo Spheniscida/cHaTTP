@@ -48,27 +48,39 @@ void ProtocolDispatcher::dispatch(void)
 	// received_messages is an output argument!
 	received_size = communicator.receiveMessages(received_messages);
 
-	for ( unsigned int i = 0; i < received_size; i++ )
-	{
-	    switch ( received_messages[i]->sender )
+	try {
+	    for ( unsigned int i = 0; i < received_size; i++ )
 	    {
-		// shared_ptr -- because the delivered message is dynamically allocated.
-		case MessageOrigin::fromPersistence:
-		    handlePersistenceMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromWebApp:
-		    handleWebappMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromMessageRelay:
-		    handleMessagerelayMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromBroker:
-		    handleBrokerMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		default:
-		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
+		switch ( received_messages[i]->sender )
+		{
+		    // shared_ptr -- because the delivered message is dynamically allocated.
+		    case MessageOrigin::fromPersistence:
+			handlePersistenceMessage(shared_ptr<Receivable>(received_messages[i]));
+			break;
+		    case MessageOrigin::fromWebApp:
+			handleWebappMessage(shared_ptr<Receivable>(received_messages[i]));
+			break;
+		    case MessageOrigin::fromMessageRelay:
+			handleMessagerelayMessage(shared_ptr<Receivable>(received_messages[i]));
+			break;
+		    case MessageOrigin::fromBroker:
+			handleBrokerMessage(shared_ptr<Receivable>(received_messages[i]));
+			break;
+		    default:
+			throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
+		}
+		// Shared pointers are destroyed automatically until control is here.
 	    }
-	    // Shared pointers are destroyed automatically until control is here.
+	} catch (BrokerError e)
+	{
+	    for ( unsigned int i = 0; i < received_size; i++ )
+		delete received_messages[i];
+	    throw e; // to main loop for logging
+	} catch (libsocket::socket_exception e)
+	{
+	    for ( unsigned int i = 0; i < received_size; i++ )
+		delete received_messages[i];
+	    throw e; // to main loop for logging
 	}
     }
 }

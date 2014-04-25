@@ -21,7 +21,7 @@ using std::istringstream;
  * @brief Channel ID type
  *
  * The channel id is used to identify a user's session; it should be a randomly generated
- * token of roughly 20 to 60 characters.
+ * token of currently 64 lower-case characters.
  *
  * The same string is used as an identifier for a session in the nginx delivery back-end.
  */
