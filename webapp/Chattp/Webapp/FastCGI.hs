@@ -110,7 +110,8 @@ handleSendMessage chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (SendMessage usr channel dst mesg)
+                    let mangled_message = BS.map mangleMsg mesg
+                    let request = BrokerRequestMessage seqn (SendMessage usr channel dst mangled_message)
                     liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
@@ -118,6 +119,9 @@ handleSendMessage chans = do
                     let jsonresponse = responseToJSON brokeranswer
                     outputFPS jsonresponse
         _ -> outputError 400 "Message send request lacking request parameter(s)" []
+    where mangleMsg :: Char -> Char
+          mangleMsg '\n' = ' '
+          mangleMsg c = c
 
 handleStatusRequest :: ChanInfo -> CGI CGIResult
 handleStatusRequest chans = do
