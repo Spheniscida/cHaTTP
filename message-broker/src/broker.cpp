@@ -429,7 +429,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Unauthorized!
 	if ( ! sender.online || rq.channel_id != sender.channel_id )
 	{
-	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Sender offline or unauthorized");
+	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,!sender.online ? "Sender offline" : "Sender unauthorized");
 	    communicator.send(resp);
 
 	    return;
@@ -547,7 +547,7 @@ void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 
     if ( transaction.type == OutstandingType::persistenceUREGD )
     {
-	WebappResponse resp(original_webapp_request.sequence_number, WebappResponseCode::registeredUser, rp.status);
+	WebappResponse resp(original_webapp_request.sequence_number, WebappResponseCode::registeredUser, rp.status,"Probably, this user already exists");
 
 	communicator.send(resp);
 
@@ -917,7 +917,7 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status,"Internal error! (Persistence didn't accept message)");
 
 	communicator.send(resp);
     } else
@@ -999,7 +999,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	if ( rp.status )
 	{
-	    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,rp.status);
+	    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,true);
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
