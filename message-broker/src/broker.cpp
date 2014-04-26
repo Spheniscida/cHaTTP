@@ -52,121 +52,100 @@ void ProtocolDispatcher::dispatch(void)
 
 	for ( unsigned int i = 0; i < received_size; i++ )
 	{
-	    switch ( received_messages[i]->sender )
-	    {
-		// shared_ptr -- because the delivered message is dynamically allocated.
-		case MessageOrigin::fromPersistence:
-		    handlePersistenceMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromWebApp:
-		    handleWebappMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromMessageRelay:
-		    handleMessagerelayMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		case MessageOrigin::fromBroker:
-		    handleBrokerMessage(shared_ptr<Receivable>(received_messages[i]));
-		    break;
-		default:
-		    throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin.");
-	    }
+	    Receivable *sndr = received_messages[i];
+
+	    if ( PersistenceLayerResponse* resp = dynamic_cast<PersistenceLayerResponse*>(sndr) )
+		handlePersistenceMessage(shared_ptr<PersistenceLayerResponse>(resp));
+	    else if ( WebappRequest* req = dynamic_cast<WebappRequest*>(sndr) )
+		handleWebappMessage(shared_ptr<WebappRequest>(req));
+	    else if ( MessageRelayResponse* resp = dynamic_cast<MessageRelayResponse*>(sndr) )
+		handleMessagerelayMessage(shared_ptr<MessageRelayResponse>(resp));
+	    else if ( B2BIncoming* msg = dynamic_cast<B2BIncoming*>(sndr) )
+		handleBrokerMessage(shared_ptr<B2BIncoming>(msg));
+	    else
+		throw BrokerError(ErrorType::unimplemented,"dispatch(): Unimplemented origin (all casts failed).");
+
 	    // Shared pointers are destroyed automatically until control is here.
 	}
     }
 }
 /***************************** Message handlers ****************************/
 
-void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<Receivable> msg)
+void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerResponse> msg)
 {
-    shared_ptr<PersistenceLayerResponse> response = dynamic_pointer_cast<PersistenceLayerResponse>(msg);
 
-    if ( ! response )
-	throw BrokerError(ErrorType::genericImplementationError,"handlePersistenceMessage(): Expected type PersistenceLayerResponse, but dynamic_cast failed.");
-
-    switch ( response->response_type )
+    switch ( msg->response_type )
     {
 	case PersistenceLayerResponseCode::lookedUpUser:
-	    onPersistenceULKDUP(*response);
+	    onPersistenceULKDUP(*msg);
 	    break;
 	case PersistenceLayerResponseCode::savedMessage:
-	    onPersistenceMSGSVD(*response);
+	    onPersistenceMSGSVD(*msg);
 	    break;
 	case PersistenceLayerResponseCode::userRegistered:
-	    onPersistenceUREGD(*response);
+	    onPersistenceUREGD(*msg);
 	    break;
 	case PersistenceLayerResponseCode::passwordChecked:
-	    onPersistenceCHKDPASS(*response);
+	    onPersistenceCHKDPASS(*msg);
 	    break;
 	case PersistenceLayerResponseCode::loggedIn:
-	    onPersistenceLGDIN(*response);
+	    onPersistenceLGDIN(*msg);
 	    break;
 	case PersistenceLayerResponseCode::loggedOut:
-	    onPersistenceLGDOUT(*response);
+	    onPersistenceLGDOUT(*msg);
 	    break;
 	case PersistenceLayerResponseCode::messages:
 	    throw BrokerError(ErrorType::unimplemented,"handlePersistenceMessage(): Unimplemented response handler for MSGS.");
     }
 }
 
-void ProtocolDispatcher::handleWebappMessage(shared_ptr<Receivable> msg)
+void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 {
-    shared_ptr<WebappRequest> request = dynamic_pointer_cast<WebappRequest>(msg);
-
-    if ( ! request )
-	throw BrokerError(ErrorType::genericImplementationError,"handleWebappMessage(): Expected type WebappRequest, but dynamic_cast failed.");
-
-    switch ( request->request_type )
+    switch ( msg->request_type )
     {
 	case WebappRequestCode::isOnline:
-	    onWebAppUONLQ(*request);
+	    onWebAppUONLQ(*msg);
 	    break;
 	case WebappRequestCode::sendMessage:
-	    onWebAppSNDMSG(*request);
+	    onWebAppSNDMSG(*msg);
 	    break;
 	case WebappRequestCode::logIn:
-	    onWebAppLOGIN(*request);
+	    onWebAppLOGIN(*msg);
 	    break;
 	case WebappRequestCode::logOut:
-	    onWebAppLOGOUT(*request);
+	    onWebAppLOGOUT(*msg);
 	    break;
 	case WebappRequestCode::registerUser:
-	    onWebAppUREG(*request);
+	    onWebAppUREG(*msg);
 	    break;
     }
 }
 
-void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<Receivable> msg)
+void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg)
 {
-    shared_ptr<MessageRelayResponse> response = dynamic_pointer_cast<MessageRelayResponse>(msg);
-
-    if ( ! response )
-	throw BrokerError(ErrorType::genericImplementationError,"handleMessagerelayMessage(): Expected type MessageRelayResponse, but dynamic_cast failed.");
-
-    switch ( response->type )
+    switch ( msg->response_type )
     {
 	case MessageRelayResponseType::messageSent:
-	    onMessagerelayMSGSNT(*response);
+	    onMessagerelayMSGSNT(*msg);
 	    break;
 	case MessageRelayResponseType::channelDeleted:
-	    onMessagerelayDELTDCHAN(*response);
+	    onMessagerelayDELTDCHAN(*msg);
 	    break;
 	case MessageRelayResponseType::channelCreated:
-	    onMessagerelayCHANCREAT(*response);
+	    onMessagerelayCHANCREAT(*msg);
 	    break;
     }
 }
 
-void ProtocolDispatcher::handleBrokerMessage(shared_ptr<Receivable> msg)
+void ProtocolDispatcher::handleBrokerMessage(shared_ptr<B2BIncoming> msg)
 {
-    shared_ptr<B2BIncoming> message = dynamic_pointer_cast<B2BIncoming>(msg);
-
-    switch ( message->type )
+    switch ( msg->type )
     {
 	case B2BMessageType::B2BSNDMSG:
-	    onB2BSNDMSG(*message);
+	    onB2BSNDMSG(*msg);
 	    break;
 	case B2BMessageType::B2BMSGSNT:
-	    onB2BMSGSNT(*message);
+	    onB2BMSGSNT(*msg);
 	    break;
     }
 }
@@ -369,9 +348,11 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
 void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 {
+    sequence_t seqnum = rq.sequence_number;
+
     OutstandingTransaction transaction;
 
-    transaction.original_sequence_number = rq.sequence_number;
+    transaction.original_sequence_number = seqnum;
 
     CachedUser sender = lookupUserInCache(rq.user), receiver = lookupUserInCache(rq.dest_user);
 
@@ -386,7 +367,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    communicator.send(cmd);
 
 	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
-	    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
 	{
 	    WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
@@ -400,7 +381,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Unauthorized!
 	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
-	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Sender unauthorized (wrong channel id)");
+	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,"Sender unauthorized (wrong channel id)");
 	    communicator.send(resp);
 
 	    return;
@@ -415,10 +396,10 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    communicator.send(cmd);
 
 	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
-	    transaction_cache.insertWebappRequest(rq.sequence_number,rq);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
+	    WebappResponse failresp(seqnum,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
 	    communicator.send(failresp);
 
 	    throw e;
@@ -429,7 +410,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Unauthorized!
 	if ( ! sender.online || rq.channel_id != sender.channel_id )
 	{
-	    WebappResponse resp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,!sender.online ? "Sender offline" : "Sender unauthorized");
+	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,!sender.online ? "Sender offline" : "Sender unauthorized");
 	    communicator.send(resp);
 
 	    return;
@@ -447,10 +428,24 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		transaction_cache.insertTransaction(msg.seq_num,transaction);
 	    } catch (libsocket::socket_exception e)
 	    {
-		WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
-		communicator.send(failresp);
+		// Message relay is offline (unreachable), therefore save that message.
+		PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message);
 
-		throw e;
+		transaction.type = OutstandingType::persistenceMSGSVD;
+
+		try
+		{
+		    communicator.send(cmd);
+		    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Message relay down, Persistence too)");
+		    communicator.send(failresp);
+
+		    transaction_cache.eraseTransaction(seqnum);
+
+		    throw e;
+		}
 	    }
 
 	} else if ( receiver.online ) // ...and not on this broker

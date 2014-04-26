@@ -49,10 +49,10 @@ public:
 private:
     Communicator communicator;
 
-    void handlePersistenceMessage(shared_ptr<Receivable> msg);
-    void handleWebappMessage(shared_ptr<Receivable> msg);
-    void handleMessagerelayMessage(shared_ptr<Receivable> msg);
-    void handleBrokerMessage(shared_ptr<Receivable> msg);
+    void handlePersistenceMessage(shared_ptr<PersistenceLayerResponse> msg);
+    void handleWebappMessage(shared_ptr<WebappRequest> msg);
+    void handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg);
+    void handleBrokerMessage(shared_ptr<B2BIncoming> msg);
 };
 
 enum class OutstandingType {

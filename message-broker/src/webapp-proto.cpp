@@ -45,7 +45,6 @@ istringstream& operator>>(istringstream& stream, WebappRequestCode& code)
  */
 WebappRequest::WebappRequest(const string& request)
 {
-    sender = MessageOrigin::fromWebApp;
     parseWebappRequest(request);
 }
 
