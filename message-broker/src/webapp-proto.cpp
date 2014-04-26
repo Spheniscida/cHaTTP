@@ -133,7 +133,7 @@ string WebappResponse::toString(void) const
 	case WebappResponseCode::registeredUser: ostr << "UREGD\n" << (status ? ok_code : fail_code); break;
     }
 
-    if ( ! status )
+    if ( ! status && ! error_message.empty() )
 	ostr << "\n" << error_message;
 
     return ostr.str();
