@@ -55,5 +55,5 @@ export CHATTP_MSGRELAY_PUBLISH_PORT="80"
 # Message may be received at $base/get
 export CHATTP_MSGRELAY_PUBLISH_BASE_PATH="/test"
 
-export CHATTP_MSGRELAY_PUBLISH_CHAN_ID_PARAMETER="channel_id"
+export CHATTP_MSGRELAY_PUBLISH_CHAN_ID_PARAMETER="chan_id"
 
