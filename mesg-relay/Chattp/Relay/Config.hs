@@ -3,12 +3,15 @@ module Chattp.Relay.Config where
 import Data.Maybe (fromMaybe)
 import System.Environment (getEnv, lookupEnv)
 
+import qualified Data.ByteString.Lazy.Char8 as BS
+
 data RelayConfig = RelayConfig {
     publishHost :: String,
-    publishPort :: String,
+    publishPort :: Int,
     publishBasePath :: String,
     publishChanIdParam :: String,
-    nThreads :: Int
+    nThreads :: Int,
+    publishURL :: BS.ByteString
 } deriving Show
 
 publish_host_env_var, publish_port_env_var, publish_base_path_env_var, publish_chan_id_env_var, nthreads_env_var :: String
@@ -25,14 +28,13 @@ makeConfig = do
     p_base <- getEnv publish_base_path_env_var
     p_chanid <- getEnv publish_chan_id_env_var
     nthreads_raw <- lookupEnv nthreads_env_var
-    let p_port = fromMaybe "80" p_port_raw
+    let p_port = maybe 80 read p_port_raw
     let nthreads = maybe 2 read nthreads_raw
     return RelayConfig { publishHost = p_host,
                            publishPort = p_port,
                            publishBasePath = p_base,
                            publishChanIdParam = p_chanid,
-                           nThreads = nthreads
+                           nThreads = nthreads,
+                           publishURL = BS.pack $ "http://" ++ p_host ++ p_base ++ "/pub?" ++ p_chanid ++ "="
     }
-
-
 

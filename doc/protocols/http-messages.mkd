@@ -8,7 +8,8 @@ A base path has to be defined. It MUST be the same as the one described in `http
 Both client and server must have the same definition of the channel id parameter name.
 The recommended parameter name is `channel_id`. It SHALL be the default.
 
-The actual *subscriber* path is `$base/get`.
+The actual *subscriber* path is `$base/get`. The publisher path which is only used internally
+is `$base/pub` (the third is `$base/chattp_request`)
 
 If the subscriber path is requested before a log-in at the webapp has happened,
 the web server MUST return an HTTP error code `403` (Forbidden).
