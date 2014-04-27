@@ -18,7 +18,7 @@ fcgiMain :: ChanInfo -> CGI CGIResult
 fcgiMain channels = do
     params <- getFCGIConf
     let rq_type = getOpType (docUri params)
-
+    setHeader "Content-Type" "application/json"
     case rq_type of
         WebLogin -> handleLogin channels
         WebLogout -> handleLogout channels
