@@ -68,6 +68,5 @@ makeConfig = do
                            brokerPort = broker_port,
                            nThreads = nthreads,
                            publishURL = BS.pack $ "http://" ++ p_host ++ p_base ++ "/pub?" ++ p_chanid ++ "="
-
     }
 
