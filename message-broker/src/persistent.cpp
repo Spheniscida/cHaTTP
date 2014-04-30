@@ -14,7 +14,6 @@ using std::string;
  */
 PersistenceLayerResponse::PersistenceLayerResponse(const string& response)
 {
-    sender = MessageOrigin::fromPersistence;
     parsePersistenceResponse(response);
 }
 

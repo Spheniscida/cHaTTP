@@ -25,7 +25,7 @@ void initMessageBrokerThread(void)
  * This function should to be called only once for a single instance of
  * this program.
  */
-void initMessageBroker(void)
+void globalInit(void)
 {
     initializeGlobalSequenceNumber();
     initializeUrandomSource();
@@ -61,7 +61,6 @@ void startThread(ProtocolDispatcher& dispatch, unsigned int tid)
 	{
 	    error_log(exc.mesg);
 	    // This is most probably only some error from sndto or rcvfrom -- log it and ignore it.
-// 	    throw exc;
 	}
     }
 
@@ -72,7 +71,7 @@ int main(int argc, char** argv)
 {
     start_time = steady_clock::now();
     // Only one thread yet.
-    initMessageBroker();
+    globalInit();
     initMessageBrokerThread();
 
     // This is only testing yet.

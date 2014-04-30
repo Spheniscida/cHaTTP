@@ -21,7 +21,6 @@ class Receivable
 {
 public:
     virtual ~Receivable(void) = default;
-    MessageOrigin sender;
 };
 
 # endif

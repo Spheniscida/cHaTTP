@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(create_accmsg_response2)
 BOOST_AUTO_TEST_CASE(create_login_response1)
 {
     try {
-	WebappResponse r(1,WebappResponseCode::loggedIn,true,"aabce328");
+	WebappResponse r(1,WebappResponseCode::loggedIn,true,"","aabce328");
 	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDIN\nOK\naabce328");
 
     } catch (BrokerError e)
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE(create_login_response1)
 BOOST_AUTO_TEST_CASE(create_login_response2)
 {
     try {
-	WebappResponse r(1,WebappResponseCode::loggedIn,false,"aabce328");
+	WebappResponse r(1,WebappResponseCode::loggedIn,false,"","aabce328");
 	BOOST_CHECK_EQUAL(r.toString(),"1\nLGDIN\nFAIL");
 
     } catch (BrokerError e)

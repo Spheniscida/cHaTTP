@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(message_relay_parser3)
 
 	BOOST_CHECK_EQUAL(resp.sequence_number,23876123);
 	BOOST_CHECK_EQUAL(resp.status,true);
-	BOOST_CHECK(resp.type == MessageRelayResponseType::channelDeleted);
+	BOOST_CHECK(resp.response_type == MessageRelayResponseType::channelDeleted);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -124,21 +124,10 @@ BOOST_AUTO_TEST_CASE(receivable_cast1)
 
     Receivable* r = persist_resp;
 
-    BOOST_CHECK(r->sender == MessageOrigin::fromPersistence);
+    answer = dynamic_cast<PersistenceLayerResponse*>(r);
 
-    if ( r->sender == MessageOrigin::fromPersistence )
-	answer = dynamic_cast<PersistenceLayerResponse*>(r);
-}
-
-BOOST_AUTO_TEST_CASE(receivable_correct_senders_in_messages)
-{
-    PersistenceLayerResponse pr("823\nUREGD\nOK");
-    MessageRelayResponse mrr("677\nMSGSNT\nOK");
-    WebappRequest wr("78\nLOGOUT\nusr\nashjgasdjghaksdgauzed");
-
-    BOOST_CHECK(pr.sender == MessageOrigin::fromPersistence);
-    BOOST_CHECK(mrr.sender == MessageOrigin::fromMessageRelay);
-    BOOST_CHECK(wr.sender == MessageOrigin::fromWebApp);
+    if ( ! answer )
+	BOOST_FAIL("Dynamic cast from Receivable to PersistenceLayerResponse failed.");
 }
 
 BOOST_AUTO_TEST_CASE(channel_id_length)

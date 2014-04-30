@@ -45,29 +45,27 @@ string MessageForRelay::toString ( void ) const
 
 MessageRelayResponse::MessageRelayResponse ( const string& response )
 {
-    sender = MessageOrigin::fromMessageRelay;
-
     parseMessage(response);
 }
 
 void MessageRelayResponse::parseMessage(const string& mesg)
 {
     istringstream response_stream(mesg);
-    string response_type, response_status;
+    string response_type_raw, response_status;
 
     response_stream >> sequence_number;
-    response_stream >> response_type;
+    response_stream >> response_type_raw;
     response_stream >> response_status;
 
     if ( sequence_number == 0 )
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid sequence number.");
 
-    if ( response_type == "MSGSNT" )
-	type = MessageRelayResponseType::messageSent;
-    else if ( response_type == "DELTDCHAN" )
-	type = MessageRelayResponseType::channelDeleted;
-    else if ( response_type == "CHANCREAT" )
-	type = MessageRelayResponseType::channelCreated;
+    if ( response_type_raw == "MSGSNT" )
+	response_type = MessageRelayResponseType::messageSent;
+    else if ( response_type_raw == "DELTDCHAN" )
+	response_type = MessageRelayResponseType::channelDeleted;
+    else if ( response_type_raw == "CHANCREAT" )
+	response_type = MessageRelayResponseType::channelCreated;
     else
 	throw BrokerError(ErrorType::protocolError,"MessageRelayResponse: Received invalid response type.");
 

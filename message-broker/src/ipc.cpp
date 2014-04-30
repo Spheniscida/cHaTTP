@@ -67,7 +67,6 @@ Communicator::Communicator (void)
 	}
 
 
-
 	if ( webapp_connection_info.type == connectionType::UNIX )
 	{
 	    inet_webapp_sock = nullptr;
@@ -82,6 +81,7 @@ Communicator::Communicator (void)
 
 	    e_set.add_fd(inet_webapp_sock,LIBSOCKET_READ);
 	}
+
 
 	if ( b2b_connection_info.type == connectionType::INET )
 	{
@@ -273,7 +273,7 @@ void Communicator::send(const MessageForRelay& cmd)
 
 void Communicator::send(const MessageForB2B& cmd, const string& broker)
 {
-    if ( debugging_mode )
+    if ( debugging_mode ) // toString() is expensive
 	debug_log("Sent to broker ", broker, " command ", cmd.toString());
 
     inet_b2b_sock->sndto(cmd.toString(),broker,message_broker_port);

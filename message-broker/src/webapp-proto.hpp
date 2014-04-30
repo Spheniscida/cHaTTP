@@ -21,7 +21,7 @@ using std::istringstream;
  * @brief Channel ID type
  *
  * The channel id is used to identify a user's session; it should be a randomly generated
- * token of roughly 20 to 60 characters.
+ * token of currently 64 lower-case characters.
  *
  * The same string is used as an identifier for a session in the nginx delivery back-end.
  */
@@ -97,12 +97,14 @@ enum class WebappResponseCode {
 class WebappResponse
 {
 public:
-    WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status = true, const string& response_data = "");
+    WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status = true, const string& error_message = "", const string& response_data = "");
 
     string toString(void) const;
 private:
     /// e.g. LGDIN <channel id>
     string payload;
+    /// an error message appended after FAIL
+    string error_message;
     sequence_t sequence_number;
     WebappResponseCode response_type;
     bool status;

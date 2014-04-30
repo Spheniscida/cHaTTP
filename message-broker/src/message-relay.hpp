@@ -41,7 +41,7 @@ public:
     MessageRelayResponse(const string& response);
 
     sequence_t sequence_number;
-    MessageRelayResponseType type;
+    MessageRelayResponseType response_type;
     bool status;
 private:
     void parseMessage(const string& mesg);
