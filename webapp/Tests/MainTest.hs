@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import Data.ByteString.Lazy.Char8 as BS
 import Chattp.Webapp.Protocol
 
@@ -22,8 +24,8 @@ parse_answer_1 = assertEqual "parse_answer_1" (Just $ BrokerAnswerMessage 123 (U
 parse_answer_2 = assertEqual "parse_answer_2" (Just $ BrokerAnswerMessage 123 (UserLoggedOut OK)) (fromEither $ parseAnswer (BS.pack "123\nLGDOUT\nOK"))
 parse_answer_3 = assertEqual "parse_answer_3" (Just $ BrokerAnswerMessage 123 (MessageAccepted OK)) (fromEither $ parseAnswer (BS.pack "123\nACCMSG\nOK"))
 parse_answer_4 = assertEqual "parse_answer_4" (Just $ BrokerAnswerMessage 123 (UserStatus ONLINE)) (fromEither $ parseAnswer (BS.pack "123\nUONL\nY"))
-parse_answer_5 = assertEqual "parse_answer_5" (Just $ BrokerAnswerMessage 123 (UserRegistered FAIL)) (fromEither $ parseAnswer (BS.pack "123\nUREGD\nFAIL"))
-parse_answer_6 = assertEqual "parse_answer_6" (Just $ BrokerAnswerMessage 123 (UserLoggedIn FAIL Nothing)) (fromEither $ parseAnswer (BS.pack "123\nLGDIN\nFAIL"))
+parse_answer_5 = assertEqual "parse_answer_5" (Just $ BrokerAnswerMessage 123 (UserRegistered (FAIL ""))) (fromEither $ parseAnswer (BS.pack "123\nUREGD\nFAIL"))
+parse_answer_6 = assertEqual "parse_answer_6" (Just $ BrokerAnswerMessage 123 (UserLoggedIn (FAIL "Internal error") Nothing)) (fromEither $ parseAnswer (BS.pack "123\nLGDIN\nFAIL\nInternal error"))
 
 -- Utils
 

@@ -18,14 +18,14 @@ fcgiMain :: ChanInfo -> CGI CGIResult
 fcgiMain channels = do
     params <- getFCGIConf
     let rq_type = getOpType (docUri params)
-
+    setHeader "Content-Type" "application/json"
     case rq_type of
         WebLogin -> handleLogin channels
         WebLogout -> handleLogout channels
         WebRegister -> handleRegister channels
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
-        VoidRequest -> outputError 404 "Malformed request!" []
+        VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
 
@@ -35,7 +35,7 @@ handleLogin chans = do
     pwd_raw <- getInputFPS "password"
     case (usr_raw,pwd_raw) of
         (Just usr, Just pwd) -> do
-                    seqchan <- liftIO $ newChan
+                    seqchan <- liftIO newChan
                     liftIO $ writeChan (sequenceCounterChan chans) seqchan
                     seqn <- liftIO $ readChan seqchan
 
@@ -57,7 +57,7 @@ handleLogout chans = do
     channel_raw <- getInputFPS "channel_id"
     case (usr_raw,channel_raw) of
         (Just usr, Just channel) -> do
-                    seqchan <- liftIO $ newChan
+                    seqchan <- liftIO newChan
                     liftIO $ writeChan (sequenceCounterChan chans) seqchan
                     seqn <- liftIO $ readChan seqchan
 
@@ -76,7 +76,7 @@ handleLogout chans = do
 handleRegister :: ChanInfo -> CGI CGIResult
 handleRegister chans = do
     usr_raw <- getInputFPS "user_name"
-    pwd_raw <- getInputFPS "channel_id"
+    pwd_raw <- getInputFPS "password"
     case (usr_raw,pwd_raw) of
         (Just usr, Just pwd) -> do
                     seqchan <- liftIO $ newChan
@@ -110,7 +110,8 @@ handleSendMessage chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (SendMessage usr channel dst mesg)
+                    let mangled_message = BS.map mangleMsg mesg
+                    let request = BrokerRequestMessage seqn (SendMessage usr channel dst mangled_message)
                     liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
@@ -118,6 +119,9 @@ handleSendMessage chans = do
                     let jsonresponse = responseToJSON brokeranswer
                     outputFPS jsonresponse
         _ -> outputError 400 "Message send request lacking request parameter(s)" []
+    where mangleMsg :: Char -> Char
+          mangleMsg '\n' = ' '
+          mangleMsg c = c
 
 handleStatusRequest :: ChanInfo -> CGI CGIResult
 handleStatusRequest chans = do
@@ -172,13 +176,13 @@ data UrlOp = WebLogin
            | WebRegister
            | WebSendMessage
            | WebStatusRequest
-           | VoidRequest -- malformed request URL
+           | VoidRequest String -- malformed request URL
            deriving Show
 
 getOpType :: BS.ByteString -> UrlOp
 getOpType url = case parse opParser url of
                     Done _ op -> op
-                    Fail _ _ _ -> VoidRequest
+                    Fail _ _ s -> VoidRequest s
 
 opParser :: Parser UrlOp
 opParser = do
@@ -189,5 +193,5 @@ opParser = do
             string "logout" >> return WebLogout,
             string "register" >> return WebRegister,
             string "login" >> return WebLogin,
-            many1 anyChar >> return VoidRequest]
+            many1 anyChar >>= \rq -> return (VoidRequest rq)]
 
