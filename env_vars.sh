@@ -46,4 +46,14 @@ export CHATTP_MSGBROKER_BROKER_NAME="vostro-linux.virt.goebo.site"
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"
 
+## Message relay configuration
+export CHATTP_MSGRELAY_NUMBER_THREADS="2"
+
+export CHATTP_MSGRELAY_PUBLISH_HOST="localhost"
+export CHATTP_MSGRELAY_PUBLISH_PORT="80"
+
+# Message may be received at $base/get
+export CHATTP_MSGRELAY_PUBLISH_BASE_PATH="/test"
+
+export CHATTP_MSGRELAY_PUBLISH_CHAN_ID_PARAMETER="chan_id"
 

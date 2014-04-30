@@ -1,0 +1,54 @@
+# Protocol for receiving instant messages over HTTP
+
+This document describes how a cHaTTP browser instance may receive messages from
+a server running the cHaTTP stack.
+
+A base path has to be defined. It MUST be the same as the one described in `http-webapp.mkd`.
+
+Both client and server must have the same definition of the channel id parameter name.
+The recommended parameter name is `channel_id`. It SHALL be the default.
+
+The actual *subscriber* path is `$base/get`. The publisher path which is only used internally
+is `$base/pub` (the third is `$base/chattp_request`)
+
+If the subscriber path is requested before a log-in at the webapp has happened,
+the web server MUST return an HTTP error code `403` (Forbidden).
+
+If more than one client tries to subscribe to one channel, the second client SHALL
+be notified of the failure by an HTTP error code `409` (Conflict).
+
+## JSON encoding
+
+Messages are delivered using the JSON format. A JSON object representing a message MUST have the following fields:
+
+* "ignore" (boolean): If this is a control message that can be ignored.
+* "from" (string): Sender of the message.
+* "message" (string): Actual message.
+
+The `ignore` field is used for special messages. For example, to create a channel on the web server, a message has to
+be sent to the channel. However, the user is likely to not wish to receive such messages. If the "ignore" field is set,
+the content of the other fields SHALL be ignored.
+
+In future, a more elaborated model of control messages may be developed. It is however guaranteed that all control messages
+will bear the field "ignore" set to `true`.
+
+## Delivery of messages
+
+    GET $base/chattp_receive?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea HTTP/1.1
+
+As described, the `get` path with the `chan_id` parameter is used for waiting for a new message. Upon receiving the request,
+the server will not return an answer until a new message has arrived.
+
+The sender has to specify the timestamp of the last message received in the "If-Modified-Since" header field to receive
+any message sent after. It is possible that the new request returns immediately with a message received by now:
+
+    00:00:00 GET $base/get?chan_id=... HTTP/1.1
+    00:00:10 HTTP/1.1 200 OK! ... Date: Sun, dd mmm yyyy 00:00:10 GMT ...
+    00:00:10 ~display message~
+    00:00:11 [new message arrives, but client hasn't polled yet]
+    00:00:12 GET $base/get?chan_id=... HTTP/1.1 ... If-Modified-Since: Sun, dd mmm yyyy 00:00:10 GMT ...
+    00:00:12 HTTP/1.1 200 OK! ... Date: Sun, dd mmm yyyy 00:00:11 GMT ...
+    etc.
+
+The client SHOULD take time information from the `Last-Modified` header of the server response.
+

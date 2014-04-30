@@ -104,26 +104,5 @@ in turn allows any characters to be used in the message content. You may want to
 Asks if the specified user is online. If he is, the JSON object in the reply body will have its "status" field set to `true`, else to `false`.
 It is also set to `false` if the specified user doesn't exist. The "type" field is set to "isonline".
 
-### Receiving messages
-
-    GET $base/chattp_receive?chan_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkznea HTTP/1.1
-
-As described, the `get` path with the `chan_id` parameter is used for waiting for a new message. Upon receiving the request,
-the server will not return an answer until a new message has arrived.
-
-The sender has to specify the timestamp of the last message received in the "If-Modified-Since" header field to receive
-any message sent after. It is possible that the new request returns immediately with a message received by now:
-
-    00:00:00 GET $base/get?chan_id=... HTTP/1.1
-    00:00:10 HTTP/1.1 200 OK! ... Date: Sun, dd mmm yyyy 00:00:10 GMT ...
-    00:00:10 ~display message~
-    00:00:11 [new message arrives, but client hasn't polled yet]
-    00:00:12 GET $base/get?chan_id=... HTTP/1.1 ... If-Modified-Since: Sun, dd mmm yyyy 00:00:10 GMT ...
-    00:00:12 HTTP/1.1 200 OK! ... Date: Sun, dd mmm yyyy 00:00:11 GMT ...
-    etc.
-
-The received message is again encoded using JSON, with the following fields:
-
-* "from" (string): Sender of the message.
-* "message" (string): Actual message.
+**See "http-messages.mkd" for how to receive messages.**
 
