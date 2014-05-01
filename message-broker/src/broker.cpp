@@ -381,7 +381,8 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Unauthorized!
 	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
-	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,"Sender unauthorized (wrong channel id)");
+	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,sender.online ? "Sender unauthorized (wrong channel id)"
+											    : "Sender is offline");
 	    communicator.send(resp);
 
 	    return;
@@ -693,10 +694,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
-	if ( (! rp.online) || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
+	if ( ! rp.online || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    // Unauthorized sender!
-	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Unauthorized sender");
+	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,rp.online ? "Sender unauthorized (wrong channel id)"
+															  : "Sender is offline");
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
