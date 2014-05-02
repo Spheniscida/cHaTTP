@@ -40,7 +40,9 @@ enum class WebappRequestCode {
     /// SNDMSG - Send a message to another user.
     sendMessage,
     /// UONLQ - Ask if specified user is online.
-    isOnline
+    isOnline,
+    /// MSGS - Ask for saved messages
+    getMessages
 };
 
 /******************************** Process incoming requests ********************************/
@@ -90,7 +92,9 @@ enum class WebappResponseCode {
     /// Accepted message for delivery (or didn't...)
     acceptedMessage,
     /// User status.
-    isOnline
+    isOnline,
+    /// saved messages
+    savedMessages,
 };
 
 
@@ -101,7 +105,7 @@ public:
 
     string toString(void) const;
 private:
-    /// e.g. LGDIN <channel id>
+    /// e.g. LGDIN <channel id> or messages
     string payload;
     /// an error message appended after FAIL
     string error_message;

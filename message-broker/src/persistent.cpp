@@ -2,10 +2,16 @@
 # include "error.hpp"
 # include <string>
 # include <iostream>
+# include <memory>
 
 using std::istringstream;
 using std::ostringstream;
 using std::string;
+
+namespace
+{
+    thread_local char temp_messages[65536];
+}
 
 /**
  * @brief Initialize class with the values extracted from `response`.
@@ -108,25 +114,18 @@ void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
 	response >> ok;
 
 	if ( ok == "FAIL" )
+	{
 	    status = false;
-	else if ( ok == "OK" )
+	    return;
+	} else if ( ok == "OK" )
 	    status = true;
 	else
 	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
 
-	char* single_message = new char[32768];
+	response.getline(temp_messages,65535); // remove first newline.
+	response.getline(temp_messages,65535);
 
-	response.getline(single_message,0); // Remove the remaining newline character from the previous stream read.
-
-	while ( response.good() )
-	{
-	    response.getline(single_message,32767);
-	    if ( response.fail() )
-		break;
-	    messages.push_back(string(single_message));
-	}
-
-	status = true;
+	messages = std::move(string(temp_messages));
     } else
     {
 	string ok;

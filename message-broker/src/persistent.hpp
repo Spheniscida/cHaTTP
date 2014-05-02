@@ -48,7 +48,7 @@ public:
     PersistenceLayerResponse(const string&);
 
     /// Field for message retrieval responses. Not used yet.
-    vector<string> messages;
+    string messages;
 
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
     sequence_t sequence_number;
