@@ -22,11 +22,12 @@ server will not return a response until a new message has arrived.
 ## Sending requests
 
 If HTTP POST is used, the Content-Type field MUST be set to `application/x-www-form-urlencoded`.
-Additionally, the length of the request string MUST be specified in the `Content-Length` field.
+Additionally, the length of the request string MUST be specified in the `Content-Length` field. Usually,
+browsers do this automatically.
 
-If HTTP GET is used, the parameters have to be carried in the request string; e.g.: Parameter
-`user`, value `john_doe`: `GET /foo/chattp?user_name=john_doe` etc. Several parameters are separated
-by a `&` character.
+In general, HTTP POST is used whenever the state of the server is altered. The only exceptions
+are status requests and receiving messages which may/must be requested with GET. However, the server
+will not forbid to use GET for any requests excepted send requests.
 
 If a request lacks parameters needed for an operation, it SHALL fail with HTTP status 400.
 
@@ -46,7 +47,7 @@ Additional fields are described for each command.
 
 #### Log-in
 
-    GET $base/chattp_request/login?user_name=<user>&password=<password> HTTP/1.1
+    POST $base/chattp_request/login?user_name=<user>&password=<password> HTTP/1.1
 
 The `login` subcommand checks if the user is authorized to log-in and if he is, he marks
 the user as online.
@@ -71,14 +72,14 @@ did succeed or not) and, if it did succeed, the channel id:
 
 #### Log-out
 
-    GET $base/chattp_request/logout?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa HTTP/1.1
+    POST $base/chattp_request/logout?user_name=<user>&channel_id=rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa HTTP/1.1
 
 Marks a user as offline (so new incoming messages are saved). This needs the channel id as authentication token
 so not everyone may log out anyone else.
 
 #### Register a new user
 
-    GET $base/chattp_request/register?user_name=<user>&password=<password>
+    POST $base/chattp_request/register?user_name=<user>&password=<password>
 
 Registers a user with the given user name and password.
 
@@ -133,7 +134,7 @@ Incoming messages are saved internally if the receiving user is not online at th
 
 Messages that have been saved may be retrieved using the following GET request:
 
-    GET $base/chattp_request/savedmessages?user_name=<usr>&channel_id=<channel>
+    POST $base/chattp_request/savedmessages?user_name=<usr>&channel_id=<channel>
 
 As result, a JSON object is returned. The "type" field is set to "saved-messages", the "status" and "error" fields indicate errors.
 The "messages" field consists of an array of JSON records. In this array, message objects are stored, of which each has the fields "from",
