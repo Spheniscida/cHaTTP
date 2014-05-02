@@ -2,6 +2,8 @@
 
 module Chattp.Webapp.FastCGI where
 
+import Control.Applicative
+
 import Chattp.Webapp.InternalCommunication
 import Chattp.Webapp.Protocol
 
@@ -25,6 +27,7 @@ fcgiMain channels = do
         WebRegister -> handleRegister channels
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
+        WebMessagesRequest -> handleMessagesRequest channels
         VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
@@ -144,6 +147,28 @@ handleStatusRequest chans = do
                     outputFPS jsonresponse
         _ -> outputError 400 "Status request lacking request parameter" []
 
+handleMessagesRequest :: ChanInfo -> CGI CGIResult
+handleMessagesRequest chans = do
+    usr_raw <- getInputFPS "user_name"
+    chan_raw <- getInputFPS "channel_id"
+    case (usr_raw,chan_raw) of
+        (Just usr, Just chan) -> do
+                    seqchan <- liftIO newChan
+                    liftIO $ writeChan (sequenceCounterChan chans) seqchan
+                    seqn <- liftIO $ readChan seqchan
+
+                    answerchan <- liftIO newChan
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+
+                    let request = BrokerRequestMessage seqn (GetMessages usr chan)
+                    liftIO $ writeChan (brokerRequestChan chans) request
+
+                    brokeranswer <- liftIO $ readChan answerchan
+
+                    let jsonresponse = responseToJSON brokeranswer
+                    outputFPS jsonresponse
+        _ -> outputError 400 "Saved-messages request lacking request parameter" []
+
 -- Tools.
 
 data FCGIParams = Params { bodyLength :: Int,
@@ -176,6 +201,7 @@ data UrlOp = WebLogin
            | WebRegister
            | WebSendMessage
            | WebStatusRequest
+           | WebMessagesRequest
            | VoidRequest String -- malformed request URL
            deriving Show
 
@@ -193,5 +219,6 @@ opParser = do
             string "logout" >> return WebLogout,
             string "register" >> return WebRegister,
             string "login" >> return WebLogin,
+            string "savedmessages" >> return WebMessagesRequest,
             many1 anyChar >>= \rq -> return (VoidRequest rq)]
 

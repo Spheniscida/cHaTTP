@@ -8,6 +8,7 @@ import Test.HUnit
 main = runTestTT tests
 
 tests = TestList [ TestCase create_request_1,
+                   TestCase create_request_2,
                    TestCase parse_answer_1,
                    TestCase parse_answer_2,
                    TestCase parse_answer_3,
@@ -18,7 +19,8 @@ tests = TestList [ TestCase create_request_1,
 
 -- Conf tests
 
-create_request_1 = assertEqual "" (BS.pack "123\nLOGIN\nusr\npwd") (requestToByteString (BrokerRequestMessage 123 (Login (BS.pack "usr") (BS.pack "pwd"))))
+create_request_1 = assertEqual "create_request_1" (BS.pack "123\nLOGIN\nusr\npwd") (requestToByteString (BrokerRequestMessage 123 (Login (BS.pack "usr") (BS.pack "pwd"))))
+create_request_2 = assertEqual "create_request_2" (BS.pack "123\nMSGGT\nusr\nchan") (requestToByteString (BrokerRequestMessage 123 (GetMessages (BS.pack "usr") (BS.pack "chan"))))
 
 parse_answer_1 = assertEqual "parse_answer_1" (Just $ BrokerAnswerMessage 123 (UserLoggedIn OK (Just (BS.pack "abcde")))) (fromEither $ parseAnswer (BS.pack "123\nLGDIN\nOK\nabcde"))
 parse_answer_2 = assertEqual "parse_answer_2" (Just $ BrokerAnswerMessage 123 (UserLoggedOut OK)) (fromEither $ parseAnswer (BS.pack "123\nLGDOUT\nOK"))

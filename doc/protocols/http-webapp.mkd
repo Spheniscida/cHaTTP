@@ -127,3 +127,15 @@ The received message is again encoded using JSON, with the following fields:
 * "from" (string): Sender of the message.
 * "message" (string): Actual message.
 
+### Receiving saved messages
+
+Incoming messages are saved internally if the receiving user is not online at the time of sending the message.
+
+Messages that have been saved may be retrieved using the following GET request:
+
+    GET $base/chattp_request/savedmessages?user_name=<usr>&channel_id=<channel>
+
+As result, a JSON object is returned. The "type" field is set to "saved-messages", the "status" and "error" fields indicate errors.
+The "messages" field consists of an array of JSON records. In this array, message objects are stored, of which each has the fields "from",
+"timestamp" and "message". The timestamp is an RFC2822 timestamp.
+

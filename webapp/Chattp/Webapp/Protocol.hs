@@ -2,11 +2,16 @@
 
 module Chattp.Webapp.Protocol where
 
+import Control.Applicative
+import Data.Maybe
+
 import Data.Attoparsec.ByteString.Lazy hiding (satisfy)
 import Data.Attoparsec.ByteString.Char8 hiding (parse,Result, Done, Fail)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
+
+import Data.Aeson
 import Data.Aeson.Encode
 import Data.Aeson.Types hiding (Parser, parse)
 
@@ -30,11 +35,11 @@ type ChannelID = BS.ByteString
 type MessageContent = BS.ByteString
 
 
-data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ deriving Show
+data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ | MSGGT deriving Show
 
 data AnswerStatus = OK | FAIL BS.ByteString deriving (Show,Eq)
 data UserStatus = ONLINE | OFFLINE deriving Eq
-data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL deriving Show
+data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL | MSGS deriving Show
 
 data BrokerRequestMessage = BrokerRequestMessage SequenceNumber BrokerRequest deriving (Show,Eq)
 
@@ -43,6 +48,7 @@ data BrokerRequest = RegisterUser UserName Password -- UREG
                   | Logout UserName ChannelID -- LOGOUT
                   | SendMessage UserName ChannelID UserName MessageContent -- SNDMSG
                   | QueryStatus UserName -- UONLQ
+                  | GetMessages UserName ChannelID -- MSGGT
                   deriving (Show,Eq)
 
 data BrokerAnswerMessage = BrokerAnswerMessage SequenceNumber BrokerAnswer deriving (Show,Eq)
@@ -52,6 +58,7 @@ data BrokerAnswer = UserRegistered AnswerStatus
                          | UserLoggedOut AnswerStatus
                          | MessageAccepted AnswerStatus
                          | UserStatus UserStatus
+                         | SavedMessages AnswerStatus (Maybe BS.ByteString)
                          deriving (Show,Eq)
 
 instance Show UserStatus where
@@ -106,6 +113,13 @@ requestToByteString (BrokerRequestMessage seqn (QueryStatus name)) = toLazyByteS
                                                                             <> bldShow UONLQ
                                                                             <> bldNewline
                                                                             <> bldBS name
+requestToByteString (BrokerRequestMessage seqn (GetMessages usr chan)) = toLazyByteString $ bldShow seqn
+                                                                            <> bldNewline
+                                                                            <> bldShow MSGGT
+                                                                            <> bldNewline
+                                                                            <> bldBS usr
+                                                                            <> bldNewline
+                                                                            <> bldBS chan
 
 
 ------------- Parse answers ---------------
@@ -119,11 +133,12 @@ protocolParser :: ProtoParser
 protocolParser = do
     seqn_str <- many1 digit
     char '\n'
-    response_type <- choice [try (string "UONL") >> return UONL,
-                            string "ACCMSG" >> return ACCMSG,
-                            try (string "LGDIN") >> return LGDIN,
-                            string "LGDOUT" >> return LGDOUT,
-                            string "UREGD" >> return UREGD]
+    response_type <- choice ["UONL" *> return UONL,
+                            "ACCMSG" *> return ACCMSG,
+                            "LGDIN" *> return LGDIN,
+                            "LGDOUT" *> return LGDOUT,
+                            "UREGD" *> return UREGD,
+                            "MSGS" *> return MSGS]
     char '\n'
     parseRest (read seqn_str) response_type
 
@@ -149,6 +164,15 @@ parseRest seqn LGDOUT = do
 parseRest seqn UREGD = do
     status <- parseStatus
     return $ BrokerAnswerMessage seqn (UserRegistered status)
+parseRest seqn MSGS = do
+    status <- parseStatus
+    case status of
+        OK -> do
+            char '\n'
+            msgs <- takeByteString
+            return $ BrokerAnswerMessage seqn (SavedMessages status (Just . BS.fromStrict $ msgs))
+        FAIL _ -> return $ BrokerAnswerMessage seqn (SavedMessages status Nothing)
+
 
 -------------------------------------------------
 parseStatus :: Parser AnswerStatus
@@ -186,6 +210,13 @@ responseToJSON (MessageAccepted status) = encode $ object ["type" .= T.decodeUtf
 responseToJSON (UserStatus status) = encode $ object ["type" .= T.decodeUtf8 "isonline",
                                                       "status" .= (status == ONLINE),
                                                       "error" .= T.pack ""]
+responseToJSON (SavedMessages status msgs) = encode $ object ["type" .= T.decodeUtf8 "saved-messages",
+                                                              "status" .= (status == OK),
+                                                              "error" .= statusToError status,
+                                                              "messages" .= if msgs == Nothing then Null else jsonMsgs]
+    where jsonMsgs = case decode (fromJust msgs) of
+                        Just m -> m
+                        Nothing -> Null
 
 statusToError :: AnswerStatus -> T.Text
 statusToError OK = ""
