@@ -182,5 +182,20 @@ BOOST_AUTO_TEST_CASE(persistent_create_login_message)
 
 }
 
+BOOST_AUTO_TEST_CASE(persistent_create_msgsv_message)
+{
+    initializeGlobalSequenceNumber();
+
+    try {
+	PersistenceLayerCommand c(PersistenceLayerCommandCode::saveMessage,"to_user","message","from_user");
+
+	BOOST_CHECK_EQUAL(c.toString(), "1\nMSGSV\nto_user\nfrom_user\nmessage");
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 

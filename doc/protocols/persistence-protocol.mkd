@@ -101,7 +101,7 @@ In case of OFFLINE, the message broker will save the received message with the f
 
 ### Save a message
 
-    <sequence number> MSGSV <user name> <message text/information>
+    <sequence number> MSGSV <user name> <sender> <message text>
     [answer:]
     <sequence number> MSGSVD {OK|FAIL}
 

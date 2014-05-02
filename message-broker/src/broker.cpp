@@ -434,7 +434,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    } catch (libsocket::socket_exception e)
 	    {
 		// Message relay is offline (unreachable), therefore save that message.
-		PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message);
+		PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message,rq.user);
 
 		transaction.type = OutstandingType::persistenceMSGSVD;
 
@@ -473,7 +473,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 	} else if ( ! receiver.online )
 	{
-	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message);
+	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, rq.dest_user, rq.message,rq.user);
 
 	    try
 	    {
@@ -808,7 +808,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		} catch (libsocket::socket_exception e)
 		{
 		    // Message relay is offline, therefore save that message.
-		    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message);
+		    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message,original_webapp_request.user);
 
 		    transaction.type = OutstandingType::persistenceMSGSVD;
 
@@ -841,7 +841,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	} else // Save message to persistence layer
 	{
-	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message);
+	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message,original_webapp_request.user);
 
 	    transaction.type = OutstandingType::persistenceMSGSVD;
 
@@ -1132,7 +1132,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 	    communicator.send(resp);
 	} else // save message to persistence
 	{
-	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message);
+	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message,original_webapp_request.user);
 
 	    transaction.type = OutstandingType::persistenceMSGSVD;
 
