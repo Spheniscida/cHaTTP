@@ -42,7 +42,9 @@ enum class WebappRequestCode {
     /// UONLQ - Ask if specified user is online.
     isOnline,
     /// MSGS - Ask for saved messages
-    getMessages
+    getMessages,
+    /// ISAUTH
+    isAuthorized
 };
 
 /******************************** Process incoming requests ********************************/
@@ -95,6 +97,8 @@ enum class WebappResponseCode {
     isOnline,
     /// saved messages
     savedMessages,
+    /// authorized y/n
+    isAuthorized
 };
 
 

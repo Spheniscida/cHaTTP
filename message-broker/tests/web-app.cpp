@@ -120,6 +120,22 @@ BOOST_AUTO_TEST_CASE(parse_user_online_request)
     }
 }
 
+BOOST_AUTO_TEST_CASE(parse_user_isauth_request)
+{
+    try {
+	WebappRequest rq("11765\nISAUTH\ntestuser1\nhis_channel");
+
+	BOOST_CHECK(rq.request_type == WebappRequestCode::isAuthorized);
+	BOOST_CHECK_EQUAL(rq.user,"testuser1");
+	BOOST_CHECK_EQUAL(rq.channel_id,"his_channel");
+	BOOST_CHECK_EQUAL(rq.sequence_number,11765);
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
+
 BOOST_AUTO_TEST_CASE(create_register_response1)
 {
     try {
@@ -237,4 +253,16 @@ BOOST_AUTO_TEST_CASE(create_logout_response)
     }
 }
 
+BOOST_AUTO_TEST_CASE(create_authd_response)
+{
+    try {
+	WebappResponse r(1,WebappResponseCode::isAuthorized,true);
+	BOOST_CHECK_EQUAL(r.toString(),"1\nAUTHD\nY");
+
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("Exception!\n");
+	std::cerr << e.toString();
+    }
+}
 BOOST_AUTO_TEST_SUITE_END()

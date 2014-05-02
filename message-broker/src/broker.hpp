@@ -34,6 +34,7 @@ public:
     void onWebAppSNDMSG(const WebappRequest& rq);
     void onWebAppUONLQ(const WebappRequest& rq);
     void onWebAppMSGGT(const WebappRequest& rq);
+    void onWebAppISAUTH(const WebappRequest& rq);
     void onPersistenceUREGD(const PersistenceLayerResponse& rp);
     void onPersistenceCHKDPASS(const PersistenceLayerResponse& rp);
     void onPersistenceLGDIN(const PersistenceLayerResponse& rp);
@@ -71,6 +72,7 @@ enum class OutstandingType {
     persistenceLoginULKDUP,
     persistenceLogoutULKDUP,
     persistenceMessageGetULKDUP,
+    persistenceAuthdULKDUP,
     persistenceUREGD,
     persistenceMSGS,
 

@@ -122,6 +122,9 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 	case WebappRequestCode::getMessages:
 	    onWebAppMSGGT(*msg);
 	    break;
+	case WebappRequestCode::isAuthorized:
+	    onWebAppISAUTH(*msg);
+	    break;
     }
 }
 
@@ -577,7 +580,7 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 
 	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch ( libsocket::socket_exception e )
+	} catch (libsocket::socket_exception e)
 	{
 	    WebappResponse failresp(seqnum,WebappResponseCode::savedMessages,false,"Internal error (Persistence down)");
 	    communicator.send(failresp);
@@ -585,6 +588,47 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 	    throw e;
 	}
     }
+}
+
+void ProtocolDispatcher::onWebAppISAUTH(const WebappRequest& rq)
+{
+    sequence_t seqnum = rq.sequence_number;
+
+    CachedUser user = lookupUserInCache(rq.user);
+
+    if ( !user.found )
+    {
+	OutstandingTransaction transaction;
+
+	transaction.type = OutstandingType::persistenceAuthdULKDUP;
+	transaction.original_sequence_number = seqnum;
+
+	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
+
+	try
+	{
+	    communicator.send(cmd);
+
+	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
+	} catch (libsocket::socket_exception e)
+	{
+	    WebappResponse failresp(rq.sequence_number,WebappResponseCode::isAuthorized,false,"Internal error! (Persistence down)");
+	    communicator.send(failresp);
+
+	    throw e;
+	}
+    } else
+    {
+	bool auth_status = user.online
+			&& user.channel_id == rq.channel_id
+			&& user.broker_name == global_broker_settings.getMessageBrokerName();
+
+	WebappResponse resp(rq.sequence_number,WebappResponseCode::isAuthorized,auth_status);
+
+	communicator.send(resp);
+    }
+
 }
 
 void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
@@ -987,6 +1031,23 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	    throw e;
 	}
+
+    } else if ( transaction.type == OutstandingType::persistenceAuthdULKDUP )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+
+	bool auth_status = rp.online
+			&& rp.broker_name == global_broker_settings.getMessageBrokerName()
+			&& rp.channel_id == original_webapp_request.channel_id;
+
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::isAuthorized,auth_status);
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	communicator.send(resp);
 
     } else
     {
