@@ -35,11 +35,11 @@ type ChannelID = BS.ByteString
 type MessageContent = BS.ByteString
 
 
-data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ | MSGGT deriving Show
+data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ | MSGGT | ISAUTH deriving Show
 
 data AnswerStatus = OK | FAIL BS.ByteString deriving (Show,Eq)
 data UserStatus = ONLINE | OFFLINE deriving Eq
-data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL | MSGS deriving Show
+data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL | MSGS | AUTHD deriving Show
 
 data BrokerRequestMessage = BrokerRequestMessage SequenceNumber BrokerRequest deriving (Show,Eq)
 
@@ -49,6 +49,7 @@ data BrokerRequest = RegisterUser UserName Password -- UREG
                   | SendMessage UserName ChannelID UserName MessageContent -- SNDMSG
                   | QueryStatus UserName -- UONLQ
                   | GetMessages UserName ChannelID -- MSGGT
+                  | IsAuthorized UserName ChannelID
                   deriving (Show,Eq)
 
 data BrokerAnswerMessage = BrokerAnswerMessage SequenceNumber BrokerAnswer deriving (Show,Eq)
@@ -59,6 +60,7 @@ data BrokerAnswer = UserRegistered AnswerStatus
                          | MessageAccepted AnswerStatus
                          | UserStatus UserStatus
                          | SavedMessages AnswerStatus (Maybe BS.ByteString)
+                         | Authorized UserStatus
                          deriving (Show,Eq)
 
 instance Show UserStatus where
@@ -120,7 +122,13 @@ requestToByteString (BrokerRequestMessage seqn (GetMessages usr chan)) = toLazyB
                                                                             <> bldBS usr
                                                                             <> bldNewline
                                                                             <> bldBS chan
-
+requestToByteString (BrokerRequestMessage seqn (IsAuthorized usr chan)) = toLazyByteString $ bldShow seqn
+                                                                            <> bldNewline
+                                                                            <> bldShow ISAUTH
+                                                                            <> bldNewline
+                                                                            <> bldBS usr
+                                                                            <> bldNewline
+                                                                            <> bldBS chan
 
 ------------- Parse answers ---------------
 
@@ -138,14 +146,14 @@ protocolParser = do
                             "LGDIN" *> return LGDIN,
                             "LGDOUT" *> return LGDOUT,
                             "UREGD" *> return UREGD,
-                            "MSGS" *> return MSGS]
+                            "MSGS" *> return MSGS,
+                            "AUTHD" *> return AUTHD]
     char '\n'
     parseRest (read seqn_str) response_type
 
 parseRest :: Int -> BrokerAnswerType -> ProtoParser
 parseRest seqn UONL = do
-    status <- choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
-                      string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
+    status <- parseUserStatus
     return $ BrokerAnswerMessage seqn (UserStatus status)
 parseRest seqn ACCMSG = do
     status <- parseStatus
@@ -172,9 +180,12 @@ parseRest seqn MSGS = do
             msgs <- takeByteString
             return $ BrokerAnswerMessage seqn (SavedMessages status (Just . BS.fromStrict $ msgs))
         FAIL _ -> return $ BrokerAnswerMessage seqn (SavedMessages status Nothing)
-
+parseRest seqn AUTHD = do
+    status <- parseUserStatus
+    return $ BrokerAnswerMessage seqn (Authorized status)
 
 -------------------------------------------------
+--
 parseStatus :: Parser AnswerStatus
 parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
                       parseFAIL]
@@ -187,6 +198,13 @@ parseFAIL = do
     return (FAIL $ BS.pack mesg)
 
 
+
+-- UserStatus is Y/N
+parseUserStatus :: Parser UserStatus
+parseUserStatus = choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
+                          string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
+
+
 -- JSON responses to web clients
 
 responseToJSON :: BrokerAnswer -> BS.ByteString
@@ -194,6 +212,7 @@ responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["type" .= T.d
                                                                    "status" .= True,
                                                                    "channel_id" .= T.decodeUtf8 chan_id,
                                                                    "error" .= T.decodeUtf8 ""]
+responseToJSON (UserLoggedIn OK Nothing) = undefined -- this should not happen.
 responseToJSON (UserLoggedIn (FAIL reason) _) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
                                                                  "status" .= False,
                                                                  "channel_id" .= T.decodeUtf8 "",
@@ -217,6 +236,7 @@ responseToJSON (SavedMessages status msgs) = encode $ object ["type" .= T.decode
     where jsonMsgs = case decode (fromJust msgs) of
                         Just m -> m
                         Nothing -> Null
+responseToJSON (Authorized _status) = undefined -- intentionally left undefined: this answer type will not be converted to JSON
 
 statusToError :: AnswerStatus -> T.Text
 statusToError OK = ""
