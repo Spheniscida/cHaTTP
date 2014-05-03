@@ -13,12 +13,14 @@ import System.Environment
 
 import Database.Redis
 
+import System.Directory
+import System.IO.Error
 
 getInterfaceSockAddr :: IO (Family, SockAddr)
 getInterfaceSockAddr = getInterfaceSockAddr' =<< getEnv "CHATTP_PERSISTENCE_LAYER_FAMILY"
 
 getInterfaceSockAddr' :: String -> IO (Family, SockAddr)
-getInterfaceSockAddr' "UNIX" = (AF_UNIX,) . SockAddrUnix <$> getEnv "CHATTP_PERSISTENCE_LAYER_ADDR"
+getInterfaceSockAddr' "UNIX" = (AF_UNIX,) . SockAddrUnix <$> (getEnv "CHATTP_PERSISTENCE_LAYER_ADDR" >>= \addr -> catchIOError (removeFile addr) (const $ return ()) >> return addr)
 getInterfaceSockAddr' "INET" = do
     host <- getEnv "CHATTP_PERSISTENCE_LAYER_ADDR"
     port <- getEnv "CHATTP_PERSISTENCE_LAYER_PORT"

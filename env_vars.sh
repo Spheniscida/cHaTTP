@@ -21,6 +21,10 @@ export CHATTP_PERSISTENCE_LAYER_ADDR="/tmp/persistence-layer"
 export CHATTP_PERSISTENCE_LAYER_FAMILY="UNIX"
 export CHATTP_PERSISTENCE_LAYER_PORT=""
 
+export CHATTP_REDIS_FAMILY="INET"
+export CHATTP_REDIS_ADDR="localhost"
+export CHATTP_REDIS_PORT="6379"
+
 ##### Message broker bind ports -- the message broker as 4 sockets, each dedicated to one external application
 ##### The address family is the same one as in the application bind addresses above.
 
