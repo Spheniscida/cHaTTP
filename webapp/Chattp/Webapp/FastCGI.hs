@@ -2,10 +2,14 @@
 
 module Chattp.Webapp.FastCGI where
 
-import Control.Applicative
-
 import Chattp.Webapp.InternalCommunication
 import Chattp.Webapp.Protocol
+import Chattp.Webapp.Storage
+
+import qualified Data.Text.Lazy.Encoding as T
+import qualified Data.Text.Encoding as TS
+
+import Data.Aeson as AE
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Attoparsec.ByteString.Lazy
@@ -14,10 +18,12 @@ import Data.Attoparsec.ByteString.Char8 as AP8 hiding (parse, Done, Fail)
 import Network.FastCGI
 import Control.Concurrent.Chan
 
+import Database.Redis
+
 -- This function will be run by runFastCGIConcurrent
 
-fcgiMain :: ChanInfo -> CGI CGIResult
-fcgiMain channels = do
+fcgiMain :: Connection -> ChanInfo -> CGI CGIResult
+fcgiMain r_conn channels = do
     params <- getFCGIConf
     let rq_type = getOpType (docUri params)
     setHeader "Content-Type" "application/json"
@@ -28,6 +34,8 @@ fcgiMain channels = do
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
         WebMessagesRequest -> handleMessagesRequest channels
+        WebConfSaveRequest -> handleConfSaveRequest r_conn channels
+        WebConfGetRequest -> handleConfGetRequest r_conn channels
         VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
@@ -104,7 +112,9 @@ handleSendMessage chans = do
     channel_raw <- getInputFPS "channel_id"
     dest_raw <- getInputFPS "dest_user"
     mesg <- getBodyFPS
-    case (usr_raw,dest_raw,channel_raw) of
+    if mesg == BS.empty
+     then outputError 400 "Empty message; not sent." []
+     else case (usr_raw,dest_raw,channel_raw) of
         (Just usr, Just dst, Just channel) -> do
                     seqchan <- liftIO $ newChan
                     liftIO $ writeChan (sequenceCounterChan chans) seqchan
@@ -169,6 +179,78 @@ handleMessagesRequest chans = do
                     outputFPS jsonresponse
         _ -> outputError 400 "Saved-messages request lacking request parameter" []
 
+handleConfSaveRequest :: Connection -> ChanInfo -> CGI CGIResult
+handleConfSaveRequest conn chans = do
+    usr_raw <- getInputFPS "user_name"
+    chan_raw <- getInputFPS "channel_id"
+    raw_settings <- getBodyFPS
+    case (usr_raw,chan_raw) of
+        (Just usr, Just chan) -> do
+                    seqchan <- liftIO newChan
+                    liftIO $ writeChan (sequenceCounterChan chans) seqchan
+                    seqn <- liftIO $ readChan seqchan
+
+                    answerchan <- liftIO newChan
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+
+                    let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
+                    liftIO $ writeChan (brokerRequestChan chans) request
+
+                    brokeranswer <- liftIO $ readChan answerchan
+
+                    response <- case brokeranswer of
+                        Authorized True -> do
+                                result <- liftIO $ storeUserSettings conn usr raw_settings
+
+                                let (status,err) = if result == ""
+                                                   then (True,"")
+                                                   else (False,result)
+
+                                return . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                                          "status" .= status,
+                                                          "error" .= (T.decodeUtf8 . BS.pack $ err)]
+                        Authorized False -> return $ responseToJSON brokeranswer
+                        _ -> fail "Implementation error in handleConfSaveRequest"
+
+                    outputFPS response
+        _ -> outputError 400 "Save-settings request lacking request parameter" []
+
+handleConfGetRequest :: Connection -> ChanInfo -> CGI CGIResult
+handleConfGetRequest conn chans = do
+    usr_raw <- getInputFPS "user_name"
+    chan_raw <- getInputFPS "channel_id"
+    case (usr_raw,chan_raw) of
+        (Just usr, Just chan) -> do
+                    seqchan <- liftIO newChan
+                    liftIO $ writeChan (sequenceCounterChan chans) seqchan
+                    seqn <- liftIO $ readChan seqchan
+
+                    answerchan <- liftIO newChan
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+
+                    let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
+                    liftIO $ writeChan (brokerRequestChan chans) request
+
+                    brokeranswer <- liftIO $ readChan answerchan
+
+                    response <- case brokeranswer of
+                        Authorized True -> do
+                                settings <- liftIO $ getUserSettings conn usr
+                                let settings_json = case AE.decode settings of
+                                                        Just o -> o
+                                                        Nothing -> AE.String . TS.decodeUtf8 . BS.toStrict $ settings
+
+                                return . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                                          "status" .= True,
+                                                          "error" .= T.decodeUtf8 "",
+                                                          "settings" .= settings_json]
+                        Authorized False -> return $ responseToJSON brokeranswer
+                        _ -> fail "Implementation error in handleConfGetRequest"
+
+                    outputFPS response
+        _ -> outputError 400 "Get-settings request lacking request parameter" []
+
+
 -- Tools.
 
 data FCGIParams = Params { bodyLength :: Int,
@@ -202,6 +284,8 @@ data UrlOp = WebLogin
            | WebSendMessage
            | WebStatusRequest
            | WebMessagesRequest
+           | WebConfSaveRequest
+           | WebConfGetRequest
            | VoidRequest String -- malformed request URL
            deriving Show
 
@@ -220,5 +304,7 @@ opParser = do
             string "register" >> return WebRegister,
             string "login" >> return WebLogin,
             string "savedmessages" >> return WebMessagesRequest,
+            string "setconf" >> return WebConfSaveRequest,
+            string "getconf" >> return WebConfGetRequest,
             many1 anyChar >>= \rq -> return (VoidRequest rq)]
 

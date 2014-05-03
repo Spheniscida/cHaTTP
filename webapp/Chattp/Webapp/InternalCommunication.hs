@@ -8,7 +8,7 @@ import qualified Data.HashTable.IO as HT
 
 type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan BrokerAnswer)
 
-data CenterRequestOrResponse =  FCGICenterRequest (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
+data CenterRequestOrResponse = FCGICenterRequest (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
 
 data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterRequestOrResponse,
                            brokerRequestChan :: Chan BrokerRequestMessage,
@@ -16,7 +16,7 @@ data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterReques
 
 -- This thread ensures unique sequence numbers.
 sequenceNumberManager :: Chan (Chan SequenceNumber) -> IO ()
-sequenceNumberManager seqchan = manager 1 seqchan
+sequenceNumberManager = manager 1
     where manager i chan = do
                         backchan <- readChan chan -- Receive any number
                         writeChan backchan i
@@ -43,5 +43,6 @@ centerThread centerchan = do
                 case backchan of
                     Nothing -> return () -- "Dangling transaction"
                     Just fcgichan -> writeChan fcgichan answer
+
 
 

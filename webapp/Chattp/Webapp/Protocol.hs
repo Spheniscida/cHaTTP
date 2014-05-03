@@ -60,7 +60,7 @@ data BrokerAnswer = UserRegistered AnswerStatus
                          | MessageAccepted AnswerStatus
                          | UserStatus UserStatus
                          | SavedMessages AnswerStatus (Maybe BS.ByteString)
-                         | Authorized UserStatus
+                         | Authorized Bool
                          deriving (Show,Eq)
 
 instance Show UserStatus where
@@ -182,7 +182,7 @@ parseRest seqn MSGS = do
         FAIL _ -> return $ BrokerAnswerMessage seqn (SavedMessages status Nothing)
 parseRest seqn AUTHD = do
     status <- parseUserStatus
-    return $ BrokerAnswerMessage seqn (Authorized status)
+    return $ BrokerAnswerMessage seqn (Authorized $ if status == ONLINE then True else False)
 
 -------------------------------------------------
 --
@@ -236,7 +236,9 @@ responseToJSON (SavedMessages status msgs) = encode $ object ["type" .= T.decode
     where jsonMsgs = case decode (fromJust msgs) of
                         Just m -> m
                         Nothing -> Null
-responseToJSON (Authorized _status) = undefined -- intentionally left undefined: this answer type will not be converted to JSON
+responseToJSON (Authorized False) = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                                     "status" .= False,
+                                                     "error" .= T.decodeUtf8 "Unauthorized"]
 
 statusToError :: AnswerStatus -> T.Text
 statusToError OK = ""
