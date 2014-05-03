@@ -2,11 +2,16 @@
 
 module Chattp.Webapp.Protocol where
 
+import Control.Applicative
+import Data.Maybe
+
 import Data.Attoparsec.ByteString.Lazy hiding (satisfy)
 import Data.Attoparsec.ByteString.Char8 hiding (parse,Result, Done, Fail)
 
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
+
+import Data.Aeson
 import Data.Aeson.Encode
 import Data.Aeson.Types hiding (Parser, parse)
 
@@ -30,11 +35,11 @@ type ChannelID = BS.ByteString
 type MessageContent = BS.ByteString
 
 
-data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ deriving Show
+data BrokerRequestType = UREG | LOGIN | LOGOUT | SNDMSG | UONLQ | MSGGT | ISAUTH deriving Show
 
 data AnswerStatus = OK | FAIL BS.ByteString deriving (Show,Eq)
 data UserStatus = ONLINE | OFFLINE deriving Eq
-data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL deriving Show
+data BrokerAnswerType = UREGD | LGDIN | LGDOUT | ACCMSG | UONL | MSGS | AUTHD deriving Show
 
 data BrokerRequestMessage = BrokerRequestMessage SequenceNumber BrokerRequest deriving (Show,Eq)
 
@@ -43,6 +48,8 @@ data BrokerRequest = RegisterUser UserName Password -- UREG
                   | Logout UserName ChannelID -- LOGOUT
                   | SendMessage UserName ChannelID UserName MessageContent -- SNDMSG
                   | QueryStatus UserName -- UONLQ
+                  | GetMessages UserName ChannelID -- MSGGT
+                  | IsAuthorized UserName ChannelID
                   deriving (Show,Eq)
 
 data BrokerAnswerMessage = BrokerAnswerMessage SequenceNumber BrokerAnswer deriving (Show,Eq)
@@ -52,6 +59,8 @@ data BrokerAnswer = UserRegistered AnswerStatus
                          | UserLoggedOut AnswerStatus
                          | MessageAccepted AnswerStatus
                          | UserStatus UserStatus
+                         | SavedMessages AnswerStatus (Maybe BS.ByteString)
+                         | Authorized Bool
                          deriving (Show,Eq)
 
 instance Show UserStatus where
@@ -106,7 +115,20 @@ requestToByteString (BrokerRequestMessage seqn (QueryStatus name)) = toLazyByteS
                                                                             <> bldShow UONLQ
                                                                             <> bldNewline
                                                                             <> bldBS name
-
+requestToByteString (BrokerRequestMessage seqn (GetMessages usr chan)) = toLazyByteString $ bldShow seqn
+                                                                            <> bldNewline
+                                                                            <> bldShow MSGGT
+                                                                            <> bldNewline
+                                                                            <> bldBS usr
+                                                                            <> bldNewline
+                                                                            <> bldBS chan
+requestToByteString (BrokerRequestMessage seqn (IsAuthorized usr chan)) = toLazyByteString $ bldShow seqn
+                                                                            <> bldNewline
+                                                                            <> bldShow ISAUTH
+                                                                            <> bldNewline
+                                                                            <> bldBS usr
+                                                                            <> bldNewline
+                                                                            <> bldBS chan
 
 ------------- Parse answers ---------------
 
@@ -119,18 +141,19 @@ protocolParser :: ProtoParser
 protocolParser = do
     seqn_str <- many1 digit
     char '\n'
-    response_type <- choice [try (string "UONL") >> return UONL,
-                            string "ACCMSG" >> return ACCMSG,
-                            try (string "LGDIN") >> return LGDIN,
-                            string "LGDOUT" >> return LGDOUT,
-                            string "UREGD" >> return UREGD]
+    response_type <- choice ["UONL" *> return UONL,
+                            "ACCMSG" *> return ACCMSG,
+                            "LGDIN" *> return LGDIN,
+                            "LGDOUT" *> return LGDOUT,
+                            "UREGD" *> return UREGD,
+                            "MSGS" *> return MSGS,
+                            "AUTHD" *> return AUTHD]
     char '\n'
     parseRest (read seqn_str) response_type
 
 parseRest :: Int -> BrokerAnswerType -> ProtoParser
 parseRest seqn UONL = do
-    status <- choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
-                      string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
+    status <- parseUserStatus
     return $ BrokerAnswerMessage seqn (UserStatus status)
 parseRest seqn ACCMSG = do
     status <- parseStatus
@@ -149,8 +172,20 @@ parseRest seqn LGDOUT = do
 parseRest seqn UREGD = do
     status <- parseStatus
     return $ BrokerAnswerMessage seqn (UserRegistered status)
+parseRest seqn MSGS = do
+    status <- parseStatus
+    case status of
+        OK -> do
+            char '\n'
+            msgs <- takeByteString
+            return $ BrokerAnswerMessage seqn (SavedMessages status (Just . BS.fromStrict $ msgs))
+        FAIL _ -> return $ BrokerAnswerMessage seqn (SavedMessages status Nothing)
+parseRest seqn AUTHD = do
+    status <- parseUserStatus
+    return $ BrokerAnswerMessage seqn (Authorized $ if status == ONLINE then True else False)
 
 -------------------------------------------------
+--
 parseStatus :: Parser AnswerStatus
 parseStatus = choice [string (SBS.pack . show $ OK) >> return OK,
                       parseFAIL]
@@ -163,6 +198,13 @@ parseFAIL = do
     return (FAIL $ BS.pack mesg)
 
 
+
+-- UserStatus is Y/N
+parseUserStatus :: Parser UserStatus
+parseUserStatus = choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
+                          string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
+
+
 -- JSON responses to web clients
 
 responseToJSON :: BrokerAnswer -> BS.ByteString
@@ -170,6 +212,7 @@ responseToJSON (UserLoggedIn OK (Just chan_id)) = encode $ object ["type" .= T.d
                                                                    "status" .= True,
                                                                    "channel_id" .= T.decodeUtf8 chan_id,
                                                                    "error" .= T.decodeUtf8 ""]
+responseToJSON (UserLoggedIn OK Nothing) = undefined -- this should not happen.
 responseToJSON (UserLoggedIn (FAIL reason) _) = encode $ object ["type" .= T.decodeUtf8 "logged-in",
                                                                  "status" .= False,
                                                                  "channel_id" .= T.decodeUtf8 "",
@@ -186,6 +229,16 @@ responseToJSON (MessageAccepted status) = encode $ object ["type" .= T.decodeUtf
 responseToJSON (UserStatus status) = encode $ object ["type" .= T.decodeUtf8 "isonline",
                                                       "status" .= (status == ONLINE),
                                                       "error" .= T.pack ""]
+responseToJSON (SavedMessages status msgs) = encode $ object ["type" .= T.decodeUtf8 "saved-messages",
+                                                              "status" .= (status == OK),
+                                                              "error" .= statusToError status,
+                                                              "messages" .= if msgs == Nothing then Null else jsonMsgs]
+    where jsonMsgs = case decode (fromJust msgs) of
+                        Just m -> m
+                        Nothing -> Null
+responseToJSON (Authorized False) = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                                     "status" .= False,
+                                                     "error" .= T.decodeUtf8 "Unauthorized"]
 
 statusToError :: AnswerStatus -> T.Text
 statusToError OK = ""

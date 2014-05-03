@@ -28,7 +28,7 @@ socketIncoming sock chanToCenter = do
 socketOutgoing :: WebappConfiguration -> Socket -> Chan BrokerRequestMessage -> IO ()
 socketOutgoing conf sock outgoingchan = do
     msg <- readChan outgoingchan
-    let rawMessage = BS.toStrict $ requestToByteString msg
+    let rawMessage = BS.toStrict . requestToByteString $ msg
     NBS.sendTo sock rawMessage (brokerSockAddr conf)
     socketOutgoing conf sock outgoingchan
 

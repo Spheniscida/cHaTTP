@@ -12,7 +12,7 @@ import Network.FastCGI
 
 main = do
     config <- getConfig
-    print config
+    putStrLn "configured."
     sock <- createWebappSocket config
     centerchan <- newChan
     seqchan <- newChan
@@ -25,5 +25,5 @@ main = do
     forkOS (sequenceNumberManager seqchan)
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
-    runFastCGIConcurrent 50 (fcgiMain chaninfo)
+    runFastCGIConcurrent 50 (fcgiMain (redisConnPool config) chaninfo)
     return ()

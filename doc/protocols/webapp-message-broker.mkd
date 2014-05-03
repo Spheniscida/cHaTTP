@@ -96,3 +96,24 @@ with the supplied one.*
 Using this query, the front-end application may ask if a certain user is marked as online (User ONLine Query). May be extended with
 timestamp information etc.
 
+### Obtain saved messages
+
+    # Request
+    <seqn> MSGGT <user name> <channel id>
+    # Response
+    <seqn> MSGS {OK <JSON representation>|FAIL}
+
+Receive saved messages. The JSON representation has one field "messages" containing an array. In this array,
+message objects are stored, of which each has the fields "from", "timestamp" and "message". The timestamp
+is an RFC2822 timestamp.
+
+### Check user authorization status
+
+    # Request
+    <seqn> ISAUTH <user name> <channel id>
+    # Response
+    <seqn> AUTHD {Y|N}
+
+This command lets the message broker check if the user is logged in on it with the given channel id. It may be used
+for operations not involving the message broker but nevertheless needing authentication (e.g. settings storage)
+

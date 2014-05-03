@@ -19,12 +19,12 @@ description:         This piece of software is a router between the nginx web se
 
 executable webapp
   main-is:             Main.hs
-  ghc-options:         -threaded -with-rtsopts=-N
+  ghc-options:         -threaded -with-rtsopts=-N -fsimpl-tick-factor=110
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.6 && <4.7, network >= 2, directory >= 1.2,
                        unix >= 2.6, bytestring >= 0.10.4, hashtables >= 1.1, fastcgi >= 3000,
-                       aeson >= 0.7, attoparsec >= 0.10, text >= 1.0
+                       aeson >= 0.7, attoparsec >= 0.10, text >= 1.0, hedis >= 0.6
   -- hs-source-dirs:
   default-language:    Haskell2010
 
