@@ -48,7 +48,7 @@ public:
     PersistenceLayerResponse(const string&);
 
     /// Field for message retrieval responses. Not used yet.
-    vector<string> messages;
+    string messages;
 
     /// A unique sequence number of a transaction which may be used to find and restart an operation.
     sequence_t sequence_number;
@@ -95,18 +95,18 @@ class PersistenceLayerCommand
 {
 public:
     /// For ULKUP, LOGOUT, MSGGT
-    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name);
+    PersistenceLayerCommand(PersistenceLayerCommandCode, const string& user_name);
     /// For UREG, CHKPASS, MSGSV
-    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string password_or_message);
+    PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& broker, const string& channel);
     /// For LOGIN
-    PersistenceLayerCommand(PersistenceLayerCommandCode, string user_name, string broker_name, string channel_id);
+    PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& data);
 
     string toString(void) const;
     /// This one is initialized automatically. We need to expose it so the function using this class may store the generated
     /// sequence number.
     sequence_t sequence_number;
 private:
-    string user_name;
+    string user_name, sender_name;
 
     // Those are mutually exclusive. {
     string password_or_message;

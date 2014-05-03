@@ -101,7 +101,7 @@ In case of OFFLINE, the message broker will save the received message with the f
 
 ### Save a message
 
-    <sequence number> MSGSV <user name> <message text/information>
+    <sequence number> MSGSV <user name> <sender> <message text>
     [answer:]
     <sequence number> MSGSVD {OK|FAIL}
 
@@ -111,10 +111,20 @@ Save a message for a user who is currently not online.
 
     <sequence number> MSGGT <user name>
     [answer:]
-    <sequence number> MSGS {OK <message 1> <message 2> <...>|FAIL}
+    <sequence number> MSGS {OK <JSON representation of messages>|FAIL}
 
 Retrieve saved messages for a certain user. This operation SHALL fail if there is no user registered with the given name.
-The messages itself MUST NOT contain newline characters.
+The messages itself MUST NOT contain newline characters. The JSON representation is described in webapp-message-broker.mkd;
+it's an array with JSON records containing the fields "timestamp", "from" and "message":
+
+    [{
+        "from":"<sender>",
+        "timestamp":"<rfc2822-stamp>",
+        "message":"<message text>"
+    },
+    {
+        ...
+    }]
 
 The persistence implementation SHOULD delete the retrieved messages or mark them as delivered.
 

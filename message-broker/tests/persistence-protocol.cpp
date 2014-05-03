@@ -119,13 +119,12 @@ BOOST_AUTO_TEST_CASE(persistent_response_parse_lookup_fail)
 BOOST_AUTO_TEST_CASE(persistent_response_parse_messages)
 {
     try {
-	PersistenceLayerResponse response("11712393297\nMSGS\nOK\nHello world 1.\ncHaTTP is awesome\n");
+	PersistenceLayerResponse response("11712393297\nMSGS\nOK\n{\"messages\": [\"Hello world 1.\", \"cHaTTP is awesome,\"]}");
 	BOOST_CHECK(response.status);
 	BOOST_CHECK(response.response_type == PersistenceLayerResponseCode::messages);
 	BOOST_CHECK_EQUAL(response.sequence_number,11712393297);
-	BOOST_CHECK_EQUAL(response.messages.size(),2);
-	BOOST_CHECK_EQUAL(response.messages[0],"Hello world 1.");
-	BOOST_CHECK_EQUAL(response.messages[1],"cHaTTP is awesome");
+	string s("{\"messages\": [\"Hello world 1.\", \"cHaTTP is awesome,\"]}");
+	BOOST_CHECK_EQUAL(response.messages,s);
     } catch (BrokerError e)
     {
 	BOOST_ERROR("An exception has been thrown:\n");
@@ -181,6 +180,21 @@ BOOST_AUTO_TEST_CASE(persistent_create_login_message)
 	std::cerr << e.toString();
     }
 
+}
+
+BOOST_AUTO_TEST_CASE(persistent_create_msgsv_message)
+{
+    initializeGlobalSequenceNumber();
+
+    try {
+	PersistenceLayerCommand c(PersistenceLayerCommandCode::saveMessage,"to_user","message","from_user");
+
+	BOOST_CHECK_EQUAL(c.toString(), "1\nMSGSV\nto_user\nfrom_user\nmessage");
+    } catch (BrokerError e)
+    {
+	BOOST_ERROR("An exception has been thrown:\n");
+	std::cerr << e.toString();
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

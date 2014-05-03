@@ -2,10 +2,16 @@
 # include "error.hpp"
 # include <string>
 # include <iostream>
+# include <memory>
 
 using std::istringstream;
 using std::ostringstream;
 using std::string;
+
+namespace
+{
+    thread_local char temp_messages[65536];
+}
 
 /**
  * @brief Initialize class with the values extracted from `response`.
@@ -108,25 +114,18 @@ void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
 	response >> ok;
 
 	if ( ok == "FAIL" )
+	{
 	    status = false;
-	else if ( ok == "OK" )
+	    return;
+	} else if ( ok == "OK" )
 	    status = true;
 	else
 	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
 
-	char* single_message = new char[32768];
+	response.getline(temp_messages,65535); // remove first newline.
+	response.getline(temp_messages,65535);
 
-	response.getline(single_message,0); // Remove the remaining newline character from the previous stream read.
-
-	while ( response.good() )
-	{
-	    response.getline(single_message,32767);
-	    if ( response.fail() )
-		break;
-	    messages.push_back(string(single_message));
-	}
-
-	status = true;
+	messages = std::move(string(temp_messages));
     } else
     {
 	string ok;
@@ -151,9 +150,9 @@ void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user_name)
     : sequence_number(getNewSequenceNumber()),
-    user_name(user),
+    user_name(user_name),
     request_type(code)
 {
     switch ( code )
@@ -169,11 +168,11 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  *
  * @param code The command type
  * @param user The user name
- * @param data Either a password (UREG, CHKPASS) or a message (MSGSV).
+ * @param data Either a password (UREG, CHKPASS)
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string data)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& data)
     : sequence_number(getNewSequenceNumber()),
     user_name(user),
     request_type(code)
@@ -191,20 +190,29 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  *
  * @param code The command type.
  * @param user The user name.
- * @param broker The broker handling that user.
- * @param channel The channel of the user.
+ * @param broker_or_message The broker handling that user. If MSGSV, the message.
+ * @param channel_or_sender The channel of the user. If MSGSV, then it's the user name of the sender.
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, string user, string broker, string channel)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& broker_or_message, const string& channel_or_sender)
     : sequence_number(getNewSequenceNumber()),
     user_name(user),
-    broker_name(broker),
-    channel_id(channel),
+    broker_name(broker_or_message),
     request_type(code)
 {
-    if ( code != PersistenceLayerCommandCode::logIn )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: LOGIN, but got other command type.");
+    if ( ! (code == PersistenceLayerCommandCode::logIn || code == PersistenceLayerCommandCode::saveMessage) )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: LOGIN/MSGSV, but got other command type.");
+    if ( debugging_mode && channel_or_sender == "" && code == PersistenceLayerCommandCode::saveMessage )
+	throw BrokerError(ErrorType::genericImplementationError,"PersistenceLayerCommand: No destination user supplied.");
+
+    if ( code == PersistenceLayerCommandCode::logIn )
+	channel_id = channel_or_sender;
+    else if ( code == PersistenceLayerCommandCode::saveMessage )
+    {
+	sender_name = channel_or_sender;
+	password_or_message = broker_or_message;
+    }
 }
 
 /**
@@ -228,7 +236,7 @@ string PersistenceLayerCommand::toString(void) const
 	case PersistenceLayerCommandCode::logOut : out << "LOGOUT\n" << user_name; break;
 	case PersistenceLayerCommandCode::registerUser : out << "UREG\n" << user_name << '\n' << password_or_message; break;
 	case PersistenceLayerCommandCode::checkPassword: out << "CHKPASS\n" << user_name << '\n' << password_or_message; break;
-	case PersistenceLayerCommandCode::saveMessage : out << "MSGSV\n" << user_name << '\n' << password_or_message; break;
+	case PersistenceLayerCommandCode::saveMessage : out << "MSGSV\n" << user_name << '\n' << sender_name << '\n' << password_or_message; break;
 	case PersistenceLayerCommandCode::logIn : out << "LOGIN\n" << user_name << '\n' << broker_name << '\n' << channel_id; break;
     }
 
