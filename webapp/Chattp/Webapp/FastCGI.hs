@@ -24,8 +24,8 @@ import Database.Redis
 
 fcgiMain :: Connection -> ChanInfo -> CGI CGIResult
 fcgiMain r_conn channels = do
-    params <- getFCGIConf
-    let rq_type = getOpType (docUri params)
+    Just doc_uri <- getVar "DOCUMENT_URI" -- document uri is /always/ there. Kill me if not ;)
+    let rq_type = getOpType . BS.pack $ doc_uri
     setHeader "Content-Type" "application/json"
     case rq_type of
         WebLogin -> handleLogin channels
@@ -249,32 +249,6 @@ handleConfGetRequest conn chans = do
 
                     outputFPS response
         _ -> outputError 400 "Get-settings request lacking request parameter" []
-
-
--- Tools.
-
-data FCGIParams = Params { bodyLength :: Int,
-                           body :: BS.ByteString,
-                           docUri :: BS.ByteString
-} deriving Show
-
-getFCGIConf :: CGI FCGIParams
-getFCGIConf = do
-    content_length_raw <- getVar "CONTENT_LENGTH"
-    rq_body <- getBodyFPS
-    uri_raw <- getVar "DOCUMENT_URI"
-    let content_length = case content_length_raw of
-                            Nothing -> 0
-                            Just "" -> 0
-                            Just l -> read l
-    let uri = case uri_raw of
-                Nothing -> ""
-                Just u -> BS.pack u
-    return Params { bodyLength = content_length,
-                    body = rq_body,
-                    docUri = uri
-    }
-
 
 -- Obtain operation (login, logout...) from DOCUMENT_URI
 
