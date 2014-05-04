@@ -18,7 +18,7 @@ data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterReques
 sequenceNumberManager :: Chan (Chan SequenceNumber) -> IO ()
 sequenceNumberManager = manager 1
     where manager i chan = do
-                        backchan <- readChan chan -- Receive any number
+                        backchan <- readChan chan
                         writeChan backchan i
                         manager (i+1) chan
 

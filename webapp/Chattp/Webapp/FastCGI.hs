@@ -58,8 +58,11 @@ handleLogin chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (UserLoggedIn _ _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error. [handleLogin,wrongAnswerType]" []
         _ -> outputError 400 "Login request lacking request parameter(s)" []
 
 handleLogout :: ChanInfo -> CGI CGIResult
@@ -80,8 +83,11 @@ handleLogout chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (UserLoggedOut _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error. [handleLogout,wrongAnswerType]" []
         _ -> outputError 400 "Logout request lacking request parameter(s)" []
 
 handleRegister :: ChanInfo -> CGI CGIResult
@@ -102,8 +108,11 @@ handleRegister chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (UserRegistered _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error. [handleRegister,wrongAnswerType]" []
         _ -> outputError 400 "Register request lacking request parameter(s)" []
 
 handleSendMessage :: ChanInfo -> CGI CGIResult
@@ -129,8 +138,11 @@ handleSendMessage chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (MessageAccepted _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error. [handleSendMessage,wrongAnswerType]" []
         _ -> outputError 400 "Message send request lacking request parameter(s)" []
     where mangleMsg :: Char -> Char
           mangleMsg '\n' = ' '
@@ -153,8 +165,11 @@ handleStatusRequest chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (UserStatus _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error. [handleStatusRequest,wrongAnswerType]" []
         _ -> outputError 400 "Status request lacking request parameter" []
 
 handleMessagesRequest :: ChanInfo -> CGI CGIResult
@@ -175,8 +190,11 @@ handleMessagesRequest chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    let jsonresponse = responseToJSON brokeranswer
-                    outputFPS jsonresponse
+                    case brokeranswer of
+                        (SavedMessages _ _) -> do
+                            let jsonresponse = responseToJSON brokeranswer
+                            outputFPS jsonresponse
+                        _ -> outputError 500 "Sorry, this is an implementation error [handleMessagesRequest,wrongAnswerType]" []
         _ -> outputError 400 "Saved-messages request lacking request parameter" []
 
 handleConfSaveRequest :: Connection -> ChanInfo -> CGI CGIResult
@@ -198,7 +216,7 @@ handleConfSaveRequest conn chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    response <- case brokeranswer of
+                    case brokeranswer of
                         Authorized True -> do
                                 result <- liftIO $ storeUserSettings conn usr raw_settings
 
@@ -206,13 +224,11 @@ handleConfSaveRequest conn chans = do
                                                    then (True,"")
                                                    else (False,result)
 
-                                return . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
                                                           "status" .= status,
                                                           "error" .= (T.decodeUtf8 . BS.pack $ err)]
-                        Authorized False -> return $ responseToJSON brokeranswer
-                        _ -> fail "Implementation error in handleConfSaveRequest"
-
-                    outputFPS response
+                        Authorized False -> outputFPS $ responseToJSON brokeranswer
+                        _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Save-settings request lacking request parameter" []
 
 handleConfGetRequest :: Connection -> ChanInfo -> CGI CGIResult
@@ -233,21 +249,19 @@ handleConfGetRequest conn chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    response <- case brokeranswer of
+                    case brokeranswer of
                         Authorized True -> do
                                 settings <- liftIO $ getUserSettings conn usr
                                 let settings_json = case AE.decode settings of
                                                         Just o -> o
                                                         Nothing -> AE.String . TS.decodeUtf8 . BS.toStrict $ settings
 
-                                return . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
                                                           "status" .= True,
                                                           "error" .= T.decodeUtf8 "",
                                                           "settings" .= settings_json]
-                        Authorized False -> return $ responseToJSON brokeranswer
-                        _ -> fail "Implementation error in handleConfGetRequest"
-
-                    outputFPS response
+                        Authorized False -> outputFPS $ responseToJSON brokeranswer
+                        _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Get-settings request lacking request parameter" []
 
 -- Obtain operation (login, logout...) from DOCUMENT_URI
