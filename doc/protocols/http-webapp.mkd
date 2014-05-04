@@ -140,3 +140,29 @@ As result, a JSON object is returned. The "type" field is set to "saved-messages
 The "messages" field consists of an array of JSON records. In this array, message objects are stored, of which each has the fields "from",
 "timestamp" and "message". The timestamp is an RFC2822 timestamp.
 
+### Setting user settings/configuration
+
+    POST $base/chattp_request/setconf?user_name=<usr>&channel_id=<channel>
+
+Upload settings. It is recommended to use JSON as format, however, any textual or binary representation may be used.
+
+In the uploaded settings, there may be UI settings as well as "Buddy lists" etc.
+
+### Getting user settings/configuration
+
+    GET $base/chattp_request/getconf?user_name=<usr>&channel_id=<channel>
+
+Get previously saved settings.
+
+There are two possibilities for the format of the returned settings.
+
+a) The settings that were uploaded were valid JSON.
+
+→ A JSON object is returned, with the fields `type` → `"saved-settings"`, `status` → `true/false`, `error` → <any error, if !status>,
+`settings` → <the uploaded JSON object>.
+
+b) The settings that were uploaded were not valid JSON.
+
+→ A JSON object similar to that one above is returned, but the `settings` field does not contain a JSON object but a string.
+This string contains the uploaded settings.
+

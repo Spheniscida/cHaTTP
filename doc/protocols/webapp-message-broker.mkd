@@ -7,6 +7,9 @@ The channel id is generally used for two purposes; firstly, it's the handle iden
 server's push mechanism. But secondly, and more important in the scope of this document, it is also a session
 id needed to authenticate a user.
 
+In general, user information obtained from persistence is cached within the message broker. This means that
+it is relatively cheap to issue commands like `UONL` and `ISAUTH`.
+
 We're using the keywords specified by RFC 2119.
 
 ## Protocol syntax
@@ -115,5 +118,5 @@ is an RFC2822 timestamp.
     <seqn> AUTHD {Y|N}
 
 This command lets the message broker check if the user is logged in on it with the given channel id. It may be used
-for operations not involving the message broker but nevertheless needing authentication (e.g. settings storage)
+for operations not involving the message broker but nevertheless needing authentication (e.g. settings storage).
 
