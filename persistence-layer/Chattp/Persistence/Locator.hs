@@ -52,3 +52,4 @@ lookupOffline' False = ["FAIL"]
 
 userKey :: ByteString -> ByteString
 userKey = B.append "user."
+

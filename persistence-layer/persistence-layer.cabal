@@ -20,7 +20,8 @@ executable persistence-layer
   main-is:             Main.hs
   -- other-modules:
   other-extensions:    OverloadedStrings, TupleSections
-  build-depends:       base >=4.6 && <4.7, mtl >=2.1 && <2.2, bytestring >=0.10 && <0.11, network >=2.5 && <2.6,
-                       hedis >= 0.6, pwstore-fast >= 2, directory >= 1.2
+  build-depends:       base >=4.6 && <4.7, mtl >=2.1, bytestring >=0.10, network >=2.5, transformers >= 0.3,
+                       hedis >= 0.6, pwstore-fast >= 2, directory >= 1.2, unix-time >= 0.2, aeson >= 0.7,
+                       text >= 1, vector >= 0.10
   -- hs-source-dirs:
   default-language:    Haskell2010
