@@ -457,7 +457,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		}
 	    }
 
-	} else if ( receiver.online ) // ...and not on this broker
+	} else if ( receiver.online ) // ...and not on this broker (clustering must be enabled because lookup was successful)
 	{
 	    MessageForB2B broker_message(rq.user,rq.message,receiver.channel_id);
 
@@ -492,7 +492,6 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 		throw e;
 	    }
-
 	}
 
 	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
@@ -873,7 +872,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		    throw e;
 		}
-	    } else // B2B communication!
+	    } else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
 	    {
 		MessageForB2B broker_message(original_webapp_request.user,original_webapp_request.message,rp.channel_id);
 
@@ -882,8 +881,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		// UDP doesn't fail
 		communicator.send(broker_message,rp.broker_name);
-	    }
+	    } else // not on this broker and non-clustered mode.
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (clustering disabled)");
+		communicator.send(failresp);
 
+		transaction_cache.eraseTransaction(seqnum);
+	    }
 	} else // Save message to persistence layer
 	{
 	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message,original_webapp_request.user);
