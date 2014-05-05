@@ -32,11 +32,11 @@ the essential "Nginx HTTP push module" ([website](https://pushmodule.slact.net/)
                 push_authorized_channels_only on;
             }
             location /pub {
-                set $push_channel_id $arg_id;
+                set $push_channel_id $arg_channel_id; # This line is essential -- the 'channel_id' parameter is used by the cHaTTP programs.
                 push_publisher;
                 push_store_messages on;
-                default_type text/plain;
-                push_message_buffer_length 1;
+                default_type text/plain; # Usually altered to application/json
+                push_message_buffer_length 5;
             }
     }
 
