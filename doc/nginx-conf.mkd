@@ -8,36 +8,49 @@ the essential "Nginx HTTP push module" ([website](https://pushmodule.slact.net/)
 
 ## Configuration example
 
+The `$base` variables must be replaced by an actual path! This path may, however, be empty.
+
+Don't forget to configure the FastCGI application; it must run at `$base/chattp_request`
+
     server {
-            listen 0.0.0.0:80;
-            listen [::]:80;
-            server_name <server domain>;
-            
-            root /home/user/public_html;
-            index index.html index.htm index.php;
-            try_files $uri $uri/;
+        listen 0.0.0.0:80;
+        listen [::]:80;
+        server_name <server domain>;
 
-            location / {
-                autoindex on;
-            }
-            if ($request_uri ~ " ") {
-              return 444;
-            }
+        root /home/user/public_html;
+        index index.html index.htm index.php;
+        try_files $uri $uri/;
 
-            location /sub {
-                set $push_channel_id $arg_id;
-                push_subscriber long-poll;
-                push_subscriber_concurrency first;
-                default_type text/plain;
-                push_authorized_channels_only on;
-            }
-            location /pub {
-                set $push_channel_id $arg_id;
+        location / {
+            autoindex on;
+        }
+        if ($request_uri ~ " ") {
+            return 444;
+        }
+
+
+        location /test/chattp_request {
+            fastcgi_pass unix:/tmp/chattp_webapp.sock; # Adapt this path!! -- The cHaTTP team recommends using spawn-fcgi for running it.
+            fastcgi_read_timeout 600;
+            include fastcgi_params;
+        }
+
+        location $base/sub {
+            set $push_channel_id $arg_id;
+            push_subscriber long-poll;
+            push_subscriber_concurrency first;
+            default_type text/plain;
+            push_authorized_channels_only on;
+        }
+        location $base/pub {
+            set $push_channel_id $arg_channel_id; # This line is essential -- the 'channel_id' parameter is used by the cHaTTP programs.
                 push_publisher;
-                push_store_messages on;
-                default_type text/plain;
-                push_message_buffer_length 1;
-            }
+            push_store_messages on;
+            default_type text/plain; # Usually altered to application/json
+                push_message_buffer_length 5;
+        }
     }
 
+`spawn-fcgi` example:
 
+    > spawn-fcgi -s /tmp/chattp_webapp.sock webapp/dist/build/webapp/webapp; chown www-data /tmp/chattp_webapp.sock
