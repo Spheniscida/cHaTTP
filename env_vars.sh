@@ -36,14 +36,19 @@ export CHATTP_MSGBROKER_MSGRELAY_BIND_PORT=""
 export CHATTP_MSGBROKER_WEBAPP_BIND_ADDR="/tmp/msg-broker-webapp"
 export CHATTP_MSGBROKER_WEBAPP_BIND_PORT=""
 
+##### General application configuration
+
 # This is the host on which the broker listens. It should be a FQDN because
 # it's also used in the persistence layer as identification string for a user's location.
 # Other message brokers contacting the one on this host should be able to resolve this name.
 export CHATTP_MSGBROKER_BROKER_NAME="vostro-linux.virt.goebo.site"
 
-##### General application configuration
-
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"
 
+# If the broker should run in clustered mode, this means no user cache.
+# A non-clustered single message broker has higher performance (because of
+# better caching), but will not see changes in persistence caused by other nodes.
+# Default (lacking variable, any other string than "Y") is non-clustered.
+export CHATTP_MSGBROKER_RUN_CLUSTERED="N"
 

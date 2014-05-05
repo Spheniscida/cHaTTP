@@ -52,7 +52,6 @@ Communicator::Communicator (void)
 	}
 
 
-
 	if ( msgrelay_connection_info.type == connectionType::UNIX )
 	{
 	    inet_msgrelay_sock = nullptr;
@@ -95,7 +94,7 @@ Communicator::Communicator (void)
 
     } catch (libsocket::socket_exception e)
     {
-	debug_log("Caught socket exception in IPC setup: ", e.mesg);
+	error_log("Caught socket exception in IPC setup: ", e.mesg);
 	throw BrokerError(ErrorType::ipcError,"Caught socket exception.");
     }
 }

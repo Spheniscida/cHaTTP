@@ -74,7 +74,6 @@ int main(int argc, char** argv)
     globalInit();
     initMessageBrokerThread();
 
-    // This is only testing yet.
     try {
 	ProtocolDispatcher dispatcher;
 

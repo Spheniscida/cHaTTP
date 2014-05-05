@@ -16,9 +16,11 @@ const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
 const unsigned int max_raw_message_size = 12288;
 
+/// UDP port for broker2broker communication.
 const string message_broker_port = "27533";
 
 extern BrokerSettings global_broker_settings;
+
 const bool debugging_mode = true;
 
 extern thread_local unsigned int thread_id;
@@ -69,10 +71,14 @@ public:
     connectionInformation getWebappBindAddress(void) const { return webapp_bind_info; };
     connectionInformation getB2BBindAddress(void) const { return b2b_bind_info; };
 
+    bool getClusteredMode(void) const { return clustered_mode; }; // inline, is cheap.
+
     const string& getMessageBrokerName(void) const { return message_broker_name; };
 
     unsigned int getNumberOfThreads(void) const { return n_threads; };
 private:
+    void extractB2BInfo(void);
+
     connectionInformation message_relay_info;
     connectionInformation persistence_layer_info;
     connectionInformation webapp_info;
@@ -86,6 +92,7 @@ private:
 
     string message_broker_name;
     unsigned int n_threads;
+    bool clustered_mode;
 };
 
 # endif

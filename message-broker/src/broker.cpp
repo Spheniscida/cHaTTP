@@ -8,6 +8,7 @@
 
 namespace {
     TransactionMap transaction_cache;
+    UserCache user_cache;
 }
 
 /*
@@ -237,7 +238,7 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     OutstandingTransaction transaction;
     transaction.original_sequence_number = seqnum;
 
-    CachedUser cached_user = lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     // Can't log-in if already online
     if ( cached_user.found && cached_user.online )
@@ -295,7 +296,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     OutstandingTransaction transaction;
     sequence_t new_seqnum;
 
-    CachedUser cached_user = lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     if ( cached_user.found && (! cached_user.online || cached_user.channel_id != rq.channel_id || cached_user.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
@@ -361,7 +362,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
 
-    CachedUser sender = lookupUserInCache(rq.user), receiver = lookupUserInCache(rq.dest_user);
+    UserCache::CachedUser sender = user_cache.lookupUserInCache(rq.user), receiver = user_cache.lookupUserInCache(rq.dest_user);
 
     if ( ! sender.found ) // We don't have this sender in cache, do normal procedure with two look-ups.
     {
@@ -506,7 +507,7 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
     transaction.type = OutstandingType::persistenceUonlqULKDUP;
     transaction.original_sequence_number = rq.sequence_number;
 
-    CachedUser cache_entry = lookupUserInCache(rq.user);
+    UserCache::CachedUser cache_entry = user_cache.lookupUserInCache(rq.user);
 
     if ( cache_entry.found )
     {
@@ -542,14 +543,9 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
 
-    CachedUser user = lookupUserInCache(rq.user);
+    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user);
 
-    if ( user.found && (! user.online || user.channel_id != rq.channel_id) )
-    {
-	WebappResponse failresp(seqnum,WebappResponseCode::savedMessages,false,user.online ? "Wrong channel id" : "User is offline");
-
-	communicator.send(failresp);
-    } else if ( user.found && (user.online && user.channel_id == rq.channel_id) )
+    if ( user.found && (user.online && user.channel_id == rq.channel_id) )
     {
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::getMessages,rq.user);
 
@@ -587,6 +583,11 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 
 	    throw e;
 	}
+    } else if ( user.found && (! user.online || user.channel_id != rq.channel_id) )
+    {
+	WebappResponse failresp(seqnum,WebappResponseCode::savedMessages,false,user.online ? "Wrong channel id" : "User is offline");
+
+	communicator.send(failresp);
     }
 }
 
@@ -594,7 +595,7 @@ void ProtocolDispatcher::onWebAppISAUTH(const WebappRequest& rq)
 {
     sequence_t seqnum = rq.sequence_number;
 
-    CachedUser user = lookupUserInCache(rq.user);
+    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user);
 
     if ( !user.found )
     {
@@ -796,7 +797,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	if ( ! rp.online || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
@@ -834,7 +835,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// send to persistence
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.dest_user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.dest_user,rp.channel_id,rp.broker_name,rp.online);
 
 	// Is receiver online? If so, send to message relay, else send to persistence
 	if ( rp.online )
@@ -911,7 +912,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// Respond to the "is user online?" request.
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
@@ -925,7 +926,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( original_webapp_request.request_type != WebappRequestCode::logOut )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type logOut; however, this is not the case.");
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	// May log off (authenticated).
 	if ( rp.online && rp.channel_id == original_webapp_request.channel_id && rp.broker_name == global_broker_settings.getMessageBrokerName() )
@@ -997,7 +998,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	if ( !rp.online || original_webapp_request.channel_id != rp.channel_id )
 	{
@@ -1036,7 +1037,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	bool auth_status = rp.online
 			&& rp.broker_name == global_broker_settings.getMessageBrokerName()
@@ -1112,7 +1113,7 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	communicator.send(resp);
 
 	// online predicate is checked before broker_name and channel_id; those may be left empty.
-	insertUserInCache(original_webapp_request.user,string(),string(),false);
+	user_cache.insertUserInCache(original_webapp_request.user,string(),string(),false);
 
 	MessageForRelay delchanmsg(original_webapp_request.channel_id,MessageForRelayType::deleteChannel);
 
@@ -1272,9 +1273,9 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,"Channel could not be created.",original_webapp_request.channel_id);
 
         if ( rp.status )
-            insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+            user_cache.insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
         else
-            insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
+            user_cache.insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
