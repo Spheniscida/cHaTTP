@@ -59,8 +59,8 @@ router hs allconf@(RouterConfig relayconf sock) = do
     case parseRequest (BS.fromStrict msg) of
         Left _ -> router (Just hstream) allconf -- ignore, malformed.
         Right (BrokerRequestMessage seqn broker_request) -> do
-                                            let http_req = processRequest allconf broker_request
-                                            send_result <- sendFailSafe 0 hstream http_req
+                                            let http_req = makeHTTPRequest allconf broker_request
+                                            send_result <- sendFailSafe 2 hstream http_req
                                             (hstream',response_message) <- case send_result of
                                                 Just (hstream',http_resp) -> do
                                                                 broker_response <- handleResponse broker_request (Just http_resp)
@@ -72,18 +72,19 @@ router hs allconf@(RouterConfig relayconf sock) = do
                                             router hstream' allconf
     -- tries to send three times (usually called with count = 0), stops after. For the case that the web server closed the connection
     where   sendFailSafe :: Int -> HandleStream BS.ByteString -> Request BS.ByteString -> IO (Maybe (HandleStream BS.ByteString,Response BS.ByteString))
-            sendFailSafe count hstream req | count < 3 = do
-                                        result <- sendHTTP hstream req
-                                        case result of
-                                            Right rp -> return $ Just (hstream,rp)
-                                            Left ErrorClosed -> do
-                                                hstream' <- makeHTTPConnection relayconf
-                                                sendFailSafe (count+1) hstream' req
-                                            Left _ -> return Nothing
-                                        | otherwise = return Nothing
+            sendFailSafe count hstream req
+                | count > 0 = do
+                    result <- sendHTTP hstream req
+                    case result of
+                        Right rp -> return $ Just (hstream,rp)
+                        Left ErrorClosed -> do
+                            hstream' <- makeHTTPConnection relayconf
+                            sendFailSafe (count-1) hstream' req
+                        Left _ -> return Nothing
+                | otherwise = return Nothing
 
-processRequest :: RouterConfig -> BrokerRequest -> Request BS.ByteString
-processRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
+makeHTTPRequest :: RouterConfig -> BrokerRequest -> Request BS.ByteString
+makeHTTPRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
     -- publishURL is the URL up to the '=' character.
     let url = BS.append (publishURL relayconf) chanid
         empty_val = "" :: Value -- explicit type
@@ -93,7 +94,7 @@ processRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
                                                                 Header HdrConnection "keep-alive",
                                                                 Header HdrContentLength (show . BS.length $ json_data)] }
        in http_req
-processRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
+makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
     let url = BS.append (publishURL relayconf) chanid
         Just u = parseURI (BS.unpack url)
         http_req = Request { rqURI = u,
@@ -102,7 +103,7 @@ processRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
                              rqBody = "" :: BS.ByteString
     }
         in http_req
-processRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
+makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
     let url = BS.append (publishURL relayconf) chan
         json_data = encode . object $ ["ignore" .= False, "message" .= T.decodeUtf8 msg, "from" .= T.decodeUtf8 from]
         http_req = (postRequest (BS.unpack url)) { rqBody = json_data,

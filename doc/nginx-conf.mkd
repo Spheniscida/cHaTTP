@@ -25,7 +25,7 @@ the essential "Nginx HTTP push module" ([website](https://pushmodule.slact.net/)
             }
 
             location /sub {
-                set $push_channel_id $arg_id;
+                set $push_channel_id $arg_channel_id;
                 push_subscriber long-poll;
                 push_subscriber_concurrency first;
                 default_type text/plain;
