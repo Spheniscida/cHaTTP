@@ -1,7 +1,7 @@
 # include "broker.hpp"
 # include "broker-util.hpp"
 # include "synchronization.hpp"
-# include "cache.hpp"
+# include "user_cache.hpp"
 # include "conf.hpp"
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
@@ -373,7 +373,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
     UserCache::CachedUser sender = user_cache.lookupUserInCache(rq.user), receiver = user_cache.lookupUserInCache(rq.dest_user);
 
-    if ( ! sender.found ) // We don't have this sender in cache, do normal procedure with two look-ups.
+    if ( ! sender.found ) // We don't have this sender in cache, do normal procedure with two look-ups. Normal in clustered mode.
     {
 	transaction.type = OutstandingType::persistenceSndmsgSenderULKDUP;
 
@@ -393,7 +393,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    throw e;
 	}
 
-    } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
+    } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards. Implicit: !clustered_mode
     {
 	// Unauthorized!
 	if ( ! sender.online || rq.channel_id != sender.channel_id || sender.broker_name != global_broker_settings.getMessageBrokerName() )
@@ -423,7 +423,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    throw e;
 	}
 
-    } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache.
+    } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache. Implicit: !clustered_mode
     {
 	// Unauthorized!
 	if ( ! sender.online || rq.channel_id != sender.channel_id )
@@ -466,23 +466,10 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		}
 	    }
 
-	} else if ( receiver.online ) // ...and not on this broker (clustering must be enabled because lookup was successful)
+	} else if ( receiver.online && receiver.broker_name != global_broker_settings.getMessageBrokerName() ) // ...and not on this broker. Implicit: !clustered_mode
 	{
-	    MessageForB2B broker_message(rq.user,rq.message,receiver.channel_id);
-
-	    try
-	    {
-		communicator.send(broker_message,receiver.broker_name);
-
-		transaction.type = OutstandingType::b2bMSGSNT;
-		transaction_cache.insertTransaction(broker_message.sequence_number,transaction);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (B2B failed)");
-		communicator.send(failresp);
-
-		throw e;
-	    }
+	    WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (clustering disabled)");
+	    communicator.send(failresp);
 
 	} else if ( ! receiver.online )
 	{

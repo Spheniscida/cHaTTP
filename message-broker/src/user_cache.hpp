@@ -13,7 +13,8 @@ using std::string;
  * @brief A User cache object stores information about users.
  *
  * This cache avoids too many lookups at the Persistence layer and
- * makes sending messages etc. faster.
+ * makes sending messages etc. faster (time between HTTP request and
+ * answer on successful delivery goes from ~2 ms (clustered) to ~1 ms).
  *
  * However, it does not work in clustered mode, i.e. when several
  * cHaTTP instances are networked together. In that case, the user cache

@@ -11,7 +11,7 @@ ipc.cpp
 message-relay.cpp
 broker.cpp
 synchronization.cpp
-cache.cpp
+user_cache.cpp
 broker2broker.cpp
 transaction-maps.cpp
 )
