@@ -1175,7 +1175,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
     if ( ! transaction.original_sequence_number )
     {
-	debug_log("Received dangling transaction reference. (message relay)");
+	error_log("Received dangling transaction reference. (message relay)");
 
 	transaction_cache.eraseTransaction(seqnum);
 

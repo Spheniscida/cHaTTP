@@ -23,13 +23,13 @@ template<>
 const string removeStringNewlines(const string orig_msg);
 
 template<typename T>
-void stderrWrite(const T arg)
+void stderrWrite(const T& arg)
 {
     std::cerr << removeStringNewlines(arg) << std::endl;
 }
 
 template<typename T, typename ... Ts>
-void stderrWrite(const T arg, const Ts ... args)
+void stderrWrite(const T& arg, const Ts& ... args)
 {
     std::cerr << removeStringNewlines(arg);
     stderrWrite(args...);
