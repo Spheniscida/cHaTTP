@@ -167,6 +167,15 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
     transaction.type = OutstandingType::messagerelayB2BMSGSNT;
     transaction.original_sequence_number = msg.sequence_number;
 
+    if ( ! global_broker_settings.getClusteredMode() )
+    {
+	MessageForB2B failmsg(msg.sequence_number,false);
+
+	communicator.send(failmsg,msg.origin_broker);
+
+	return;
+    }
+
     transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
 
     MessageForRelay relaymsg(msg.sender_username,msg.message,msg.channel_id);
@@ -387,9 +396,9 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
     } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
     {
 	// Unauthorized!
-	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
+	if ( ! sender.online || rq.channel_id != sender.channel_id || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
-	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,sender.online ? "Sender unauthorized (wrong channel id)"
+	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,sender.online ? "Sender unauthorized (wrong channel id/broker)"
 											    : "Sender is offline");
 	    communicator.send(resp);
 
@@ -501,21 +510,22 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 {
-    OutstandingTransaction transaction;
-
-    transaction.type = OutstandingType::persistenceUonlqULKDUP;
-    transaction.original_sequence_number = rq.sequence_number;
-
     UserCache::CachedUser cache_entry = user_cache.lookupUserInCache(rq.user);
 
     if ( cache_entry.found )
     {
-	WebappResponse resp(rq.sequence_number,WebappResponseCode::isOnline,cache_entry.online);
+	// non-clustered mode.
+	WebappResponse resp(rq.sequence_number,WebappResponseCode::isOnline,cache_entry.online && cache_entry.broker_name == global_broker_settings.getMessageBrokerName());
 
 	communicator.send(resp);
 
 	return;
     }
+
+    OutstandingTransaction transaction;
+
+    transaction.type = OutstandingType::persistenceUonlqULKDUP;
+    transaction.original_sequence_number = rq.sequence_number;
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
@@ -914,7 +924,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	// Respond to the "is user online?" request.
-	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online);
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online &&
+				(global_broker_settings.getClusteredMode() || rp.broker_name == global_broker_settings.getMessageBrokerName()));
 
 	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
