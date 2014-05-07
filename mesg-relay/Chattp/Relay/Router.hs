@@ -4,7 +4,6 @@ module Chattp.Relay.Router where
 
 import System.Directory
 import System.IO.Error
-import System.IO
 
 import Chattp.Relay.Config
 import Chattp.Relay.Protocol
@@ -94,7 +93,7 @@ makeHTTPRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
                                                                 Header HdrConnection "keep-alive",
                                                                 Header HdrContentLength (show . BS.length $ json_data)] }
        in http_req
-makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
+makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) =
     let url = BS.append (publishURL relayconf) chanid
         Just u = parseURI (BS.unpack url)
         http_req = Request { rqURI = u,
@@ -103,7 +102,7 @@ makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
                              rqBody = "" :: BS.ByteString
     }
         in http_req
-makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
+makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) =
     let url = BS.append (publishURL relayconf) chan
         json_data = encode . object $ ["ignore" .= False, "message" .= T.decodeUtf8 msg, "from" .= T.decodeUtf8 from]
         http_req = (postRequest (BS.unpack url)) { rqBody = json_data,
@@ -113,19 +112,20 @@ makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
         in http_req
 
 
-handleResponse :: BrokerRequest -> Maybe (Response (BS.ByteString)) -> IO BrokerResponse
-handleResponse (SNDMSG _ _ _) Nothing = return (MSGSNT FAIL)
-handleResponse (SNDMSG _ _ _) (Just resp) =
+handleResponse :: BrokerRequest -> Maybe (Response BS.ByteString) -> IO BrokerResponse
+handleResponse SNDMSG{} Nothing = return (MSGSNT FAIL)
+handleResponse SNDMSG{} (Just resp) =
         case rspCode resp of
-                        (2,0,2) -> return (MSGSNT OK)
+                        (2,0,1) -> return (MSGSNT OK) -- Delivered.
+                        (2,0,2) -> return (MSGSNT OK) -- Queued.
                         c -> putStrLn ("Unexpected HTTP code (sndmsg) " ++ show c) >> return (MSGSNT FAIL)
-handleResponse (NEWCHAN _) Nothing = return (CHANCREAT FAIL)
-handleResponse (NEWCHAN _) (Just resp) =
+handleResponse NEWCHAN{} Nothing = return (CHANCREAT FAIL)
+handleResponse NEWCHAN{} (Just resp) =
         case rspCode resp of
                         (2,0,2) -> return (CHANCREAT OK)
                         c -> putStrLn ("Unexpected HTTP code (chancreat) " ++ show c) >> return (CHANCREAT FAIL)
-handleResponse (DELCHAN _) Nothing = return (DELTDCHAN FAIL)
-handleResponse (DELCHAN _) (Just resp) =
+handleResponse DELCHAN{} Nothing = return (DELTDCHAN FAIL)
+handleResponse DELCHAN{} (Just resp) =
         case rspCode resp of
                         (2,0,0) -> return (DELTDCHAN OK)
                         c -> putStrLn ("Unexpected HTTP code (delchan) " ++ show c) >> return (DELTDCHAN FAIL)
