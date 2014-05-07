@@ -798,7 +798,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( ! rp.online || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    // Unauthorized sender!
-	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,rp.online ? "Sender unauthorized (wrong channel id)"
+	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,rp.online ? "Sender unauthorized (wrong channel id or broker)"
 															  : "Sender is offline");
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
