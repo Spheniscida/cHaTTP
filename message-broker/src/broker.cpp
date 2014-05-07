@@ -1220,11 +1220,11 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
 
-	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
-	transaction_cache.eraseTransaction(seqnum);
-
 	// UDP doesn't fail.
 	communicator.send(mesg,message_sender_broker);
+
+	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
