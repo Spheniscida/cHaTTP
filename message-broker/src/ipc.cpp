@@ -82,7 +82,7 @@ Communicator::Communicator (void)
 	}
 
 
-	if ( b2b_connection_info.type == connectionType::INET )
+	if ( b2b_connection_info.type == connectionType::INET && global_broker_settings.getClusteredMode() )
 	{
 	    inet_b2b_sock = new inet_dgram_server(global_broker_settings.getB2BBindAddress().address,global_broker_settings.getB2BBindAddress().port,LIBSOCKET_BOTH,SOCK_NONBLOCK);
 

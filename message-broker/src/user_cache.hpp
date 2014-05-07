@@ -50,7 +50,7 @@ private:
 
     CachedUser not_found;
     unordered_map<string,CachedUser> user_cache;
-    shared_mutex user_cache_mutex;
+    mutex user_cache_mutex;
 
 
 };

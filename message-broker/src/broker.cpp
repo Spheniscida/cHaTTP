@@ -44,7 +44,7 @@ void ProtocolDispatcher::dispatch(void)
     vector<Receivable*> received_messages;
     unsigned int received_size = 0;
 
-    received_messages.resize(3);
+    received_messages.resize(4);
 
     while ( true )
     {

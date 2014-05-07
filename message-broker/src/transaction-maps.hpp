@@ -23,13 +23,13 @@ public:
     void eraseB2BOrigin(sequence_t seqnum);
 private:
     unordered_map<sequence_t,OutstandingTransaction> transactions;
-    shared_mutex transactions_mutex;
+    mutex transactions_mutex;
 
     unordered_map<sequence_t,WebappRequest> webapp_requests;
-    shared_mutex webapp_requests_mutex;
+    mutex webapp_requests_mutex;
 
     unordered_map<sequence_t,string> b2b_origins;
-    shared_mutex b2b_origins_mutex;
+    mutex b2b_origins_mutex;
 
 };
 

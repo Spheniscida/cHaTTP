@@ -20,9 +20,8 @@ void UserCache::insertUserInCache(const string& user_name, const string& channel
 	entry.broker_name = broker_name;
 	entry.online = online;
 
-	unique_lock<shared_mutex> usr_wr_lck(user_cache_mutex);
-	    user_cache[user_name] = entry;
-	usr_wr_lck.unlock();
+	lock_guard<mutex> usr_wr_lck(user_cache_mutex);
+	user_cache[user_name] = entry;
     }
 }
 
@@ -32,7 +31,7 @@ const UserCache::CachedUser& UserCache::lookupUserInCache(const string& user_nam
     {
 	unordered_map<string,CachedUser>::const_iterator it;
 
-	shared_lock<shared_mutex> usr_lck(user_cache_mutex);
+	lock_guard<mutex> usr_lck(user_cache_mutex);
 	if ( (it = user_cache.find(user_name)) != user_cache.end() )
 	{
 	    return it->second;

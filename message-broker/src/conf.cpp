@@ -2,6 +2,7 @@
 # include "error.hpp"
 # include "broker-util.hpp"
 # include <cstdlib>
+# include <sstream>
 
 using std::getenv;
 
