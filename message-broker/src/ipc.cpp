@@ -120,7 +120,7 @@ Communicator::~Communicator (void)
 unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 {
     Receivable* return_value;
-    unsigned int received_messages = 0, max_vector_size = return_vec.size();
+    unsigned int received_messages = 0;
 
     epollset<libsocket::socket>::ready_socks ready_for_recv;
 
@@ -138,8 +138,8 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 	    while ( (return_value = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]))) )
 	    {
 		// Only resize if the vector is already full -- this is quite unlikely, so we save us some memory operations.
-		if ( received_messages >= max_vector_size )
-		    return_vec.resize(++max_vector_size);
+		if ( received_messages >= return_vec.size() )
+		    return_vec.resize(1+return_vec.size());
 
 		return_vec[received_messages] = return_value;
 		received_messages++;
@@ -149,8 +149,8 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 	{
 	    while ( nullptr != (return_value = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]))) )
 	    {
-		if ( received_messages >= max_vector_size )
-		    return_vec.resize(++max_vector_size);
+		if ( received_messages >= return_vec.size() )
+		    return_vec.resize(1+return_vec.size());
 
 		return_vec[received_messages] = return_value;
 		received_messages++;
