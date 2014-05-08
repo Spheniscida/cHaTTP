@@ -19,6 +19,8 @@ The message broker requires its host operating system to provide:
 * The `epoll` API.
 * A C++11-compliant compiler (recent GCC/clang versions); only for building message-broker.
 
+This limits the possible platforms to modern Linux systems.
+
 #### Libsocket
 
 You will need the `libsocket` library. The former should already exist on your
@@ -30,12 +32,7 @@ This sub-project uses unit testing to avoid implementation errors. For the tests
 have to install the Boost test framework and its headers (e.g. libboost-test1.55-dev in Debian).
 
 To build the unit tests (`tests/test-main.cpp`), pass the following switch to CMake: `-Dunit_test=1`
-
-#### Boost thread and Boost system libraries
-
-The message broker needs `shared_mutex` and `shared_lock`; those are available in the C++14 standard library. However,
-C++14 is not available yet so we need to use Boost. The required library is libboost\_thread which in turn requires
-libboost\_system. Use your package manager to install those libraries.
+If you don't need the unit tests, the boost unit testing library will not be required.
 
 ## Documentation
 
