@@ -25,14 +25,15 @@ socketIncoming sock chanToCenter = do
         Left _err -> socketIncoming sock chanToCenter
 
 -- Thread code handling outgoing messages
-socketOutgoing :: WebappConfiguration -> Socket -> Chan (BrokerRequestMessage,Chan BrokerAnswer) -> IO ()
-socketOutgoing conf sock outgoingchan = do
-    (msg,backchan) <- readChan outgoingchan
+socketOutgoing :: WebappConfiguration -> Socket -> ChanInfo -> IO ()
+socketOutgoing conf sock chans = do
+    msg <- readChan (brokerRequestChan chans)
     let rawMessage = BS.toStrict . requestToByteString $ msg
-    catchIOError (NBS.sendTo sock rawMessage (brokerSockAddr conf)) (errHandler backchan msg)
-    socketOutgoing conf sock outgoingchan
+    catchIOError (NBS.sendTo sock rawMessage (brokerSockAddr conf)) (errHandler (requestsAndResponsesToCenterChan chans) msg)
+    socketOutgoing conf sock chans
 
-    where errHandler bc msg _ = writeChan bc (errorFromRequest msg) >> return 0
+    where errHandler :: Chan CenterRequestOrResponse -> BrokerRequestMessage -> IOError -> IO Int -- if there is an error, an error message is sent back.
+          errHandler bc msg@(BrokerRequestMessage seqn _) _ = writeChan bc (BrokerCenterResponse . BrokerAnswerMessage seqn . errorFromRequest $ msg) >> return 0
 
 -- Socket setup
 

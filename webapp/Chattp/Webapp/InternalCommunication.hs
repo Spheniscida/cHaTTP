@@ -8,10 +8,10 @@ import qualified Data.HashTable.IO as HT
 
 type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan BrokerAnswer)
 
-data CenterRequestOrResponse = FCGICenterRequest (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
+data CenterRequestOrResponse = RegisterSequenceNumber (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
 
 data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterRequestOrResponse,
-                           brokerRequestChan :: Chan (BrokerRequestMessage, Chan BrokerAnswer),
+                           brokerRequestChan :: Chan BrokerRequestMessage,
                            sequenceCounterChan :: Chan (Chan SequenceNumber) }
 
 -- This thread ensures unique sequence numbers.
@@ -32,7 +32,7 @@ centerThread centerchan = do
           manager chan tbl = do -- Loop
             msg <- readChan chan
             case msg of
-                FCGICenterRequest (seqn,backchan) -> HT.insert tbl seqn backchan
+                RegisterSequenceNumber (seqn,backchan) -> HT.insert tbl seqn backchan
                 BrokerCenterResponse (BrokerAnswerMessage seqn answer) -> sendResponseToFCGI tbl seqn answer
             manager chan tbl
           ----------------------------------------------------------------------------------

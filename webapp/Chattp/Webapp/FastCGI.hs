@@ -51,10 +51,10 @@ handleLogin chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (Login usr pwd)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -76,10 +76,10 @@ handleLogout chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (Logout usr channel)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -101,10 +101,10 @@ handleRegister chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (RegisterUser usr pwd)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -130,11 +130,11 @@ handleSendMessage chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let mangled_message = BS.map mangleMsg mesg
                     let request = BrokerRequestMessage seqn (SendMessage usr channel dst mangled_message)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -158,10 +158,10 @@ handleStatusRequest chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (QueryStatus usr)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -183,10 +183,10 @@ handleMessagesRequest chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (GetMessages usr chan)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -209,10 +209,10 @@ handleConfSaveRequest conn chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
@@ -242,10 +242,10 @@ handleConfGetRequest conn chans = do
                     seqn <- liftIO $ readChan seqchan
 
                     answerchan <- liftIO newChan
-                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (FCGICenterRequest (seqn,answerchan))
+                    liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
-                    liftIO $ writeChan (brokerRequestChan chans) (request,answerchan)
+                    liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
