@@ -204,6 +204,19 @@ parseUserStatus :: Parser UserStatus
 parseUserStatus = choice [string (SBS.pack . show $ ONLINE) >> return ONLINE,
                           string (SBS.pack . show $ OFFLINE) >> return OFFLINE]
 
+-- Return an error if the broker is down
+error_status :: AnswerStatus
+error_status = FAIL "Internal error! (Broker down)"
+
+errorFromRequest :: BrokerRequestMessage -> BrokerAnswer
+errorFromRequest (BrokerRequestMessage _ (RegisterUser _ _)) = UserRegistered error_status
+errorFromRequest (BrokerRequestMessage _ (Login _ _)) = UserLoggedIn error_status Nothing
+errorFromRequest (BrokerRequestMessage _ (Logout _ _)) = UserLoggedOut error_status
+errorFromRequest (BrokerRequestMessage _ (SendMessage _ _ _ _)) = MessageAccepted error_status
+errorFromRequest (BrokerRequestMessage _ (QueryStatus _)) = UserStatus OFFLINE
+errorFromRequest (BrokerRequestMessage _ (GetMessages _ _)) = SavedMessages error_status Nothing
+errorFromRequest (BrokerRequestMessage _ (IsAuthorized _ _)) = Authorized False
+
 
 -- JSON responses to web clients
 

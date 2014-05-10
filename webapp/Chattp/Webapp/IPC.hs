@@ -1,10 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Chattp.Webapp.IPC where
 
 import Chattp.Webapp.Conf
 import Chattp.Webapp.Protocol
 import Chattp.Webapp.InternalCommunication
-
-import Data.Attoparsec.ByteString.Lazy
 
 import Control.Concurrent
 import qualified Data.ByteString.Lazy.Char8 as BS
@@ -25,12 +25,14 @@ socketIncoming sock chanToCenter = do
         Left _err -> socketIncoming sock chanToCenter
 
 -- Thread code handling outgoing messages
-socketOutgoing :: WebappConfiguration -> Socket -> Chan BrokerRequestMessage -> IO ()
+socketOutgoing :: WebappConfiguration -> Socket -> Chan (BrokerRequestMessage,Chan BrokerAnswer) -> IO ()
 socketOutgoing conf sock outgoingchan = do
-    msg <- readChan outgoingchan
+    (msg,backchan) <- readChan outgoingchan
     let rawMessage = BS.toStrict . requestToByteString $ msg
-    NBS.sendTo sock rawMessage (brokerSockAddr conf)
+    catchIOError (NBS.sendTo sock rawMessage (brokerSockAddr conf)) (errHandler backchan msg)
     socketOutgoing conf sock outgoingchan
+
+    where errHandler bc msg _ = writeChan bc (errorFromRequest msg) >> return 0
 
 -- Socket setup
 

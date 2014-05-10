@@ -11,7 +11,7 @@ type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan BrokerAnswer)
 data CenterRequestOrResponse = FCGICenterRequest (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
 
 data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterRequestOrResponse,
-                           brokerRequestChan :: Chan BrokerRequestMessage,
+                           brokerRequestChan :: Chan (BrokerRequestMessage, Chan BrokerAnswer),
                            sequenceCounterChan :: Chan (Chan SequenceNumber) }
 
 -- This thread ensures unique sequence numbers.
