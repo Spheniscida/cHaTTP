@@ -6,7 +6,9 @@
 # include "synchronization.hpp"
 
 # include <string>
+# include <chrono>
 
+using namespace std::chrono;
 using std::string;
 
 /**
@@ -49,9 +51,12 @@ void debug_log(Ts... args)
 {
     if ( debugging_mode )
     {
+	time_point<steady_clock> now(steady_clock::now());
+	microseconds diff = duration_cast<microseconds>(now - start_time);
+
 	lock_guard<mutex> output_lock(output_mutex);
 
-	std::cerr << "DBG : ";
+	std::cerr << diff.count() % 1000000 << " - DBG : ";
 	stderrWrite(args...);
     }
 }

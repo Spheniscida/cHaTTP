@@ -52,7 +52,6 @@ Communicator::Communicator (void)
 	}
 
 
-
 	if ( msgrelay_connection_info.type == connectionType::UNIX )
 	{
 	    inet_msgrelay_sock = nullptr;
@@ -83,7 +82,7 @@ Communicator::Communicator (void)
 	}
 
 
-	if ( b2b_connection_info.type == connectionType::INET )
+	if ( b2b_connection_info.type == connectionType::INET && global_broker_settings.getClusteredMode() )
 	{
 	    inet_b2b_sock = new inet_dgram_server(global_broker_settings.getB2BBindAddress().address,global_broker_settings.getB2BBindAddress().port,LIBSOCKET_BOTH,SOCK_NONBLOCK);
 
@@ -95,7 +94,7 @@ Communicator::Communicator (void)
 
     } catch (libsocket::socket_exception e)
     {
-	debug_log("Caught socket exception in IPC setup: ", e.mesg);
+	error_log("Caught socket exception in IPC setup: ", e.mesg);
 	throw BrokerError(ErrorType::ipcError,"Caught socket exception.");
     }
 }
@@ -121,7 +120,7 @@ Communicator::~Communicator (void)
 unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 {
     Receivable* return_value;
-    unsigned int received_messages = 0, max_vector_size = return_vec.size();
+    unsigned int received_messages = 0;
 
     epollset<libsocket::socket>::ready_socks ready_for_recv;
 
@@ -139,8 +138,8 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 	    while ( (return_value = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]))) )
 	    {
 		// Only resize if the vector is already full -- this is quite unlikely, so we save us some memory operations.
-		if ( received_messages >= max_vector_size )
-		    return_vec.resize(++max_vector_size);
+		if ( received_messages >= return_vec.size() )
+		    return_vec.resize(1+return_vec.size());
 
 		return_vec[received_messages] = return_value;
 		received_messages++;
@@ -150,8 +149,8 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 	{
 	    while ( nullptr != (return_value = receiveFromINET(dynamic_cast<inet_dgram_server*>(ready_for_recv[i]))) )
 	    {
-		if ( received_messages >= max_vector_size )
-		    return_vec.resize(++max_vector_size);
+		if ( received_messages >= return_vec.size() )
+		    return_vec.resize(1+return_vec.size());
 
 		return_vec[received_messages] = return_value;
 		received_messages++;
@@ -221,7 +220,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     else if ( sock == inet_msgrelay_sock )
 	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
     else if ( sock == inet_b2b_sock )
-	return (static_cast<Receivable*>(new B2BIncoming(message_receiver_buffer,inet_sender)));
+	return (static_cast<Receivable*>(new B2BIncoming(message_receiver_buffer,string(inet_sender,last_inet_sender_size))));
     else
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromINET: Unknown socket encountered!");
 }

@@ -1,13 +1,14 @@
 # include "broker.hpp"
 # include "broker-util.hpp"
 # include "synchronization.hpp"
-# include "cache.hpp"
+# include "user_cache.hpp"
 # include "conf.hpp"
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
 namespace {
     TransactionMap transaction_cache;
+    UserCache user_cache;
 }
 
 /*
@@ -43,7 +44,7 @@ void ProtocolDispatcher::dispatch(void)
     vector<Receivable*> received_messages;
     unsigned int received_size = 0;
 
-    received_messages.resize(3);
+    received_messages.resize(4);
 
     while ( true )
     {
@@ -166,6 +167,15 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
     transaction.type = OutstandingType::messagerelayB2BMSGSNT;
     transaction.original_sequence_number = msg.sequence_number;
 
+    if ( ! global_broker_settings.getClusteredMode() )
+    {
+	MessageForB2B failmsg(msg.sequence_number,false);
+
+	communicator.send(failmsg,msg.origin_broker);
+
+	return;
+    }
+
     transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
 
     MessageForRelay relaymsg(msg.sender_username,msg.message,msg.channel_id);
@@ -237,7 +247,7 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     OutstandingTransaction transaction;
     transaction.original_sequence_number = seqnum;
 
-    CachedUser cached_user = lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     // Can't log-in if already online
     if ( cached_user.found && cached_user.online )
@@ -295,7 +305,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     OutstandingTransaction transaction;
     sequence_t new_seqnum;
 
-    CachedUser cached_user = lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     if ( cached_user.found && (! cached_user.online || cached_user.channel_id != rq.channel_id || cached_user.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
@@ -361,9 +371,9 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
 
-    CachedUser sender = lookupUserInCache(rq.user), receiver = lookupUserInCache(rq.dest_user);
+    UserCache::CachedUser sender = user_cache.lookupUserInCache(rq.user), receiver = user_cache.lookupUserInCache(rq.dest_user);
 
-    if ( ! sender.found ) // We don't have this sender in cache, do normal procedure with two look-ups.
+    if ( ! sender.found ) // We don't have this sender in cache, do normal procedure with two look-ups. Normal in clustered mode.
     {
 	transaction.type = OutstandingType::persistenceSndmsgSenderULKDUP;
 
@@ -383,12 +393,12 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    throw e;
 	}
 
-    } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards.
+    } else if ( (sender.found && ! receiver.found)  ) // We only have the sender in cache, look up the receiver and send afterwards. Implicit: !clustered_mode
     {
 	// Unauthorized!
-	if ( ! sender.online || (rq.channel_id != sender.channel_id) || sender.broker_name != global_broker_settings.getMessageBrokerName() )
+	if ( ! sender.online || rq.channel_id != sender.channel_id || sender.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
-	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,sender.online ? "Sender unauthorized (wrong channel id)"
+	    WebappResponse resp(seqnum,WebappResponseCode::acceptedMessage,false,sender.online ? "Sender unauthorized (wrong channel id/broker)"
 											    : "Sender is offline");
 	    communicator.send(resp);
 
@@ -413,7 +423,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    throw e;
 	}
 
-    } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache.
+    } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache. Implicit: !clustered_mode
     {
 	// Unauthorized!
 	if ( ! sender.online || rq.channel_id != sender.channel_id )
@@ -456,23 +466,10 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		}
 	    }
 
-	} else if ( receiver.online ) // ...and not on this broker
+	} else if ( receiver.online && receiver.broker_name != global_broker_settings.getMessageBrokerName() ) // ...and not on this broker. Implicit: !clustered_mode
 	{
-	    MessageForB2B broker_message(rq.user,rq.message,receiver.channel_id);
-
-	    try
-	    {
-		communicator.send(broker_message,receiver.broker_name);
-
-		transaction.type = OutstandingType::b2bMSGSNT;
-		transaction_cache.insertTransaction(broker_message.sequence_number,transaction);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (B2B failed)");
-		communicator.send(failresp);
-
-		throw e;
-	    }
+	    WebappResponse failresp(rq.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (clustering disabled)");
+	    communicator.send(failresp);
 
 	} else if ( ! receiver.online )
 	{
@@ -491,7 +488,6 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 		throw e;
 	    }
-
 	}
 
 	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
@@ -501,21 +497,22 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 {
-    OutstandingTransaction transaction;
-
-    transaction.type = OutstandingType::persistenceUonlqULKDUP;
-    transaction.original_sequence_number = rq.sequence_number;
-
-    CachedUser cache_entry = lookupUserInCache(rq.user);
+    UserCache::CachedUser cache_entry = user_cache.lookupUserInCache(rq.user);
 
     if ( cache_entry.found )
     {
-	WebappResponse resp(rq.sequence_number,WebappResponseCode::isOnline,cache_entry.online);
+	// non-clustered mode.
+	WebappResponse resp(rq.sequence_number,WebappResponseCode::isOnline,cache_entry.online && cache_entry.broker_name == global_broker_settings.getMessageBrokerName());
 
 	communicator.send(resp);
 
 	return;
     }
+
+    OutstandingTransaction transaction;
+
+    transaction.type = OutstandingType::persistenceUonlqULKDUP;
+    transaction.original_sequence_number = rq.sequence_number;
 
     PersistenceLayerCommand cmd(PersistenceLayerCommandCode::lookUpUser,rq.user);
 
@@ -542,14 +539,9 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
 
-    CachedUser user = lookupUserInCache(rq.user);
+    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user);
 
-    if ( user.found && (! user.online || user.channel_id != rq.channel_id) )
-    {
-	WebappResponse failresp(seqnum,WebappResponseCode::savedMessages,false,user.online ? "Wrong channel id" : "User is offline");
-
-	communicator.send(failresp);
-    } else if ( user.found && (user.online && user.channel_id == rq.channel_id) )
+    if ( user.found && (user.online && user.channel_id == rq.channel_id) )
     {
 	PersistenceLayerCommand cmd(PersistenceLayerCommandCode::getMessages,rq.user);
 
@@ -587,6 +579,11 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 
 	    throw e;
 	}
+    } else if ( user.found && (! user.online || user.channel_id != rq.channel_id) )
+    {
+	WebappResponse failresp(seqnum,WebappResponseCode::savedMessages,false,user.online ? "Wrong channel id" : "User is offline");
+
+	communicator.send(failresp);
     }
 }
 
@@ -594,7 +591,7 @@ void ProtocolDispatcher::onWebAppISAUTH(const WebappRequest& rq)
 {
     sequence_t seqnum = rq.sequence_number;
 
-    CachedUser user = lookupUserInCache(rq.user);
+    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user);
 
     if ( !user.found )
     {
@@ -796,12 +793,12 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	if ( ! rp.online || rp.channel_id != original_webapp_request.channel_id || rp.broker_name != global_broker_settings.getMessageBrokerName() )
 	{
 	    // Unauthorized sender!
-	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,rp.online ? "Sender unauthorized (wrong channel id)"
+	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,rp.online ? "Sender unauthorized (wrong channel id or broker)"
 															  : "Sender is offline");
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
@@ -834,7 +831,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// send to persistence
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.dest_user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.dest_user,rp.channel_id,rp.broker_name,rp.online);
 
 	// Is receiver online? If so, send to message relay, else send to persistence
 	if ( rp.online )
@@ -872,7 +869,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		    throw e;
 		}
-	    } else // B2B communication!
+	    } else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
 	    {
 		MessageForB2B broker_message(original_webapp_request.user,original_webapp_request.message,rp.channel_id);
 
@@ -881,8 +878,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		// UDP doesn't fail
 		communicator.send(broker_message,rp.broker_name);
-	    }
+	    } else // not on this broker and non-clustered mode.
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (clustering disabled)");
+		communicator.send(failresp);
 
+		transaction_cache.eraseTransaction(seqnum);
+	    }
 	} else // Save message to persistence layer
 	{
 	    PersistenceLayerCommand cmd(PersistenceLayerCommandCode::saveMessage, original_webapp_request.dest_user, original_webapp_request.message,original_webapp_request.user);
@@ -909,9 +911,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	// Respond to the "is user online?" request.
-	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online);
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::isOnline,rp.online &&
+				(global_broker_settings.getClusteredMode() || rp.broker_name == global_broker_settings.getMessageBrokerName()));
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
@@ -925,7 +928,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( original_webapp_request.request_type != WebappRequestCode::logOut )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type logOut; however, this is not the case.");
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	// May log off (authenticated).
 	if ( rp.online && rp.channel_id == original_webapp_request.channel_id && rp.broker_name == global_broker_settings.getMessageBrokerName() )
@@ -997,7 +1000,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	if ( !rp.online || original_webapp_request.channel_id != rp.channel_id )
 	{
@@ -1036,7 +1039,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
+	user_cache.insertUserInCache(original_webapp_request.user,rp.channel_id,rp.broker_name,rp.online);
 
 	bool auth_status = rp.online
 			&& rp.broker_name == global_broker_settings.getMessageBrokerName()
@@ -1112,7 +1115,7 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	communicator.send(resp);
 
 	// online predicate is checked before broker_name and channel_id; those may be left empty.
-	insertUserInCache(original_webapp_request.user,string(),string(),false);
+	user_cache.insertUserInCache(original_webapp_request.user,string(),string(),false);
 
 	MessageForRelay delchanmsg(original_webapp_request.channel_id,MessageForRelayType::deleteChannel);
 
@@ -1172,7 +1175,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
     if ( ! transaction.original_sequence_number )
     {
-	debug_log("Received dangling transaction reference. (message relay)");
+	error_log("Received dangling transaction reference. (message relay)");
 
 	transaction_cache.eraseTransaction(seqnum);
 
@@ -1217,11 +1220,11 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
 
-	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
-	transaction_cache.eraseTransaction(seqnum);
-
 	// UDP doesn't fail.
 	communicator.send(mesg,message_sender_broker);
+
+	transaction_cache.eraseB2BOrigin(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
@@ -1272,9 +1275,9 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,"Channel could not be created.",original_webapp_request.channel_id);
 
         if ( rp.status )
-            insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+            user_cache.insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
         else
-            insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
+            user_cache.insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
