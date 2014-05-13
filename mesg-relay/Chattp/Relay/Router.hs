@@ -4,7 +4,6 @@ module Chattp.Relay.Router where
 
 import System.Directory
 import System.IO.Error
-import System.IO
 
 import Chattp.Relay.Config
 import Chattp.Relay.Protocol
@@ -59,8 +58,8 @@ router hs allconf@(RouterConfig relayconf sock) = do
     case parseRequest (BS.fromStrict msg) of
         Left _ -> router (Just hstream) allconf -- ignore, malformed.
         Right (BrokerRequestMessage seqn broker_request) -> do
-                                            let http_req = processRequest allconf broker_request
-                                            send_result <- sendFailSafe 0 hstream http_req
+                                            let http_req = makeHTTPRequest allconf broker_request
+                                            send_result <- sendFailSafe 2 hstream http_req
                                             (hstream',response_message) <- case send_result of
                                                 Just (hstream',http_resp) -> do
                                                                 broker_response <- handleResponse broker_request (Just http_resp)
@@ -72,18 +71,19 @@ router hs allconf@(RouterConfig relayconf sock) = do
                                             router hstream' allconf
     -- tries to send three times (usually called with count = 0), stops after. For the case that the web server closed the connection
     where   sendFailSafe :: Int -> HandleStream BS.ByteString -> Request BS.ByteString -> IO (Maybe (HandleStream BS.ByteString,Response BS.ByteString))
-            sendFailSafe count hstream req | count < 3 = do
-                                        result <- sendHTTP hstream req
-                                        case result of
-                                            Right rp -> return $ Just (hstream,rp)
-                                            Left ErrorClosed -> do
-                                                hstream' <- makeHTTPConnection relayconf
-                                                sendFailSafe (count+1) hstream' req
-                                            Left _ -> return Nothing
-                                        | otherwise = return Nothing
+            sendFailSafe count hstream req
+                | count > 0 = do
+                    result <- sendHTTP hstream req
+                    case result of
+                        Right rp -> return $ Just (hstream,rp)
+                        Left ErrorClosed -> do
+                            hstream' <- makeHTTPConnection relayconf
+                            sendFailSafe (count-1) hstream' req
+                        Left _ -> return Nothing
+                | otherwise = return Nothing
 
-processRequest :: RouterConfig -> BrokerRequest -> Request BS.ByteString
-processRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
+makeHTTPRequest :: RouterConfig -> BrokerRequest -> Request BS.ByteString
+makeHTTPRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
     -- publishURL is the URL up to the '=' character.
     let url = BS.append (publishURL relayconf) chanid
         empty_val = "" :: Value -- explicit type
@@ -93,7 +93,7 @@ processRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
                                                                 Header HdrConnection "keep-alive",
                                                                 Header HdrContentLength (show . BS.length $ json_data)] }
        in http_req
-processRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
+makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) =
     let url = BS.append (publishURL relayconf) chanid
         Just u = parseURI (BS.unpack url)
         http_req = Request { rqURI = u,
@@ -102,7 +102,7 @@ processRequest (RouterConfig relayconf _) (DELCHAN chanid) = do
                              rqBody = "" :: BS.ByteString
     }
         in http_req
-processRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
+makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) =
     let url = BS.append (publishURL relayconf) chan
         json_data = encode . object $ ["ignore" .= False, "message" .= T.decodeUtf8 msg, "from" .= T.decodeUtf8 from]
         http_req = (postRequest (BS.unpack url)) { rqBody = json_data,
@@ -112,19 +112,20 @@ processRequest (RouterConfig relayconf _) (SNDMSG from chan msg) = do
         in http_req
 
 
-handleResponse :: BrokerRequest -> Maybe (Response (BS.ByteString)) -> IO BrokerResponse
-handleResponse (SNDMSG _ _ _) Nothing = return (MSGSNT FAIL)
-handleResponse (SNDMSG _ _ _) (Just resp) =
+handleResponse :: BrokerRequest -> Maybe (Response BS.ByteString) -> IO BrokerResponse
+handleResponse SNDMSG{} Nothing = return (MSGSNT FAIL)
+handleResponse SNDMSG{} (Just resp) =
         case rspCode resp of
-                        (2,0,2) -> return (MSGSNT OK)
+                        (2,0,1) -> return (MSGSNT OK) -- Delivered.
+                        (2,0,2) -> return (MSGSNT OK) -- Queued.
                         c -> putStrLn ("Unexpected HTTP code (sndmsg) " ++ show c) >> return (MSGSNT FAIL)
-handleResponse (NEWCHAN _) Nothing = return (CHANCREAT FAIL)
-handleResponse (NEWCHAN _) (Just resp) =
+handleResponse NEWCHAN{} Nothing = return (CHANCREAT FAIL)
+handleResponse NEWCHAN{} (Just resp) =
         case rspCode resp of
                         (2,0,2) -> return (CHANCREAT OK)
                         c -> putStrLn ("Unexpected HTTP code (chancreat) " ++ show c) >> return (CHANCREAT FAIL)
-handleResponse (DELCHAN _) Nothing = return (DELTDCHAN FAIL)
-handleResponse (DELCHAN _) (Just resp) =
+handleResponse DELCHAN{} Nothing = return (DELTDCHAN FAIL)
+handleResponse DELCHAN{} (Just resp) =
         case rspCode resp of
                         (2,0,0) -> return (DELTDCHAN OK)
                         c -> putStrLn ("Unexpected HTTP code (delchan) " ++ show c) >> return (DELTDCHAN FAIL)
