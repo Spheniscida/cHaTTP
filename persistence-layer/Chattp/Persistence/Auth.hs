@@ -56,3 +56,4 @@ eitherConst c = either (const c)
 
 maybeRight :: Either a (Maybe b) -> Maybe b
 maybeRight = eitherConst Nothing id
+
