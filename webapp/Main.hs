@@ -21,7 +21,7 @@ main = do
                               brokerRequestChan = outgoingchan,
                               sequenceCounterChan = seqchan }
     mapM_ forkOS (replicate 2 (socketIncoming sock centerchan))
-    mapM_ forkOS (replicate 2 (socketOutgoing config sock outgoingchan))
+    mapM_ forkOS (replicate 2 (socketOutgoing config sock chaninfo))
     forkOS (sequenceNumberManager seqchan)
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
