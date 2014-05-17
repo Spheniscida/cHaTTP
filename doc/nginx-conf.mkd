@@ -36,7 +36,7 @@ Don't forget to configure the FastCGI application; it must run at `$base/chattp_
         }
 
         location $base/sub {
-            set $push_channel_id $arg_id;
+            set $push_channel_id $arg_channel_id;
             push_subscriber long-poll;
             push_subscriber_concurrency first;
             default_type text/plain;
