@@ -5,6 +5,16 @@ cHaTTP is an attempt to create a modular, high-performance and also distributed 
 It uses C++11, Haskell, Redis, some Boost libraries, nginx and the nginx\_http\_push\_module
 as well as dermesser/libsocket for network communication.
 
+In general, cHaTTP is a rather simple chat system, especially in comparison to larger systems
+like Facebook Chat. For example, it lacks the following features:
+
+* Push messages to more than one device (a user can only log in once at a time)
+* Efficient group messages via pseudo-multicast (up to now, the client would have
+        to handle group messages instead of the message broker distributing
+        the messages.) *This feature may be introduced in future*
+* Detailed online stats; i.e. a user is displayed as online or offline, but not on what sort
+of device that user is online or when the user was last online.
+
 ## Components
 
 See doc/architekture.mkd for a full diagram of the components.
