@@ -9,6 +9,7 @@ include_directories("../../src/")
 set(manualsrc
 manual-protobuf.cpp
 persistence.pb.cc
+message.pb.cc
 )
 
 add_executable(protobuf-test ${manualsrc})

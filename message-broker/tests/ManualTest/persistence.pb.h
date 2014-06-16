@@ -25,6 +25,7 @@
 #include <google/protobuf/extension_set.h>
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
+#include "message.pb.h"
 // @@protoc_insertion_point(includes)
 
 namespace chattp {
@@ -249,17 +250,14 @@ class PersistenceRequest : public ::google::protobuf::Message {
   inline const ::google::protobuf::RepeatedPtrField< ::std::string>& user_names() const;
   inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_user_names();
 
-  // optional string sender = 8;
-  inline bool has_sender() const;
-  inline void clear_sender();
-  static const int kSenderFieldNumber = 8;
-  inline const ::std::string& sender() const;
-  inline void set_sender(const ::std::string& value);
-  inline void set_sender(const char* value);
-  inline void set_sender(const char* value, size_t size);
-  inline ::std::string* mutable_sender();
-  inline ::std::string* release_sender();
-  inline void set_allocated_sender(::std::string* sender);
+  // optional .chattp.ChattpMessage mesg = 8;
+  inline bool has_mesg() const;
+  inline void clear_mesg();
+  static const int kMesgFieldNumber = 8;
+  inline const ::chattp::ChattpMessage& mesg() const;
+  inline ::chattp::ChattpMessage* mutable_mesg();
+  inline ::chattp::ChattpMessage* release_mesg();
+  inline void set_allocated_mesg(::chattp::ChattpMessage* mesg);
 
   // @@protoc_insertion_point(class_scope:chattp.PersistenceRequest)
  private:
@@ -275,8 +273,8 @@ class PersistenceRequest : public ::google::protobuf::Message {
   inline void clear_has_channel_id();
   inline void set_has_broker_name();
   inline void clear_has_broker_name();
-  inline void set_has_sender();
-  inline void clear_has_sender();
+  inline void set_has_mesg();
+  inline void clear_has_mesg();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -286,7 +284,7 @@ class PersistenceRequest : public ::google::protobuf::Message {
   ::std::string* channel_id_;
   ::std::string* broker_name_;
   ::google::protobuf::RepeatedPtrField< ::std::string> user_names_;
-  ::std::string* sender_;
+  ::chattp::ChattpMessage* mesg_;
   int type_;
 
   mutable int _cached_size_;
@@ -531,6 +529,18 @@ class PersistenceResponse : public ::google::protobuf::Message {
   inline ::google::protobuf::RepeatedPtrField< ::chattp::PersistenceResponse_UserLocation >*
       mutable_user_locations();
 
+  // repeated .chattp.ChattpMessage mesgs = 5;
+  inline int mesgs_size() const;
+  inline void clear_mesgs();
+  static const int kMesgsFieldNumber = 5;
+  inline const ::chattp::ChattpMessage& mesgs(int index) const;
+  inline ::chattp::ChattpMessage* mutable_mesgs(int index);
+  inline ::chattp::ChattpMessage* add_mesgs();
+  inline const ::google::protobuf::RepeatedPtrField< ::chattp::ChattpMessage >&
+      mesgs() const;
+  inline ::google::protobuf::RepeatedPtrField< ::chattp::ChattpMessage >*
+      mutable_mesgs();
+
   // @@protoc_insertion_point(class_scope:chattp.PersistenceResponse)
  private:
   inline void set_has_sequence_number();
@@ -546,9 +556,10 @@ class PersistenceResponse : public ::google::protobuf::Message {
   int type_;
   bool status_;
   ::google::protobuf::RepeatedPtrField< ::chattp::PersistenceResponse_UserLocation > user_locations_;
+  ::google::protobuf::RepeatedPtrField< ::chattp::ChattpMessage > mesgs_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(5 + 31) / 32];
 
   friend void  protobuf_AddDesc_persistence_2eproto();
   friend void protobuf_AssignDesc_persistence_2eproto();
@@ -933,73 +944,41 @@ PersistenceRequest::mutable_user_names() {
   return &user_names_;
 }
 
-// optional string sender = 8;
-inline bool PersistenceRequest::has_sender() const {
+// optional .chattp.ChattpMessage mesg = 8;
+inline bool PersistenceRequest::has_mesg() const {
   return (_has_bits_[0] & 0x00000080u) != 0;
 }
-inline void PersistenceRequest::set_has_sender() {
+inline void PersistenceRequest::set_has_mesg() {
   _has_bits_[0] |= 0x00000080u;
 }
-inline void PersistenceRequest::clear_has_sender() {
+inline void PersistenceRequest::clear_has_mesg() {
   _has_bits_[0] &= ~0x00000080u;
 }
-inline void PersistenceRequest::clear_sender() {
-  if (sender_ != &::google::protobuf::internal::kEmptyString) {
-    sender_->clear();
-  }
-  clear_has_sender();
+inline void PersistenceRequest::clear_mesg() {
+  if (mesg_ != NULL) mesg_->::chattp::ChattpMessage::Clear();
+  clear_has_mesg();
 }
-inline const ::std::string& PersistenceRequest::sender() const {
-  return *sender_;
+inline const ::chattp::ChattpMessage& PersistenceRequest::mesg() const {
+  return mesg_ != NULL ? *mesg_ : *default_instance_->mesg_;
 }
-inline void PersistenceRequest::set_sender(const ::std::string& value) {
-  set_has_sender();
-  if (sender_ == &::google::protobuf::internal::kEmptyString) {
-    sender_ = new ::std::string;
-  }
-  sender_->assign(value);
+inline ::chattp::ChattpMessage* PersistenceRequest::mutable_mesg() {
+  set_has_mesg();
+  if (mesg_ == NULL) mesg_ = new ::chattp::ChattpMessage;
+  return mesg_;
 }
-inline void PersistenceRequest::set_sender(const char* value) {
-  set_has_sender();
-  if (sender_ == &::google::protobuf::internal::kEmptyString) {
-    sender_ = new ::std::string;
-  }
-  sender_->assign(value);
+inline ::chattp::ChattpMessage* PersistenceRequest::release_mesg() {
+  clear_has_mesg();
+  ::chattp::ChattpMessage* temp = mesg_;
+  mesg_ = NULL;
+  return temp;
 }
-inline void PersistenceRequest::set_sender(const char* value, size_t size) {
-  set_has_sender();
-  if (sender_ == &::google::protobuf::internal::kEmptyString) {
-    sender_ = new ::std::string;
-  }
-  sender_->assign(reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* PersistenceRequest::mutable_sender() {
-  set_has_sender();
-  if (sender_ == &::google::protobuf::internal::kEmptyString) {
-    sender_ = new ::std::string;
-  }
-  return sender_;
-}
-inline ::std::string* PersistenceRequest::release_sender() {
-  clear_has_sender();
-  if (sender_ == &::google::protobuf::internal::kEmptyString) {
-    return NULL;
+inline void PersistenceRequest::set_allocated_mesg(::chattp::ChattpMessage* mesg) {
+  delete mesg_;
+  mesg_ = mesg;
+  if (mesg) {
+    set_has_mesg();
   } else {
-    ::std::string* temp = sender_;
-    sender_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-    return temp;
-  }
-}
-inline void PersistenceRequest::set_allocated_sender(::std::string* sender) {
-  if (sender_ != &::google::protobuf::internal::kEmptyString) {
-    delete sender_;
-  }
-  if (sender) {
-    set_has_sender();
-    sender_ = sender;
-  } else {
-    clear_has_sender();
-    sender_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    clear_has_mesg();
   }
 }
 
@@ -1263,6 +1242,31 @@ PersistenceResponse::user_locations() const {
 inline ::google::protobuf::RepeatedPtrField< ::chattp::PersistenceResponse_UserLocation >*
 PersistenceResponse::mutable_user_locations() {
   return &user_locations_;
+}
+
+// repeated .chattp.ChattpMessage mesgs = 5;
+inline int PersistenceResponse::mesgs_size() const {
+  return mesgs_.size();
+}
+inline void PersistenceResponse::clear_mesgs() {
+  mesgs_.Clear();
+}
+inline const ::chattp::ChattpMessage& PersistenceResponse::mesgs(int index) const {
+  return mesgs_.Get(index);
+}
+inline ::chattp::ChattpMessage* PersistenceResponse::mutable_mesgs(int index) {
+  return mesgs_.Mutable(index);
+}
+inline ::chattp::ChattpMessage* PersistenceResponse::add_mesgs() {
+  return mesgs_.Add();
+}
+inline const ::google::protobuf::RepeatedPtrField< ::chattp::ChattpMessage >&
+PersistenceResponse::mesgs() const {
+  return mesgs_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::chattp::ChattpMessage >*
+PersistenceResponse::mutable_mesgs() {
+  return &mesgs_;
 }
 
 

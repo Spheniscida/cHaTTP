@@ -1,0 +1,16 @@
+package chattp;
+
+//option optimize_for = LITE_RUNTIME;
+
+message ChattpMessage
+{
+    required string sender = 1;
+    required string receiver = 2;
+
+    required bool group_message = 3 [default = false];
+
+    required string body = 4;
+
+    required string timestamp = 5;
+}
+

@@ -1,5 +1,7 @@
 package chattp;
 
+import "message.proto";
+
 //option optimize_for = LITE_RUNTIME;
 
 message PersistenceRequest
@@ -26,8 +28,7 @@ message PersistenceRequest
 
     repeated string user_names = 7; // LOOKUP multiple users
 
-    optional string sender = 8; // SAVEMESSAGE
-
+    optional ChattpMessage mesg = 8; // SAVEMESSAGE
 }
 
 message PersistenceResponse
@@ -56,5 +57,7 @@ message PersistenceResponse
     }
 
     repeated UserLocation user_locations = 4;
+
+    repeated ChattpMessage mesgs = 5; // GOTMESSAGES
 }
 

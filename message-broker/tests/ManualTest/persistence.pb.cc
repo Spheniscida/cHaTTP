@@ -50,7 +50,7 @@ void protobuf_AssignDesc_persistence_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceRequest, channel_id_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceRequest, broker_name_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceRequest, user_names_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceRequest, sender_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceRequest, mesg_),
   };
   PersistenceRequest_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -65,11 +65,12 @@ void protobuf_AssignDesc_persistence_2eproto() {
       sizeof(PersistenceRequest));
   PersistenceRequest_PersistenceRequestType_descriptor_ = PersistenceRequest_descriptor_->enum_type(0);
   PersistenceResponse_descriptor_ = file->message_type(1);
-  static const int PersistenceResponse_offsets_[4] = {
+  static const int PersistenceResponse_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse, sequence_number_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse, type_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse, status_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse, user_locations_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse, mesgs_),
   };
   PersistenceResponse_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -137,27 +138,30 @@ void protobuf_AddDesc_persistence_2eproto() {
   already_here = true;
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  ::chattp::protobuf_AddDesc_message_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\021persistence.proto\022\006chattp\"\334\002\n\022Persiste"
-    "nceRequest\022\027\n\017sequence_number\030\001 \002(\004\022\?\n\004t"
-    "ype\030\002 \002(\01621.chattp.PersistenceRequest.Pe"
-    "rsistenceRequestType\022\021\n\tuser_name\030\003 \001(\t\022"
-    "\020\n\010password\030\004 \001(\t\022\022\n\nchannel_id\030\005 \001(\t\022\023\n"
-    "\013broker_name\030\006 \001(\t\022\022\n\nuser_names\030\007 \003(\t\022\016"
-    "\n\006sender\030\010 \001(\t\"z\n\026PersistenceRequestType"
-    "\022\014\n\010REGISTER\020\000\022\t\n\005LOGIN\020\001\022\n\n\006LOGOUT\020\002\022\r\n"
-    "\tCHECKPASS\020\003\022\n\n\006LOOKUP\020\004\022\017\n\013SAVEMESSAGE\020"
-    "\005\022\017\n\013GETMESSAGES\020\006\"\243\003\n\023PersistenceRespon"
-    "se\022\027\n\017sequence_number\030\001 \002(\004\022A\n\004type\030\002 \002("
-    "\01623.chattp.PersistenceResponse.Persisten"
-    "ceResponseType\022\024\n\006status\030\003 \002(\010:\004true\022@\n\016"
-    "user_locations\030\004 \003(\0132(.chattp.Persistenc"
-    "eResponse.UserLocation\032M\n\014UserLocation\022\024"
-    "\n\006online\030\001 \002(\010:\004true\022\023\n\013broker_name\030\002 \001("
-    "\t\022\022\n\nchannel_id\030\003 \001(\t\"\210\001\n\027PersistenceRes"
-    "ponseType\022\016\n\nREGISTERED\020\000\022\014\n\010LOGGEDIN\020\001\022"
-    "\r\n\tLOGGEDOUT\020\002\022\017\n\013CHECKEDPASS\020\003\022\014\n\010LOOKE"
-    "DUP\020\004\022\020\n\014SAVEDMESSAGE\020\005\022\017\n\013GOTMESSAGES\020\006", 800);
+    "\n\021persistence.proto\022\006chattp\032\rmessage.pro"
+    "to\"\361\002\n\022PersistenceRequest\022\027\n\017sequence_nu"
+    "mber\030\001 \002(\004\022\?\n\004type\030\002 \002(\01621.chattp.Persis"
+    "tenceRequest.PersistenceRequestType\022\021\n\tu"
+    "ser_name\030\003 \001(\t\022\020\n\010password\030\004 \001(\t\022\022\n\nchan"
+    "nel_id\030\005 \001(\t\022\023\n\013broker_name\030\006 \001(\t\022\022\n\nuse"
+    "r_names\030\007 \003(\t\022#\n\004mesg\030\010 \001(\0132\025.chattp.Cha"
+    "ttpMessage\"z\n\026PersistenceRequestType\022\014\n\010"
+    "REGISTER\020\000\022\t\n\005LOGIN\020\001\022\n\n\006LOGOUT\020\002\022\r\n\tCHE"
+    "CKPASS\020\003\022\n\n\006LOOKUP\020\004\022\017\n\013SAVEMESSAGE\020\005\022\017\n"
+    "\013GETMESSAGES\020\006\"\311\003\n\023PersistenceResponse\022\027"
+    "\n\017sequence_number\030\001 \002(\004\022A\n\004type\030\002 \002(\01623."
+    "chattp.PersistenceResponse.PersistenceRe"
+    "sponseType\022\024\n\006status\030\003 \002(\010:\004true\022@\n\016user"
+    "_locations\030\004 \003(\0132(.chattp.PersistenceRes"
+    "ponse.UserLocation\022$\n\005mesgs\030\005 \003(\0132\025.chat"
+    "tp.ChattpMessage\032M\n\014UserLocation\022\024\n\006onli"
+    "ne\030\001 \002(\010:\004true\022\023\n\013broker_name\030\002 \001(\t\022\022\n\nc"
+    "hannel_id\030\003 \001(\t\"\210\001\n\027PersistenceResponseT"
+    "ype\022\016\n\nREGISTERED\020\000\022\014\n\010LOGGEDIN\020\001\022\r\n\tLOG"
+    "GEDOUT\020\002\022\017\n\013CHECKEDPASS\020\003\022\014\n\010LOOKEDUP\020\004\022"
+    "\020\n\014SAVEDMESSAGE\020\005\022\017\n\013GOTMESSAGES\020\006", 874);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "persistence.proto", &protobuf_RegisterTypes);
   PersistenceRequest::default_instance_ = new PersistenceRequest();
@@ -217,7 +221,7 @@ const int PersistenceRequest::kPasswordFieldNumber;
 const int PersistenceRequest::kChannelIdFieldNumber;
 const int PersistenceRequest::kBrokerNameFieldNumber;
 const int PersistenceRequest::kUserNamesFieldNumber;
-const int PersistenceRequest::kSenderFieldNumber;
+const int PersistenceRequest::kMesgFieldNumber;
 #endif  // !_MSC_VER
 
 PersistenceRequest::PersistenceRequest()
@@ -226,6 +230,7 @@ PersistenceRequest::PersistenceRequest()
 }
 
 void PersistenceRequest::InitAsDefaultInstance() {
+  mesg_ = const_cast< ::chattp::ChattpMessage*>(&::chattp::ChattpMessage::default_instance());
 }
 
 PersistenceRequest::PersistenceRequest(const PersistenceRequest& from)
@@ -242,7 +247,7 @@ void PersistenceRequest::SharedCtor() {
   password_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   channel_id_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   broker_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  sender_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  mesg_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -263,10 +268,8 @@ void PersistenceRequest::SharedDtor() {
   if (broker_name_ != &::google::protobuf::internal::kEmptyString) {
     delete broker_name_;
   }
-  if (sender_ != &::google::protobuf::internal::kEmptyString) {
-    delete sender_;
-  }
   if (this != default_instance_) {
+    delete mesg_;
   }
 }
 
@@ -315,10 +318,8 @@ void PersistenceRequest::Clear() {
         broker_name_->clear();
       }
     }
-    if (has_sender()) {
-      if (sender_ != &::google::protobuf::internal::kEmptyString) {
-        sender_->clear();
-      }
+    if (has_mesg()) {
+      if (mesg_ != NULL) mesg_->::chattp::ChattpMessage::Clear();
     }
   }
   user_names_.Clear();
@@ -451,20 +452,17 @@ bool PersistenceRequest::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(58)) goto parse_user_names;
-        if (input->ExpectTag(66)) goto parse_sender;
+        if (input->ExpectTag(66)) goto parse_mesg;
         break;
       }
 
-      // optional string sender = 8;
+      // optional .chattp.ChattpMessage mesg = 8;
       case 8: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_sender:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_sender()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->sender().data(), this->sender().length(),
-            ::google::protobuf::internal::WireFormat::PARSE);
+         parse_mesg:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+               input, mutable_mesg()));
         } else {
           goto handle_uninterpreted;
         }
@@ -546,13 +544,10 @@ void PersistenceRequest::SerializeWithCachedSizes(
       7, this->user_names(i), output);
   }
 
-  // optional string sender = 8;
-  if (has_sender()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->sender().data(), this->sender().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      8, this->sender(), output);
+  // optional .chattp.ChattpMessage mesg = 8;
+  if (has_mesg()) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      8, this->mesg(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -623,14 +618,11 @@ void PersistenceRequest::SerializeWithCachedSizes(
       WriteStringToArray(7, this->user_names(i), target);
   }
 
-  // optional string sender = 8;
-  if (has_sender()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->sender().data(), this->sender().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        8, this->sender(), target);
+  // optional .chattp.ChattpMessage mesg = 8;
+  if (has_mesg()) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        8, this->mesg(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -685,11 +677,11 @@ int PersistenceRequest::ByteSize() const {
           this->broker_name());
     }
 
-    // optional string sender = 8;
-    if (has_sender()) {
+    // optional .chattp.ChattpMessage mesg = 8;
+    if (has_mesg()) {
       total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->sender());
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->mesg());
     }
 
   }
@@ -745,8 +737,8 @@ void PersistenceRequest::MergeFrom(const PersistenceRequest& from) {
     if (from.has_broker_name()) {
       set_broker_name(from.broker_name());
     }
-    if (from.has_sender()) {
-      set_sender(from.sender());
+    if (from.has_mesg()) {
+      mutable_mesg()->::chattp::ChattpMessage::MergeFrom(from.mesg());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -767,6 +759,9 @@ void PersistenceRequest::CopyFrom(const PersistenceRequest& from) {
 bool PersistenceRequest::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
+  if (has_mesg()) {
+    if (!this->mesg().IsInitialized()) return false;
+  }
   return true;
 }
 
@@ -779,7 +774,7 @@ void PersistenceRequest::Swap(PersistenceRequest* other) {
     std::swap(channel_id_, other->channel_id_);
     std::swap(broker_name_, other->broker_name_);
     user_names_.Swap(&other->user_names_);
-    std::swap(sender_, other->sender_);
+    std::swap(mesg_, other->mesg_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
@@ -1154,6 +1149,7 @@ const int PersistenceResponse::kSequenceNumberFieldNumber;
 const int PersistenceResponse::kTypeFieldNumber;
 const int PersistenceResponse::kStatusFieldNumber;
 const int PersistenceResponse::kUserLocationsFieldNumber;
+const int PersistenceResponse::kMesgsFieldNumber;
 #endif  // !_MSC_VER
 
 PersistenceResponse::PersistenceResponse()
@@ -1215,6 +1211,7 @@ void PersistenceResponse::Clear() {
     status_ = true;
   }
   user_locations_.Clear();
+  mesgs_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -1288,6 +1285,21 @@ bool PersistenceResponse::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(34)) goto parse_user_locations;
+        if (input->ExpectTag(42)) goto parse_mesgs;
+        break;
+      }
+
+      // repeated .chattp.ChattpMessage mesgs = 5;
+      case 5: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_mesgs:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+                input, add_mesgs()));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(42)) goto parse_mesgs;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1332,6 +1344,12 @@ void PersistenceResponse::SerializeWithCachedSizes(
       4, this->user_locations(i), output);
   }
 
+  // repeated .chattp.ChattpMessage mesgs = 5;
+  for (int i = 0; i < this->mesgs_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      5, this->mesgs(i), output);
+  }
+
   if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
@@ -1361,6 +1379,13 @@ void PersistenceResponse::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::
       WriteMessageNoVirtualToArray(
         4, this->user_locations(i), target);
+  }
+
+  // repeated .chattp.ChattpMessage mesgs = 5;
+  for (int i = 0; i < this->mesgs_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteMessageNoVirtualToArray(
+        5, this->mesgs(i), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -1401,6 +1426,14 @@ int PersistenceResponse::ByteSize() const {
         this->user_locations(i));
   }
 
+  // repeated .chattp.ChattpMessage mesgs = 5;
+  total_size += 1 * this->mesgs_size();
+  for (int i = 0; i < this->mesgs_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->mesgs(i));
+  }
+
   if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -1427,6 +1460,7 @@ void PersistenceResponse::MergeFrom(const ::google::protobuf::Message& from) {
 void PersistenceResponse::MergeFrom(const PersistenceResponse& from) {
   GOOGLE_CHECK_NE(&from, this);
   user_locations_.MergeFrom(from.user_locations_);
+  mesgs_.MergeFrom(from.mesgs_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_sequence_number()) {
       set_sequence_number(from.sequence_number());
@@ -1459,6 +1493,9 @@ bool PersistenceResponse::IsInitialized() const {
   for (int i = 0; i < user_locations_size(); i++) {
     if (!this->user_locations(i).IsInitialized()) return false;
   }
+  for (int i = 0; i < mesgs_size(); i++) {
+    if (!this->mesgs(i).IsInitialized()) return false;
+  }
   return true;
 }
 
@@ -1468,6 +1505,7 @@ void PersistenceResponse::Swap(PersistenceResponse* other) {
     std::swap(type_, other->type_);
     std::swap(status_, other->status_);
     user_locations_.Swap(&other->user_locations_);
+    mesgs_.Swap(&other->mesgs_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
