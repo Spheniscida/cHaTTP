@@ -1,3 +1,7 @@
 #!/bin/bash
 
-protoc -I ../../../protocols/ ../../../protocols/{message,persistence}.proto --cpp_out .
+PROTOFILES="message persistence webapp messagerelay"
+
+for I in $PROTOFILES;
+    do protoc -I ../../../protocols/ ../../../protocols/${I}.proto --cpp_out .;
+done;

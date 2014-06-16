@@ -115,7 +115,7 @@ class ChattpMessage : public ::google::protobuf::Message {
   inline ::std::string* release_receiver();
   inline void set_allocated_receiver(::std::string* receiver);
 
-  // required bool group_message = 3 [default = false];
+  // optional bool group_message = 3 [default = false];
   inline bool has_group_message() const;
   inline void clear_group_message();
   static const int kGroupMessageFieldNumber = 3;
@@ -324,7 +324,7 @@ inline void ChattpMessage::set_allocated_receiver(::std::string* receiver) {
   }
 }
 
-// required bool group_message = 3 [default = false];
+// optional bool group_message = 3 [default = false];
 inline bool ChattpMessage::has_group_message() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }

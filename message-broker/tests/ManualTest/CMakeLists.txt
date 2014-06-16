@@ -10,6 +10,8 @@ set(manualsrc
 manual-protobuf.cpp
 persistence.pb.cc
 message.pb.cc
+webapp.pb.cc
+messagerelay.pb.cc
 )
 
 add_executable(protobuf-test ${manualsrc})

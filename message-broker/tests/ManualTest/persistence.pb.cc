@@ -84,8 +84,9 @@ void protobuf_AssignDesc_persistence_2eproto() {
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(PersistenceResponse));
   PersistenceResponse_UserLocation_descriptor_ = PersistenceResponse_descriptor_->nested_type(0);
-  static const int PersistenceResponse_UserLocation_offsets_[3] = {
+  static const int PersistenceResponse_UserLocation_offsets_[4] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse_UserLocation, online_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse_UserLocation, user_name_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse_UserLocation, broker_name_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(PersistenceResponse_UserLocation, channel_id_),
   };
@@ -150,18 +151,19 @@ void protobuf_AddDesc_persistence_2eproto() {
     "ttpMessage\"z\n\026PersistenceRequestType\022\014\n\010"
     "REGISTER\020\000\022\t\n\005LOGIN\020\001\022\n\n\006LOGOUT\020\002\022\r\n\tCHE"
     "CKPASS\020\003\022\n\n\006LOOKUP\020\004\022\017\n\013SAVEMESSAGE\020\005\022\017\n"
-    "\013GETMESSAGES\020\006\"\311\003\n\023PersistenceResponse\022\027"
+    "\013GETMESSAGES\020\006\"\334\003\n\023PersistenceResponse\022\027"
     "\n\017sequence_number\030\001 \002(\004\022A\n\004type\030\002 \002(\01623."
     "chattp.PersistenceResponse.PersistenceRe"
-    "sponseType\022\024\n\006status\030\003 \002(\010:\004true\022@\n\016user"
+    "sponseType\022\024\n\006status\030\003 \001(\010:\004true\022@\n\016user"
     "_locations\030\004 \003(\0132(.chattp.PersistenceRes"
     "ponse.UserLocation\022$\n\005mesgs\030\005 \003(\0132\025.chat"
-    "tp.ChattpMessage\032M\n\014UserLocation\022\024\n\006onli"
-    "ne\030\001 \002(\010:\004true\022\023\n\013broker_name\030\002 \001(\t\022\022\n\nc"
-    "hannel_id\030\003 \001(\t\"\210\001\n\027PersistenceResponseT"
-    "ype\022\016\n\nREGISTERED\020\000\022\014\n\010LOGGEDIN\020\001\022\r\n\tLOG"
-    "GEDOUT\020\002\022\017\n\013CHECKEDPASS\020\003\022\014\n\010LOOKEDUP\020\004\022"
-    "\020\n\014SAVEDMESSAGE\020\005\022\017\n\013GOTMESSAGES\020\006", 874);
+    "tp.ChattpMessage\032`\n\014UserLocation\022\024\n\006onli"
+    "ne\030\001 \001(\010:\004true\022\021\n\tuser_name\030\002 \002(\t\022\023\n\013bro"
+    "ker_name\030\003 \002(\t\022\022\n\nchannel_id\030\004 \002(\t\"\210\001\n\027P"
+    "ersistenceResponseType\022\016\n\nREGISTERED\020\000\022\014"
+    "\n\010LOGGEDIN\020\001\022\r\n\tLOGGEDOUT\020\002\022\017\n\013CHECKEDPA"
+    "SS\020\003\022\014\n\010LOOKEDUP\020\004\022\020\n\014SAVEDMESSAGE\020\005\022\017\n\013"
+    "GOTMESSAGES\020\006", 893);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "persistence.proto", &protobuf_RegisterTypes);
   PersistenceRequest::default_instance_ = new PersistenceRequest();
@@ -825,6 +827,7 @@ const int PersistenceResponse::PersistenceResponseType_ARRAYSIZE;
 #endif  // _MSC_VER
 #ifndef _MSC_VER
 const int PersistenceResponse_UserLocation::kOnlineFieldNumber;
+const int PersistenceResponse_UserLocation::kUserNameFieldNumber;
 const int PersistenceResponse_UserLocation::kBrokerNameFieldNumber;
 const int PersistenceResponse_UserLocation::kChannelIdFieldNumber;
 #endif  // !_MSC_VER
@@ -846,6 +849,7 @@ PersistenceResponse_UserLocation::PersistenceResponse_UserLocation(const Persist
 void PersistenceResponse_UserLocation::SharedCtor() {
   _cached_size_ = 0;
   online_ = true;
+  user_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   broker_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   channel_id_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -856,6 +860,9 @@ PersistenceResponse_UserLocation::~PersistenceResponse_UserLocation() {
 }
 
 void PersistenceResponse_UserLocation::SharedDtor() {
+  if (user_name_ != &::google::protobuf::internal::kEmptyString) {
+    delete user_name_;
+  }
   if (broker_name_ != &::google::protobuf::internal::kEmptyString) {
     delete broker_name_;
   }
@@ -890,6 +897,11 @@ PersistenceResponse_UserLocation* PersistenceResponse_UserLocation::New() const 
 void PersistenceResponse_UserLocation::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     online_ = true;
+    if (has_user_name()) {
+      if (user_name_ != &::google::protobuf::internal::kEmptyString) {
+        user_name_->clear();
+      }
+    }
     if (has_broker_name()) {
       if (broker_name_ != &::google::protobuf::internal::kEmptyString) {
         broker_name_->clear();
@@ -911,7 +923,7 @@ bool PersistenceResponse_UserLocation::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required bool online = 1 [default = true];
+      // optional bool online = 1 [default = true];
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -922,12 +934,29 @@ bool PersistenceResponse_UserLocation::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(18)) goto parse_broker_name;
+        if (input->ExpectTag(18)) goto parse_user_name;
         break;
       }
 
-      // optional string broker_name = 2;
+      // required string user_name = 2;
       case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_user_name:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_user_name()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->user_name().data(), this->user_name().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_broker_name;
+        break;
+      }
+
+      // required string broker_name = 3;
+      case 3: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
          parse_broker_name:
@@ -939,12 +968,12 @@ bool PersistenceResponse_UserLocation::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
-        if (input->ExpectTag(26)) goto parse_channel_id;
+        if (input->ExpectTag(34)) goto parse_channel_id;
         break;
       }
 
-      // optional string channel_id = 3;
-      case 3: {
+      // required string channel_id = 4;
+      case 4: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
          parse_channel_id:
@@ -978,27 +1007,36 @@ bool PersistenceResponse_UserLocation::MergePartialFromCodedStream(
 
 void PersistenceResponse_UserLocation::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // required bool online = 1 [default = true];
+  // optional bool online = 1 [default = true];
   if (has_online()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(1, this->online(), output);
   }
 
-  // optional string broker_name = 2;
+  // required string user_name = 2;
+  if (has_user_name()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->user_name().data(), this->user_name().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      2, this->user_name(), output);
+  }
+
+  // required string broker_name = 3;
   if (has_broker_name()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->broker_name().data(), this->broker_name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      2, this->broker_name(), output);
+      3, this->broker_name(), output);
   }
 
-  // optional string channel_id = 3;
+  // required string channel_id = 4;
   if (has_channel_id()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->channel_id().data(), this->channel_id().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
-      3, this->channel_id(), output);
+      4, this->channel_id(), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -1009,29 +1047,39 @@ void PersistenceResponse_UserLocation::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* PersistenceResponse_UserLocation::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // required bool online = 1 [default = true];
+  // optional bool online = 1 [default = true];
   if (has_online()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(1, this->online(), target);
   }
 
-  // optional string broker_name = 2;
+  // required string user_name = 2;
+  if (has_user_name()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->user_name().data(), this->user_name().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->user_name(), target);
+  }
+
+  // required string broker_name = 3;
   if (has_broker_name()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->broker_name().data(), this->broker_name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        2, this->broker_name(), target);
+        3, this->broker_name(), target);
   }
 
-  // optional string channel_id = 3;
+  // required string channel_id = 4;
   if (has_channel_id()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->channel_id().data(), this->channel_id().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        3, this->channel_id(), target);
+        4, this->channel_id(), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -1045,19 +1093,26 @@ int PersistenceResponse_UserLocation::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required bool online = 1 [default = true];
+    // optional bool online = 1 [default = true];
     if (has_online()) {
       total_size += 1 + 1;
     }
 
-    // optional string broker_name = 2;
+    // required string user_name = 2;
+    if (has_user_name()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->user_name());
+    }
+
+    // required string broker_name = 3;
     if (has_broker_name()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->broker_name());
     }
 
-    // optional string channel_id = 3;
+    // required string channel_id = 4;
     if (has_channel_id()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -1094,6 +1149,9 @@ void PersistenceResponse_UserLocation::MergeFrom(const PersistenceResponse_UserL
     if (from.has_online()) {
       set_online(from.online());
     }
+    if (from.has_user_name()) {
+      set_user_name(from.user_name());
+    }
     if (from.has_broker_name()) {
       set_broker_name(from.broker_name());
     }
@@ -1117,7 +1175,7 @@ void PersistenceResponse_UserLocation::CopyFrom(const PersistenceResponse_UserLo
 }
 
 bool PersistenceResponse_UserLocation::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+  if ((_has_bits_[0] & 0x0000000e) != 0x0000000e) return false;
 
   return true;
 }
@@ -1125,6 +1183,7 @@ bool PersistenceResponse_UserLocation::IsInitialized() const {
 void PersistenceResponse_UserLocation::Swap(PersistenceResponse_UserLocation* other) {
   if (other != this) {
     std::swap(online_, other->online_);
+    std::swap(user_name_, other->user_name_);
     std::swap(broker_name_, other->broker_name_);
     std::swap(channel_id_, other->channel_id_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
@@ -1258,7 +1317,7 @@ bool PersistenceResponse::MergePartialFromCodedStream(
         break;
       }
 
-      // required bool status = 3 [default = true];
+      // optional bool status = 3 [default = true];
       case 3: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -1333,7 +1392,7 @@ void PersistenceResponse::SerializeWithCachedSizes(
       2, this->type(), output);
   }
 
-  // required bool status = 3 [default = true];
+  // optional bool status = 3 [default = true];
   if (has_status()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(3, this->status(), output);
   }
@@ -1369,7 +1428,7 @@ void PersistenceResponse::SerializeWithCachedSizes(
       2, this->type(), target);
   }
 
-  // required bool status = 3 [default = true];
+  // optional bool status = 3 [default = true];
   if (has_status()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(3, this->status(), target);
   }
@@ -1412,7 +1471,7 @@ int PersistenceResponse::ByteSize() const {
         ::google::protobuf::internal::WireFormatLite::EnumSize(this->type());
     }
 
-    // required bool status = 3 [default = true];
+    // optional bool status = 3 [default = true];
     if (has_status()) {
       total_size += 1 + 1;
     }
@@ -1488,7 +1547,7 @@ void PersistenceResponse::CopyFrom(const PersistenceResponse& from) {
 }
 
 bool PersistenceResponse::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000007) != 0x00000007) return false;
+  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
 
   for (int i = 0; i < user_locations_size(); i++) {
     if (!this->user_locations(i).IsInitialized()) return false;

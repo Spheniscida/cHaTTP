@@ -353,17 +353,29 @@ class PersistenceResponse_UserLocation : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // required bool online = 1 [default = true];
+  // optional bool online = 1 [default = true];
   inline bool has_online() const;
   inline void clear_online();
   static const int kOnlineFieldNumber = 1;
   inline bool online() const;
   inline void set_online(bool value);
 
-  // optional string broker_name = 2;
+  // required string user_name = 2;
+  inline bool has_user_name() const;
+  inline void clear_user_name();
+  static const int kUserNameFieldNumber = 2;
+  inline const ::std::string& user_name() const;
+  inline void set_user_name(const ::std::string& value);
+  inline void set_user_name(const char* value);
+  inline void set_user_name(const char* value, size_t size);
+  inline ::std::string* mutable_user_name();
+  inline ::std::string* release_user_name();
+  inline void set_allocated_user_name(::std::string* user_name);
+
+  // required string broker_name = 3;
   inline bool has_broker_name() const;
   inline void clear_broker_name();
-  static const int kBrokerNameFieldNumber = 2;
+  static const int kBrokerNameFieldNumber = 3;
   inline const ::std::string& broker_name() const;
   inline void set_broker_name(const ::std::string& value);
   inline void set_broker_name(const char* value);
@@ -372,10 +384,10 @@ class PersistenceResponse_UserLocation : public ::google::protobuf::Message {
   inline ::std::string* release_broker_name();
   inline void set_allocated_broker_name(::std::string* broker_name);
 
-  // optional string channel_id = 3;
+  // required string channel_id = 4;
   inline bool has_channel_id() const;
   inline void clear_channel_id();
-  static const int kChannelIdFieldNumber = 3;
+  static const int kChannelIdFieldNumber = 4;
   inline const ::std::string& channel_id() const;
   inline void set_channel_id(const ::std::string& value);
   inline void set_channel_id(const char* value);
@@ -388,6 +400,8 @@ class PersistenceResponse_UserLocation : public ::google::protobuf::Message {
  private:
   inline void set_has_online();
   inline void clear_has_online();
+  inline void set_has_user_name();
+  inline void clear_has_user_name();
   inline void set_has_broker_name();
   inline void clear_has_broker_name();
   inline void set_has_channel_id();
@@ -395,12 +409,13 @@ class PersistenceResponse_UserLocation : public ::google::protobuf::Message {
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
+  ::std::string* user_name_;
   ::std::string* broker_name_;
   ::std::string* channel_id_;
   bool online_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(4 + 31) / 32];
 
   friend void  protobuf_AddDesc_persistence_2eproto();
   friend void protobuf_AssignDesc_persistence_2eproto();
@@ -510,7 +525,7 @@ class PersistenceResponse : public ::google::protobuf::Message {
   inline ::chattp::PersistenceResponse_PersistenceResponseType type() const;
   inline void set_type(::chattp::PersistenceResponse_PersistenceResponseType value);
 
-  // required bool status = 3 [default = true];
+  // optional bool status = 3 [default = true];
   inline bool has_status() const;
   inline void clear_status();
   static const int kStatusFieldNumber = 3;
@@ -986,7 +1001,7 @@ inline void PersistenceRequest::set_allocated_mesg(::chattp::ChattpMessage* mesg
 
 // PersistenceResponse_UserLocation
 
-// required bool online = 1 [default = true];
+// optional bool online = 1 [default = true];
 inline bool PersistenceResponse_UserLocation::has_online() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -1008,15 +1023,85 @@ inline void PersistenceResponse_UserLocation::set_online(bool value) {
   online_ = value;
 }
 
-// optional string broker_name = 2;
-inline bool PersistenceResponse_UserLocation::has_broker_name() const {
+// required string user_name = 2;
+inline bool PersistenceResponse_UserLocation::has_user_name() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void PersistenceResponse_UserLocation::set_has_broker_name() {
+inline void PersistenceResponse_UserLocation::set_has_user_name() {
   _has_bits_[0] |= 0x00000002u;
 }
-inline void PersistenceResponse_UserLocation::clear_has_broker_name() {
+inline void PersistenceResponse_UserLocation::clear_has_user_name() {
   _has_bits_[0] &= ~0x00000002u;
+}
+inline void PersistenceResponse_UserLocation::clear_user_name() {
+  if (user_name_ != &::google::protobuf::internal::kEmptyString) {
+    user_name_->clear();
+  }
+  clear_has_user_name();
+}
+inline const ::std::string& PersistenceResponse_UserLocation::user_name() const {
+  return *user_name_;
+}
+inline void PersistenceResponse_UserLocation::set_user_name(const ::std::string& value) {
+  set_has_user_name();
+  if (user_name_ == &::google::protobuf::internal::kEmptyString) {
+    user_name_ = new ::std::string;
+  }
+  user_name_->assign(value);
+}
+inline void PersistenceResponse_UserLocation::set_user_name(const char* value) {
+  set_has_user_name();
+  if (user_name_ == &::google::protobuf::internal::kEmptyString) {
+    user_name_ = new ::std::string;
+  }
+  user_name_->assign(value);
+}
+inline void PersistenceResponse_UserLocation::set_user_name(const char* value, size_t size) {
+  set_has_user_name();
+  if (user_name_ == &::google::protobuf::internal::kEmptyString) {
+    user_name_ = new ::std::string;
+  }
+  user_name_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* PersistenceResponse_UserLocation::mutable_user_name() {
+  set_has_user_name();
+  if (user_name_ == &::google::protobuf::internal::kEmptyString) {
+    user_name_ = new ::std::string;
+  }
+  return user_name_;
+}
+inline ::std::string* PersistenceResponse_UserLocation::release_user_name() {
+  clear_has_user_name();
+  if (user_name_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = user_name_;
+    user_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void PersistenceResponse_UserLocation::set_allocated_user_name(::std::string* user_name) {
+  if (user_name_ != &::google::protobuf::internal::kEmptyString) {
+    delete user_name_;
+  }
+  if (user_name) {
+    set_has_user_name();
+    user_name_ = user_name;
+  } else {
+    clear_has_user_name();
+    user_name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// required string broker_name = 3;
+inline bool PersistenceResponse_UserLocation::has_broker_name() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void PersistenceResponse_UserLocation::set_has_broker_name() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void PersistenceResponse_UserLocation::clear_has_broker_name() {
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void PersistenceResponse_UserLocation::clear_broker_name() {
   if (broker_name_ != &::google::protobuf::internal::kEmptyString) {
@@ -1078,15 +1163,15 @@ inline void PersistenceResponse_UserLocation::set_allocated_broker_name(::std::s
   }
 }
 
-// optional string channel_id = 3;
+// required string channel_id = 4;
 inline bool PersistenceResponse_UserLocation::has_channel_id() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void PersistenceResponse_UserLocation::set_has_channel_id() {
-  _has_bits_[0] |= 0x00000004u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void PersistenceResponse_UserLocation::clear_has_channel_id() {
-  _has_bits_[0] &= ~0x00000004u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void PersistenceResponse_UserLocation::clear_channel_id() {
   if (channel_id_ != &::google::protobuf::internal::kEmptyString) {
@@ -1197,7 +1282,7 @@ inline void PersistenceResponse::set_type(::chattp::PersistenceResponse_Persiste
   type_ = value;
 }
 
-// required bool status = 3 [default = true];
+// optional bool status = 3 [default = true];
 inline bool PersistenceResponse::has_status() const {
   return (_has_bits_[0] & 0x00000004u) != 0;
 }

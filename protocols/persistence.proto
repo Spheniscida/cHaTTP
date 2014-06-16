@@ -7,7 +7,7 @@ import "message.proto";
 message PersistenceRequest
 {
     required uint64 sequence_number = 1;
-
+    
     enum PersistenceRequestType
     {
         REGISTER = 0;
@@ -18,7 +18,6 @@ message PersistenceRequest
         SAVEMESSAGE = 5;
         GETMESSAGES = 6;
     }
-
     required PersistenceRequestType type = 2;
     
     optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES
@@ -47,13 +46,14 @@ message PersistenceResponse
     }
 
     required PersistenceResponseType type = 2;
-    required bool status = 3 [default = true];
+    optional bool status = 3 [default = true];
 
     message UserLocation
     {
-        required bool online = 1 [default = true];
-        optional string broker_name = 2;
-        optional string channel_id = 3;
+        optional bool online = 1 [default = true];
+        required string user_name = 2;
+        required string broker_name = 3;
+        required string channel_id = 4;
     }
 
     repeated UserLocation user_locations = 4;

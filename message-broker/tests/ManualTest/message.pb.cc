@@ -84,7 +84,7 @@ void protobuf_AddDesc_message_2eproto() {
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\rmessage.proto\022\006chattp\"p\n\rChattpMessage"
     "\022\016\n\006sender\030\001 \002(\t\022\020\n\010receiver\030\002 \002(\t\022\034\n\rgr"
-    "oup_message\030\003 \002(\010:\005false\022\014\n\004body\030\004 \002(\t\022\021"
+    "oup_message\030\003 \001(\010:\005false\022\014\n\004body\030\004 \002(\t\022\021"
     "\n\ttimestamp\030\005 \002(\t", 137);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "message.proto", &protobuf_RegisterTypes);
@@ -243,7 +243,7 @@ bool ChattpMessage::MergePartialFromCodedStream(
         break;
       }
 
-      // required bool group_message = 3 [default = false];
+      // optional bool group_message = 3 [default = false];
       case 3: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -329,7 +329,7 @@ void ChattpMessage::SerializeWithCachedSizes(
       2, this->receiver(), output);
   }
 
-  // required bool group_message = 3 [default = false];
+  // optional bool group_message = 3 [default = false];
   if (has_group_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(3, this->group_message(), output);
   }
@@ -380,7 +380,7 @@ void ChattpMessage::SerializeWithCachedSizes(
         2, this->receiver(), target);
   }
 
-  // required bool group_message = 3 [default = false];
+  // optional bool group_message = 3 [default = false];
   if (has_group_message()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(3, this->group_message(), target);
   }
@@ -430,7 +430,7 @@ int ChattpMessage::ByteSize() const {
           this->receiver());
     }
 
-    // required bool group_message = 3 [default = false];
+    // optional bool group_message = 3 [default = false];
     if (has_group_message()) {
       total_size += 1 + 1;
     }
@@ -508,7 +508,7 @@ void ChattpMessage::CopyFrom(const ChattpMessage& from) {
 }
 
 bool ChattpMessage::IsInitialized() const {
-  if ((_has_bits_[0] & 0x0000001f) != 0x0000001f) return false;
+  if ((_has_bits_[0] & 0x0000001b) != 0x0000001b) return false;
 
   return true;
 }
