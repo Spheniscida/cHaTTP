@@ -175,7 +175,7 @@ void webappDummy(void)
     {
 	std::string input;
 	char* s = new char[128];
-	chattp::WebappResponse resp;
+	chattp::WebappRequest req;
 
 	while ( std::cin.good() )
 	{
@@ -196,66 +196,76 @@ void webappDummy(void)
 	    getline(raw_msg,cmd);
 	    getline(raw_msg,cmd);
 
-	    resp.Clear();
-	    resp.set_sequence_number(seq);
+	    req.Clear();
+	    req.set_sequence_number(seq);
 
-	    if ( cmd == "UREGD" )
+	    if ( cmd == "UREG" )
 	    {
-		getline(raw_msg,status);
+		std::string user, pwd;
 
-		resp.set_type(chattp::WebappResponse::REGISTERED);
-		resp.set_status(status == "OK");
-	    } else if ( cmd == "LGDIN" )
+		getline(raw_msg,user);
+		getline(raw_msg,pwd);
+
+		req.set_type(chattp::WebappRequest::REGISTER);
+		req.set_user_name(user);
+		req.set_password(pwd);
+	    } else if ( cmd == "LOGIN" )
 	    {
-		getline(raw_msg,status);
+		std::string user, pwd;
 
-		resp.set_status(status == "OK");
-		resp.set_type(chattp::WebappResponse::LOGGEDIN);
+		getline(raw_msg,user);
+		getline(raw_msg,pwd);
 
-		if ( resp.status() )
-		    getline(raw_msg,*(resp.mutable_channel_id()));
+		req.set_type(chattp::WebappRequest::LOGIN);
 
-	    } else if ( cmd == "LGDOUT" )
+		req.set_user_name(user);
+		req.set_password(pwd);
+
+	    } else if ( cmd == "LOGOUT" )
 	    {
-		getline(raw_msg,status);
+		std::string user, chanid;
 
-		resp.set_type(chattp::WebappResponse::LOGGEDOUT);
-		resp.set_status(status == "OK");
-	    } else if ( cmd == "ACCMSG" )
+		getline(raw_msg,user);
+		getline(raw_msg,chanid);
+
+		req.set_type(chattp::WebappRequest::LOGOUT);
+		req.set_user_name(user);
+		req.set_channel_id(chanid);
+
+	    } else if ( cmd == "SNDMSG" )
 	    {
-		getline(raw_msg,status);
+		req.set_type(chattp::WebappRequest::SENDMESSAGE);
 
-		resp.set_type(chattp::WebappResponse::SENTMESSAGE);
-		resp.set_status(status == "OK");
-	    } else if ( cmd == "UONL" )
+		chattp::ChattpMessage* mesg = req.mutable_mesg();
+
+		getline(raw_msg,*(mesg->mutable_sender()));
+		getline(raw_msg,*(req.mutable_channel_id()));
+		getline(raw_msg,*(mesg->mutable_receiver()));
+		getline(raw_msg,*(mesg->mutable_body()));
+
+	    } else if ( cmd == "UONLQ" )
 	    {
-		getline(raw_msg,status);
+		getline(raw_msg,*(req.mutable_user_name()));
 
-		resp.set_type(chattp::WebappResponse::USERSTATUS);
-		resp.set_status(true); // FIXME - this is all just a hack!!
-		resp.set_online(status == "Y");
+		req.set_type(chattp::WebappRequest::QUERYSTATUS);
 	    } else if ( cmd == "AUTHD" )
 	    {
-		getline(raw_msg,status);
+		req.set_type(chattp::WebappRequest::AUTHORIZED);
 
-		resp.set_type(chattp::WebappResponse::AUTHORIZED);
-		resp.set_status(true);
-		resp.set_authorized(status == "Y");
-	    } else if ( cmd == "MSGS" )
+		getline(raw_msg,*(req.mutable_user_name()));
+
+	    } else if ( cmd == "MSGGT" )
 	    {
-		resp.set_type(chattp::WebappResponse::GOTMESSAGES);
-		resp.set_status(true);
-		chattp::ChattpMessage* msg = resp.add_mesgs();
+		req.set_type(chattp::WebappRequest::GETMESSAGES);
 
-		msg->set_sender("<from dummy>");
-		msg->set_receiver("<to dummy>");
-		msg->set_body("<body dummy>");
-		msg->set_timestamp("<timestamp dummy>");
+		getline(raw_msg,*(req.mutable_user_name()));
+		getline(raw_msg,*(req.mutable_channel_id()));
+
 	    } else
 		continue;
 
-	    std::cout << resp.DebugString() << resp.SerializeAsString() << std::endl;
-	    sock.sndto(resp.SerializeAsString(),global_broker_settings.getWebappBindAddress().address);
+	    std::cout << req.DebugString() << req.SerializeAsString() << std::endl;
+	    sock.sndto(req.SerializeAsString(),global_broker_settings.getWebappBindAddress().address);
 	}
     } else // parent -- receiving, writing to stdout
     {

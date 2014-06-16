@@ -1,11 +1,9 @@
-project(message-broker-test)
 cmake_minimum_required(VERSION 2.6)
 
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
 
 include_directories("../../src/")
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(manualsrc
     manual-protobuf.cpp
@@ -20,6 +18,7 @@ set(protofiles
 
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${protofiles})
 
