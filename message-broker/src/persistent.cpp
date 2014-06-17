@@ -22,14 +22,19 @@ PersistenceLayerResponse::PersistenceLayerResponse(const char* buffer, size_t le
 {
     response_buffer.ParseFromArray(static_cast<const void*>(buffer),length);
 
-    if ( response_buffer.type() == chattp::PersistenceResponse::LOOKEDUP )
-    {
 
-    }
 }
 
 /*********************************** Persistence layer commands *************************************/
 
+/**
+ * Construct messages for one-argument commands: LOOKUP, LOGOUT, GETMESSAGES.
+ * 
+ * @param code The command type.
+ * @param user_name The user name to supply to that command.
+ * 
+ * @throws BrokerError for non-matching commands.
+ */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name)
 {
     if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
@@ -46,14 +51,14 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
 }
 
 /**
- * Construct messages for LOOKUP, GETMESSAGES and LOGOUT.
+ * Construct messages for LOOKUP.
  *
  * @param code The actual type of command.
- * @param user_name The user name wanted by the specified command
+ * @param user_names The user names to look up.
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const vector<string>& user_name)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const vector<string>& user_names)
 {
     if ( code != PersistenceRequest::LOOKUP )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, but got other command type.");
@@ -61,7 +66,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     request.set_sequence_number(sequence_number = getNewSequenceNumber());
     request.set_type(code);
 
-    for ( const string& u : user_name )
+    for ( const string& u : user_names )
     {
 	*(request.add_lookup_users()) = u;
     }

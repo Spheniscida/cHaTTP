@@ -1199,9 +1199,7 @@ void ProtocolDispatcher::onPersistenceMSGS(const PersistenceLayerResponse& rp)
 
     const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-    PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
-
-    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::savedMessages,rp.get_protobuf().status(),"Error from Persistence on MSGGT",""); // FIXME!!!
+    WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::savedMessages,rp.get_protobuf().status(),"Error from Persistence on MSGGT","<dummy messages>"); // FIXME!!!
 
     communicator.send(resp);
 
