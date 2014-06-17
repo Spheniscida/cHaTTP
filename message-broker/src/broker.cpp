@@ -322,7 +322,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	transaction.type = OutstandingType::persistenceLGDOUT;
 	transaction.original_sequence_number = rq.sequence_number;
 
-	PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, vector<string>({rq.user}));
+	PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user);
 
 	try
 	{
