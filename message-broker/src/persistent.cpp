@@ -10,7 +10,7 @@ using std::string;
 
 namespace
 {
-    thread_local char temp_messages[65536];
+    // file-local data
 }
 
 /**
@@ -18,127 +18,9 @@ namespace
  *
  * @param response A string containing a response sent from the persistence layer.
  */
-PersistenceLayerResponse::PersistenceLayerResponse(const string& response)
+PersistenceLayerResponse::PersistenceLayerResponse(const char* buffer, size_t length)
 {
-    parsePersistenceResponse(response);
-}
-
-/**
- * @brief Stream operator to parse persistence layer response codes.
- */
-istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code)
-{
-    string code_string;
-
-    stream >> code_string;
-
-    if ( code_string.empty() )
-	throw BrokerError(ErrorType::protocolError,string("The persistence response code could not be parsed: ") + stream.str());
-    else if ( code_string == "ULKDUP" )
-	code = PersistenceLayerResponseCode::lookedUpUser;
-    else if ( code_string == "MSGSVD" )
-	code = PersistenceLayerResponseCode::savedMessage;
-    else if ( code_string == "CHKDPASS" )
-	code = PersistenceLayerResponseCode::passwordChecked;
-    else if ( code_string == "UREGD" )
-	code = PersistenceLayerResponseCode::userRegistered;
-    else if ( code_string == "MSGS" )
-	code = PersistenceLayerResponseCode::messages;
-    else if ( code_string == "LGDIN" )
-	code = PersistenceLayerResponseCode::loggedIn;
-    else if ( code_string == "LGDOUT" )
-	code = PersistenceLayerResponseCode::loggedOut;
-    else
-	throw BrokerError(ErrorType::protocolError,"Received unknown response code from persistence: " + code_string);
-
-    return stream;
-}
-
-/**
- * @brief Parse a message from the persistence layer.
- *
- * @param r The response string.
- *
- * @returns A pointer to a generic response object. Depending on the value of response_type, that pointer may have to
- * 	be casted to represent a specialized class.
- *
- */
-void PersistenceLayerResponse::parsePersistenceResponse(const string& r)
-{
-    istringstream response(r);
-
-    response >> sequence_number;
-
-    if ( sequence_number == 0 )
-	throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: sequence number could not be read or it was 0, violating proto-specs.");
-
-    response >> response_type;
-
-    if ( response_type == PersistenceLayerResponseCode::lookedUpUser )
-    {
-	string ok;
-	response >> ok;
-
-	if ( ok == "OK" )
-	{
-	    status = true;
-	    online = true;
-	}
-	else if ( ok == "FAIL" )
-	{
-	    status = false;
-	    online = false;
-	}
-	else if ( ok == "OFFLINE" )
-	{
-	    status = true;
-	    online = false;
-	}
-	else
-	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL|OFFLINE): " + ok);
-
-	if ( status && online ) // Additional information is only present when status is "OK"
-	{
-	    response >> broker_name;
-	    response >> channel_id;
-
-	    if ( broker_name.empty() || channel_id.empty() )
-	    {
-		throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: type was ULKDUP; however, broker and/or channel could not be retrieved");
-	    }
-
-	}
-    } else if ( response_type == PersistenceLayerResponseCode::messages )
-    {
-	string ok;
-	response >> ok;
-
-	if ( ok == "FAIL" )
-	{
-	    status = false;
-	    return;
-	} else if ( ok == "OK" )
-	    status = true;
-	else
-	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
-
-	response.getline(temp_messages,65535); // remove first newline.
-	response.getline(temp_messages,65535);
-
-	messages = std::move(string(temp_messages));
-    } else
-    {
-	string ok;
-
-	response >> ok;
-
-	if ( ok == "OK" )
-	    status = true;
-	else if ( ok == "FAIL" )
-	    status = false;
-	else
-	    throw BrokerError(ErrorType::protocolError,"parsePersistenceResponse: response status (expected OK|FAIL): " + ok);
-    }
+    response_buffer.ParseFromArray(static_cast<const void*>(buffer),length);
 }
 
 /*********************************** Persistence layer commands *************************************/

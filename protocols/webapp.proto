@@ -1,0 +1,53 @@
+package chattp;
+
+import "message.proto";
+
+//option optimize_for = LITE_RUNTIME;
+
+message WebappRequest
+{
+    required uint64 sequence_number = 1;
+
+    enum WebappRequestType
+    {
+	REGISTER = 0;
+	LOGIN = 1;
+	LOGOUT = 2;
+	SENDMESSAGE = 3;
+	QUERYSTATUS = 4;
+	GETMESSAGES = 5;
+	AUTHORIZED = 6;
+    }
+    
+    required WebappRequestType type = 2;
+
+    optional string user_name = 3; // REGISTER LOGIN LOGOUT QUERYSTATUS GETMESSAGES AUTHORIZED
+    optional string password = 4; // REGISTER LOGIN
+    optional string channel_id = 5; // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
+    
+    optional ChattpMessage mesg = 6;
+}
+
+message WebappResponse
+{
+    required uint64 sequence_number = 1;
+    
+    enum WebappResponseType
+    {
+	REGISTERED = 0;
+	LOGGEDIN = 1;
+	LOGGEDOUT = 2;
+	SENTMESSAGE = 3;
+	USERSTATUS = 4;
+	GOTMESSAGES = 5;
+	AUTHORIZED = 6;
+    }
+    
+    required WebappResponseType type = 2;
+    optional bool status = 3 [default = true];
+    optional bool online = 4;
+    optional bool authorized = 5;
+    optional string channel_id = 6;
+    
+    repeated ChattpMessage mesgs = 7;
+}

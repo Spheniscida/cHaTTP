@@ -5,6 +5,8 @@
 # include <vector>
 # include <sstream>
 
+# include <persistence.pb.h>
+
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 
@@ -12,24 +14,9 @@ using std::string;
 using std::vector;
 using std::istringstream;
 
-/*********************** Parsing and representing protocol responses ***************************/
+using namespace chattp;
 
-enum class PersistenceLayerResponseCode {
-    /// User has been registered (or not...)
-    userRegistered,
-    /// Password was checked.
-    passwordChecked,
-    /// User has been marked as online
-    loggedIn,
-    /// User has been marked as offline
-    loggedOut,
-    /// User lookup results
-    lookedUpUser,
-    /// Message has been saved.
-    savedMessage,
-    /// Retained messages.
-    messages
-};
+/*********************** Parsing and representing protocol responses ***************************/
 
 /**
  * @brief A generic response from the persistence layer
@@ -45,29 +32,16 @@ enum class PersistenceLayerResponseCode {
 class PersistenceLayerResponse : public Receivable
 {
 public:
-    PersistenceLayerResponse(const string&);
-
-    /// Field for message retrieval responses. Not used yet.
-    string messages;
-
-    /// A unique sequence number of a transaction which may be used to find and restart an operation.
-    sequence_t sequence_number;
-    string broker_name;
-    string channel_id;
-
-    /// OK/FAIL?
-    bool status;
-
-    /// for ULKDUP
-    bool online;
-
-    PersistenceLayerResponseCode response_type;
+    PersistenceLayerResponse(const char* buffer, size_t length);
+    
+    chattp::PersistenceResponse::PersistenceResponseType type(void) const { return response_buffer.type(); }
+    
+    
+    
 private:
-    void parsePersistenceResponse(const string& message);
+    chattp::PersistenceResponse response_buffer;
 
 };
-
-extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 
 /************************************* Creating protocol messages **************************************/
 

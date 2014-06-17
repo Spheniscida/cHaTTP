@@ -8,31 +8,31 @@ add_subdirectory(ManualTest)
 include_directories("../src/")
 
 set(persistsrc
-persistence-protocol.cpp
-)
+    persistence-protocol.cpp
+    )
 
 set(miscsrc
-misc-test.cpp
-)
+    misc-test.cpp
+    )
 
 set(wasrc
-web-app.cpp
-)
+    web-app.cpp
+    )
 
 set(manualsrc
-manual-protocol-tester.cpp
-)
+    manual-protocol-tester.cpp
+    )
 
 find_library(boost_test_lib "boost_unit_test_framework")
 
 add_executable(persistence-protocol ${persistsrc})
-target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib})
+target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
 
 add_executable(misc-test ${miscsrc})
-target_link_libraries(misc-test msg_broker_lib ${boost_test_lib})
+target_link_libraries(misc-test msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
 
 add_executable(webapp-test ${wasrc})
-target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib})
+target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
 
 add_executable(manual-test ${manualsrc})
 target_link_libraries(manual-test msg_broker_lib socket++)

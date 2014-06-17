@@ -188,7 +188,7 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
     if ( sock == unix_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
     else if ( sock == unix_persistence_sock )
-	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == unix_msgrelay_sock )
 	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
     else
@@ -216,7 +216,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     if ( sock == inet_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
     else if ( sock == inet_persistence_sock )
-	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == inet_msgrelay_sock )
 	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
     else if ( sock == inet_b2b_sock )

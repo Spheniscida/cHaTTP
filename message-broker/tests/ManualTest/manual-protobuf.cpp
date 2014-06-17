@@ -353,14 +353,16 @@ void messagerelayDummy(void)
 	std::string mesg, src;
 	src.resize(0);
 
+	chattp::MessageRelayResponse resp;
+	
 	while ( true )
 	{
 	    mesg.resize(2048);
 	    sock.rcvfrom(mesg,src);
 
-	    std::for_each(mesg.begin(),mesg.end(),[](char& c) { c == '\n' ? c = ' ' : c; });
-
-	    std::cout << mesg << std::endl;
+	    resp.ParseFromString(mesg);
+	    
+	    std::cout << resp.DebugString() << std::endl;
 	}
     }
 }
