@@ -21,7 +21,7 @@ message WebappRequest
     
     required WebappRequestType type = 2;
 
-    optional string user_name = 3; // REGISTER LOGIN LOGOUT QUERYSTATUS GETMESSAGES AUTHORIZED
+    optional string user_name = 3; // REGISTER LOGIN LOGOUT QUERYSTATUS GETMESSAGES AUTHORIZED (SENDMESSAGE)
     optional string password = 4; // REGISTER LOGIN
     optional string channel_id = 5; // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
     

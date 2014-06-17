@@ -1,0 +1,13 @@
+# Error codes returned from the message broker
+
+## Format
+
+    <number>,<description>
+
+## Numbers
+
+* 0: The given user doesn't exist.
+* 1: The given user is offline although he should actually be online for this action to succeed.
+* 2: The given user is not authorized to perform that action.
+* 3: The given user is online although he should actually be offline for this action (e.g. LOGIN)
+

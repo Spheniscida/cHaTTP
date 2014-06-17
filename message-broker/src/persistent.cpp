@@ -21,28 +21,49 @@ namespace
 PersistenceLayerResponse::PersistenceLayerResponse(const char* buffer, size_t length)
 {
     response_buffer.ParseFromArray(static_cast<const void*>(buffer),length);
+
+    if ( response_buffer.type() == chattp::PersistenceResponse::LOOKEDUP )
+    {
+
+    }
 }
 
 /*********************************** Persistence layer commands *************************************/
 
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name)
+{
+    if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
+
+    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_type(code);
+
+    if ( code == PersistenceRequest::LOOKUP )
+    {
+	*(request.add_lookup_users()) = user_name; // Persistence expects user names to be looked up in this field.
+    } else
+	request.set_user_name(user_name);
+}
+
 /**
+ * Construct messages for LOOKUP, GETMESSAGES and LOGOUT.
  *
  * @param code The actual type of command.
  * @param user_name The user name wanted by the specified command
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user_name)
-    : sequence_number(getNewSequenceNumber()),
-    user_name(user_name),
-    request_type(code)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const vector<string>& user_name)
 {
-    switch ( code )
+    if ( code != PersistenceRequest::LOOKUP )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, but got other command type.");
+
+    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_type(code);
+
+    for ( const string& u : user_name )
     {
-	case PersistenceLayerCommandCode::lookUpUser: // falls through
-	case PersistenceLayerCommandCode::getMessages: // falls through
-	case PersistenceLayerCommandCode::logOut: break;
-	default: throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: ULKUP, MSGGT or LOGOUT, but got other command type.");
+	*(request.add_lookup_users()) = u;
     }
 }
 
@@ -50,51 +71,51 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  *
  * @param code The command type
  * @param user The user name
- * @param data Either a password (UREG, CHKPASS)
+ * @param data Either a password (UREG, CHKPASS) or a protobuf-encoded message (MSGSV)
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& data)
-    : sequence_number(getNewSequenceNumber()),
-    user_name(user),
-    request_type(code)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& data)
 {
-    switch ( code )
+    if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS && code != PersistenceRequest::SAVEMESSAGE )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: UREG, CHKPASS or MSGSV, but got other command type.");
+
+    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_type(code);
+    request.set_user_name(user);
+
+    if ( code != PersistenceRequest::SAVEMESSAGE )
     {
-	case PersistenceLayerCommandCode::registerUser: // falls through
-	case PersistenceLayerCommandCode::checkPassword: password_or_message = data; break;
-	case PersistenceLayerCommandCode::saveMessage: password_or_message = data; break;
-	default: throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: UREG, CHKPASS or MSGSV, but got other command type.");
+	request.set_password(data);
+    }
+    else
+    {
+	chattp::ChattpMessage* mesg = request.mutable_mesg();
+	mesg->ParseFromString(data);
     }
 }
 
 /**
+ * Doing LOGIN messages.
  *
  * @param code The command type.
  * @param user The user name.
- * @param broker_or_message The broker handling that user. If MSGSV, the message.
- * @param channel_or_sender The channel of the user. If MSGSV, then it's the user name of the sender.
+ * @param broker The broker handling that user.
+ * @param channel The channel of the user.
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& broker_or_message, const string& channel_or_sender)
-    : sequence_number(getNewSequenceNumber()),
-    user_name(user),
-    broker_name(broker_or_message),
-    request_type(code)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
 {
-    if ( ! (code == PersistenceLayerCommandCode::logIn || code == PersistenceLayerCommandCode::saveMessage) )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: LOGIN/MSGSV, but got other command type.");
-    if ( debugging_mode && channel_or_sender == "" && code == PersistenceLayerCommandCode::saveMessage )
-	throw BrokerError(ErrorType::genericImplementationError,"PersistenceLayerCommand: No destination user supplied.");
+    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_type(code);
+    request.set_user_name(user);
+    request.set_broker_name(broker);
+    request.set_channel_id(channel);
 
-    if ( code == PersistenceLayerCommandCode::logIn )
-	channel_id = channel_or_sender;
-    else if ( code == PersistenceLayerCommandCode::saveMessage )
-    {
-	sender_name = channel_or_sender;
-	password_or_message = broker_or_message;
-    }
+    if ( code != PersistenceRequest::LOGIN )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: LOGIN, but got other command type.");
+
 }
 
 /**
@@ -104,23 +125,5 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceLayerCommandCode cod
  */
 string PersistenceLayerCommand::toString(void) const
 {
-    ostringstream out;
-
-    if ( 0 == sequence_number )
-	throw BrokerError(ErrorType::protocolError,"PersistenceLayerCommand::toString: Invalid sequence number");
-
-    out << sequence_number << '\n';
-
-    switch ( request_type )
-    {
-	case PersistenceLayerCommandCode::lookUpUser : out << "ULKUP\n" << user_name; break;
-	case PersistenceLayerCommandCode::getMessages : out << "MSGGT\n" << user_name; break;
-	case PersistenceLayerCommandCode::logOut : out << "LOGOUT\n" << user_name; break;
-	case PersistenceLayerCommandCode::registerUser : out << "UREG\n" << user_name << '\n' << password_or_message; break;
-	case PersistenceLayerCommandCode::checkPassword: out << "CHKPASS\n" << user_name << '\n' << password_or_message; break;
-	case PersistenceLayerCommandCode::saveMessage : out << "MSGSV\n" << user_name << '\n' << sender_name << '\n' << password_or_message; break;
-	case PersistenceLayerCommandCode::logIn : out << "LOGIN\n" << user_name << '\n' << broker_name << '\n' << channel_id; break;
-    }
-
-    return out.str();
+    return request.SerializeAsString();
 }

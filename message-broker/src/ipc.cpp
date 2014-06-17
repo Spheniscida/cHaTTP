@@ -228,7 +228,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 void Communicator::send(const PersistenceLayerCommand& cmd)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log("Sent to Persistence Layer: ", cmd.toString());
+	debug_log("Sent to Persistence Layer: ", cmd.get_protobuf().DebugString());
 
     if ( inet_persistence_sock )
 	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
