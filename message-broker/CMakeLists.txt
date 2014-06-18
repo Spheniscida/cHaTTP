@@ -11,10 +11,11 @@ set(protofiles
     ../protocols/persistence.proto
     ../protocols/webapp.proto
     ../protocols/messagerelay.proto
+    ../protocols/broker2broker.proto
     )
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR}) # for the header files, include 'build/'
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${protofiles})
 add_library(protolib STATIC ${PROTO_SRCS})
 

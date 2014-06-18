@@ -40,7 +40,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
     request.set_type(code);
 
     if ( code == PersistenceRequest::LOOKUP )
@@ -63,7 +63,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, but got other command type.");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
     request.set_type(code);
 
     for ( const string& u : user_names )
@@ -85,7 +85,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS && code != PersistenceRequest::SAVEMESSAGE )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: UREG, CHKPASS or MSGSV, but got other command type.");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
     request.set_type(code);
     request.set_user_name(user);
 
@@ -112,7 +112,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
 {
-    request.set_sequence_number(sequence_number = getNewSequenceNumber());
+    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
     request.set_type(code);
     request.set_user_name(user);
     request.set_broker_name(broker);

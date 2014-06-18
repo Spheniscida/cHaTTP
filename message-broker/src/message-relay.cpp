@@ -7,7 +7,7 @@ using std::istringstream;
 using std::ostringstream;
 
 MessageForRelay::MessageForRelay (const string& sender, const string& mesg, const string& chan_id )
-    : seq_num(getNewSequenceNumber()),
+    : seq_num(getNewSequenceNumber(SequenceCounter::MessageRelayCounter)),
     message(mesg),
     sender_user(sender),
     channel_id(chan_id),
@@ -16,7 +16,7 @@ MessageForRelay::MessageForRelay (const string& sender, const string& mesg, cons
 }
 
 MessageForRelay::MessageForRelay(const string& chan_id, MessageForRelayType action_type)
-    : seq_num(getNewSequenceNumber()),
+    : seq_num(getNewSequenceNumber(SequenceCounter::MessageRelayCounter)),
     channel_id(chan_id),
     type(action_type)
 {

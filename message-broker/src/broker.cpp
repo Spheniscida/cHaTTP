@@ -232,7 +232,7 @@ void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
 	transaction_cache.insertWebappRequest(rq.sequence_number,rq);
     } catch (libsocket::socket_exception e)
     {
-	WebappResponse failresp(rq.sequence_number,WebappResponseCode::registeredUser,false,"Internal error! (Persistence down)");
+	WebappResponse failresp(rq.sequence_number,WebappResponseCode::registeredUser,false,"4,Internal error! (Persistence down)");
 	communicator.send(failresp);
 
 	throw e;
@@ -247,7 +247,7 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     OutstandingTransaction transaction;
     transaction.original_sequence_number = seqnum;
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user,true);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     // Can't log-in if already online
     if ( cached_user.found && cached_user.online )
@@ -305,7 +305,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     OutstandingTransaction transaction;
     sequence_t new_seqnum;
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user,ALSO_IF_CLUSTERED);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
 
     if ( cached_user.found && (! cached_user.online || cached_user.channel_id != rq.channel_id || cached_user.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
@@ -953,7 +953,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	user_cache.insertUserInCache(original_webapp_request.user,loc.channel_id(),loc.broker_name(),loc.online(),true);
+	user_cache.insertUserInCache(original_webapp_request.user,loc.channel_id(),loc.broker_name(),loc.online());
 
 	// May log off (authenticated).
 	if ( loc.online() && loc.channel_id() == original_webapp_request.channel_id && loc.broker_name() == global_broker_settings.getMessageBrokerName() )

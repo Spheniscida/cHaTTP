@@ -24,12 +24,13 @@ BOOST_AUTO_TEST_CASE(global_sequence_number_init_1)
 {
     initializeGlobalSequenceNumber();
 
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(),1);
+    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::PersistenceCounter),1);
+    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::B2BCounter),1);
 }
 
 BOOST_AUTO_TEST_CASE(global_sequence_number_after_increase)
 {
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(),2);
+    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::PersistenceCounter),2);
 }
 
 

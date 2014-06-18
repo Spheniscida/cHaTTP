@@ -47,12 +47,11 @@ struct BrokerError
  * debug_log() uses a mutex to control access to stdout.
  */
 template<typename ... Ts>
-void debug_log(Ts... args)
+void debug_log(const Ts&... args)
 {
     if ( debugging_mode )
     {
-	time_point<steady_clock> now(steady_clock::now());
-	microseconds diff = duration_cast<microseconds>(now - start_time);
+	microseconds diff = duration_cast<microseconds>(steady_clock::now() - start_time);
 
 	lock_guard<mutex> output_lock(output_mutex);
 
@@ -62,7 +61,7 @@ void debug_log(Ts... args)
 }
 
 template<typename ... Ts>
-void error_log(Ts... args)
+void error_log(const Ts&... args)
 {
     lock_guard<mutex> output_lock(output_mutex);
 

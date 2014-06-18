@@ -9,11 +9,6 @@
 using std::unordered_map;
 using std::string;
 
-/// Means: Also insert if running in ClusteredMode
-const bool ALSO_IF_CLUSTERED = true;
-/// Only insert if running in standalone mode.
-const bool ONLY_IF_STANDALONE = false;
-
 /**
  * @brief A User cache object stores information about users.
  *
@@ -26,7 +21,7 @@ const bool ONLY_IF_STANDALONE = false;
  * heavily impairs the functionality, i.e. it doesn't work.
  *
  * Control "clustered mode" with the CHATTP_MSGBROKER_RUN_CLUSTERED environment
- * variable. If it is set to "Y", the user cache is disabled.
+ * variable. If it is set to "Y", the user cache is completely disabled.
  */
 class UserCache
 {
@@ -35,8 +30,8 @@ public:
 
     UserCache(void);
 
-    void insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online, bool really = false);
-    const CachedUser& lookupUserInCache(const string& user_name, bool really = false);
+    void insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online);
+    const CachedUser& lookupUserInCache(const string& user_name);
 
     /**
     * @brief A cache entry of a user.
