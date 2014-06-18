@@ -247,7 +247,7 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     OutstandingTransaction transaction;
     transaction.original_sequence_number = seqnum;
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user,true);
 
     // Can't log-in if already online
     if ( cached_user.found && cached_user.online )
@@ -305,13 +305,13 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     OutstandingTransaction transaction;
     sequence_t new_seqnum;
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user);
+    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user,ALSO_IF_CLUSTERED);
 
     if ( cached_user.found && (! cached_user.online || cached_user.channel_id != rq.channel_id || cached_user.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
     {
 	// offline or unauthenticated -- deny!
 	WebappResponse resp(rq.sequence_number,WebappResponseCode::loggedOut,false,
-			    !cached_user.online ? "User is already offline" : "Logout: authentication error");
+			    !cached_user.online ? "1,User is already offline" : "2,Logout: authentication error");
 
 	communicator.send(resp);
 
@@ -383,6 +383,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	{
 	    communicator.send(cmd);
 
+	    messages_processed++;
 	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
@@ -413,6 +414,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	{
 	    communicator.send(cmd);
 
+	    messages_processed++;
 	    transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
@@ -442,6 +444,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    {
 		communicator.send(msg);
 
+		messages_processed++;
 		transaction.type = OutstandingType::messagerelayMSGSNT;
 		transaction_cache.insertTransaction(msg.seq_num,transaction);
 	    } catch (libsocket::socket_exception e)
@@ -479,6 +482,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    {
 		communicator.send(cmd);
 
+		messages_processed++;
 		transaction.type = OutstandingType::persistenceMSGSVD;
 		transaction_cache.insertTransaction(cmd.sequence_number,transaction);
 	    } catch (libsocket::socket_exception e)
@@ -811,9 +815,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    // Unauthorized sender!
 	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,error_message);
 
+	    communicator.send(wr);
+
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
-	    communicator.send(wr);
 
 	    return;
 	}
@@ -828,9 +833,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
+	    WebappResponse wr(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"4,Internal error! (Persistence down)");
 	    communicator.send(wr);
 
+	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
 
 	    throw e;
@@ -871,9 +877,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 			transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 		    } catch (libsocket::socket_exception e)
 		    {
-			WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Message relay down, Persistence too)");
+			WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"6,Internal error! (Message relay down, Persistence too)");
 			communicator.send(failresp);
 
+			transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 			transaction_cache.eraseTransaction(seqnum);
 
 			throw e;
@@ -892,9 +899,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		communicator.send(broker_message,loc.broker_name());
 	    } else // not on this broker and non-clustered mode.
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (clustering disabled)");
+		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"5,Internal error! (clustering disabled)");
 		communicator.send(failresp);
 
+		transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
 		transaction_cache.eraseTransaction(seqnum);
 	    }
 	} else // Save message to persistence layer
@@ -912,6 +920,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::acceptedMessage,false,"Internal error! (Persistence down)");
 		communicator.send(failresp);
 
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 		transaction_cache.eraseTransaction(seqnum);
 
 		throw e;
@@ -944,7 +953,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	user_cache.insertUserInCache(original_webapp_request.user,loc.channel_id(),loc.broker_name(),loc.online());
+	user_cache.insertUserInCache(original_webapp_request.user,loc.channel_id(),loc.broker_name(),loc.online(),true);
 
 	// May log off (authenticated).
 	if ( loc.online() && loc.channel_id() == original_webapp_request.channel_id && loc.broker_name() == global_broker_settings.getMessageBrokerName() )
@@ -964,6 +973,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		WebappResponse failresp(original_webapp_request.sequence_number,WebappResponseCode::loggedOut,false,"Internal error! (Persistence down)");
 		communicator.send(failresp);
 
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 		transaction_cache.eraseTransaction(seqnum);
 
 		throw e;
@@ -993,6 +1003,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
+	user_cache.insertUserInCache(original_webapp_request.user,loc.channel_id(),loc.broker_name(),loc.online());
+
 	if ( loc.online() || !rp.get_protobuf().status() ) // must be offline and registered to log-in
 	{
 	    string error_message;
@@ -1005,6 +1017,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,false,error_message);
 
 	    communicator.send(resp);
+
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    transaction_cache.eraseTransaction(seqnum);
+
 	    return;
 	}
 
@@ -1017,9 +1033,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number,transaction);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,false,"Internal error! (Persistence down)");
+	    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,false,"4,Internal error! (Persistence down)");
 	    communicator.send(resp);
 
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
 
 	    throw e;
@@ -1165,6 +1182,17 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
 
 	communicator.send(delchanmsg);
+    } else if ( transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	WebappResponse resp(original_webapp_request.sequence_number,WebappResponseCode::loggedIn,false,"7,Channel couldn't be created");
+
+	communicator.send(resp);
+
+	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
@@ -1314,17 +1342,29 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,"Channel could not be created.",original_webapp_request.channel_id);
-
         if ( rp.status )
+	{
             user_cache.insertUserInCache(original_webapp_request.user,original_webapp_request.channel_id,global_broker_settings.getMessageBrokerName(),true);
+	    WebappResponse resp(transaction.original_sequence_number,WebappResponseCode::loggedIn,rp.status,"",original_webapp_request.channel_id);
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    communicator.send(resp);
+	}
         else
-            user_cache.insertUserInCache(original_webapp_request.user,string(),string(),false); // Not logged-in, but obviously existent
+	{
+	    // Log out in database, send fail code.
+	    PersistenceLayerCommand logout_cmd(PersistenceRequest::LOGOUT,original_webapp_request.user);
+	    OutstandingTransaction logout_transaction;
 
-	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    logout_transaction.original_sequence_number = original_webapp_request.sequence_number;
+	    logout_transaction.type = OutstandingType::persistenceAfterFailedChancreatLogout;
+
+	    transaction_cache.insertTransaction(logout_cmd.sequence_number,logout_transaction);
+
+	    communicator.send(logout_cmd);
+	}
+
 	transaction_cache.eraseTransaction(seqnum);
 
-	communicator.send(resp);
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);

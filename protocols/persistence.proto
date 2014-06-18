@@ -22,7 +22,7 @@ message PersistenceRequest
     
     optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. Not used for LOOKUPs!
     optional string password = 4; // REGISTER CHECKPASS
-    optional string channel_id = 5; // LOGIN
+    optional string channel_id = 5; // LOGIN (LOGOUT, in future)
     optional string broker_name = 6; // LOGIN
 
     repeated string lookup_users = 7; // LOOKUP multiple users.

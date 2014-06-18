@@ -64,6 +64,7 @@ enum class OutstandingType {
 
     // for logouts
     persistenceLGDOUT,
+    persistenceAfterFailedChancreatLogout,
 
     // for ULKDUP
     persistenceSndmsgSenderULKDUP,

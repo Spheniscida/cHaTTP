@@ -9,9 +9,17 @@ UserCache::UserCache(void)
     not_found = c;
 }
 
-void UserCache::insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online)
+/*
+ * @brief Insert a user's location into the user cache.
+ *
+ * @param user_name
+ * @param channel_id
+ * @param broker_name
+ * @param really Insert into cache regardless of whether the broker operates in ClusteredMode. Some information may be cached even then. (default false)
+ */
+void UserCache::insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online, bool really)
 {
-    if ( ! global_broker_settings.getClusteredMode() )
+    if ( ! global_broker_settings.getClusteredMode() || really )
     {
 	CachedUser entry;
 
@@ -25,9 +33,9 @@ void UserCache::insertUserInCache(const string& user_name, const string& channel
     }
 }
 
-const UserCache::CachedUser& UserCache::lookupUserInCache(const string& user_name)
+const UserCache::CachedUser& UserCache::lookupUserInCache(const string& user_name, bool really)
 {
-    if ( ! global_broker_settings.getClusteredMode() )
+    if ( ! global_broker_settings.getClusteredMode() || really )
     {
 	unordered_map<string,CachedUser>::const_iterator it;
 

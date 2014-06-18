@@ -10,4 +10,8 @@
 * 1: The given user is offline although he should actually be online for this action to succeed.
 * 2: The given user is not authorized to perform that action.
 * 3: The given user is online although he should actually be offline for this action (e.g. LOGIN)
+* 4: Internal error -- persistence not reachable.
+* 5: Internal error -- database inconsistency
+* 6: Internal error -- message relay not reachable
+* 7: Internal error -- channel could not be created.
 

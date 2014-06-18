@@ -37,7 +37,7 @@ namespace
 }
 
 time_point<steady_clock> start_time;
-std::atomic<unsigned int> packets_processed;
+std::atomic<unsigned int> packets_processed, messages_processed;
 
 thread_local unsigned int thread_id;
 

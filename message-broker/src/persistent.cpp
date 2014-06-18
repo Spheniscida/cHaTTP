@@ -29,10 +29,10 @@ PersistenceLayerResponse::PersistenceLayerResponse(const char* buffer, size_t le
 
 /**
  * Construct messages for one-argument commands: LOOKUP, LOGOUT, GETMESSAGES.
- * 
+ *
  * @param code The command type.
  * @param user_name The user name to supply to that command.
- * 
+ *
  * @throws BrokerError for non-matching commands.
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name)

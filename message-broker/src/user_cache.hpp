@@ -9,6 +9,11 @@
 using std::unordered_map;
 using std::string;
 
+/// Means: Also insert if running in ClusteredMode
+const bool ALSO_IF_CLUSTERED = true;
+/// Only insert if running in standalone mode.
+const bool ONLY_IF_STANDALONE = false;
+
 /**
  * @brief A User cache object stores information about users.
  *
@@ -30,8 +35,8 @@ public:
 
     UserCache(void);
 
-    void insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online);
-    const CachedUser& lookupUserInCache(const string& user_name);
+    void insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online, bool really = false);
+    const CachedUser& lookupUserInCache(const string& user_name, bool really = false);
 
     /**
     * @brief A cache entry of a user.
