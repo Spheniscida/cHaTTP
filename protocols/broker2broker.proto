@@ -1,0 +1,22 @@
+package chattp;
+
+import "message.proto";
+
+// option optimize_for = LITE_RUNTIME;
+
+message B2BMessage
+{
+    required uint64 sequence_number = 1;
+    
+    enum B2BMessageType
+    {
+	SENDMESSAGE = 0;
+	MESSAGESENT = 1;
+    }
+    
+    required B2BMessageType type = 2;
+    
+    optional string channel_id = 3;
+    
+    optional ChattpMessage mesg = 4;
+}
