@@ -13,7 +13,6 @@ using chattp::WebappRequestMessage;
 using chattp::WebappResponseMessage;
 
 using std::string;
-using std::istringstream;
 
 /**
  * @file webapp-proto.hpp
@@ -54,27 +53,6 @@ private:
 
 /****************************** Create outgoing responses ********************************/
 
-/**
- * @brief Response types sent by us.
- */
-enum class WebappResponseCode {
-    /// Registered user.
-    registeredUser,
-    /// Marked user as online.
-    loggedIn,
-    /// Marked user as offline.
-    loggedOut,
-    /// Accepted message for delivery (or didn't...)
-    acceptedMessage,
-    /// User status.
-    isOnline,
-    /// saved messages
-    savedMessages,
-    /// authorized y/n
-    isAuthorized
-};
-
-
 class WebappResponse
 {
 public:
@@ -90,14 +68,6 @@ public:
     const chattp::WebappResponseMessage& get_protobuf(void) const { return response_buffer; }
 private:
     WebappResponseMessage response_buffer;
-    /// e.g. LGDIN <channel id> or messages
-    string payload;
-    /// an error message appended after FAIL
-    string error_message;
-    sequence_t sequence_number;
-    WebappResponseCode response_type;
-    bool status;
 };
-
 
 # endif

@@ -11,27 +11,6 @@ namespace {
     UserCache user_cache;
 }
 
-/*
- * LOCKING POLICY
- *
- * For reading operations, the mutex of that map has to be obtained shared, e.g. using a shared_lock object.
- * For writing operations, the lock has to be exclusive and therefore unique_lock has to be used.
- *
- * R/W-references may be taken from the maps and written to without existing lock because there are
- * currently no signs that one transaction object may be used by two threads concurrently (if the other servers
- * are implementing the protocol correctly). The only situtation in which a catastrophe (unrestricted concurrent access
- * to data) could happen is if, for example, Persistence sends two messages with the same sequence number in a very short interval.
- * I that case, two threads might access the same map key; however, it is very unlikely that this will happen.
- *
- */
-
-/*
- * CACHING
- *
- * A user's information is cached whenever there has been a ULKUP which was not triggered by UONLQ (in that case, no information is saved),
- * and LOGIN/LOGOUT operations update that information.
- */
-
 /**
  * @brief Receive and process incoming messages.
  *
