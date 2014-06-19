@@ -9,106 +9,17 @@ using std::ostringstream;
 
 namespace
 {
-    thread_local char current_message[max_message_size];
     const string ok_code = "OK";
     const string fail_code = "FAIL";
 }
 
 /**
- * @brief Stream input operator overloaded for WebappRequestCode objects. Used for parsing requests.
- */
-istringstream& operator>>(istringstream& stream, WebappRequestCode& code)
-{
-    string code_string;
-
-    stream >> code_string;
-
-    if ( code_string.empty() )
-	throw BrokerError(ErrorType::protocolError,string("The web-app request code could not be parsed: ") + stream.str());
-    else if ( code_string == "SNDMSG" )
-	code = WebappRequestCode::sendMessage;
-    else if ( code_string == "LOGIN" )
-	code = WebappRequestCode::logIn;
-    else if ( code_string == "LOGOUT" )
-	code = WebappRequestCode::logOut;
-    else if ( code_string == "UONLQ" )
-	code = WebappRequestCode::isOnline;
-    else if ( code_string == "UREG" )
-	code = WebappRequestCode::registerUser;
-    else if ( code_string == "MSGGT" )
-	code = WebappRequestCode::getMessages;
-    else if ( code_string == "ISAUTH" )
-	code = WebappRequestCode::isAuthorized;
-    else
-	throw BrokerError(ErrorType::protocolError,"Received unknown request code from web app: " + code_string);
-
-    return stream;
-}
-
-/**
  * @brief Parse a request from the web application and create an object with that information.
  */
-WebappRequest::WebappRequest(const string& request)
+WebappRequest::WebappRequest(const char* buffer, size_t length)
 {
-    parseWebappRequest(request);
+    request_buffer.ParseFromArray(buffer,length);
 }
-
-void WebappRequest::parseWebappRequest(const string& request)
-{
-    istringstream rqstream(request);
-
-    rqstream >> sequence_number;
-
-    if ( sequence_number == 0 )
-	throw BrokerError(ErrorType::protocolError,"WebappRequest: sequence number could not be read or it was 0, violating proto-specs.");
-
-    rqstream >> request_type;
-
-    if ( request_type == WebappRequestCode::sendMessage )
-    {
-	rqstream >> user;
-	rqstream >> channel_id;
-	rqstream >> dest_user;
-
-	// Chop of the remaining '\n' character before reading the message.
-	rqstream.getline(current_message,0);
-	rqstream.getline(current_message,max_message_size);
-
-	current_message[max_message_size-1] = 0; // Terminate it in either case.
-
-	message = current_message;
-
-	return;
-    } else if ( request_type == WebappRequestCode::registerUser || request_type == WebappRequestCode::logIn )
-    {
-	rqstream >> user;
-	rqstream >> password;
-
-	if ( user.empty() || password.empty() )
-	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user or password field.");
-
-	return;
-    } else if ( request_type == WebappRequestCode::isOnline )
-    {
-	rqstream >> user;
-
-	if ( user.empty() )
-	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user field.");
-
-	return;
-    } else if ( request_type == WebappRequestCode::logOut || request_type == WebappRequestCode::getMessages || request_type == WebappRequestCode::isAuthorized )
-    {
-	rqstream >> user;
-	rqstream >> channel_id;
-
-	if ( user.empty() || channel_id.empty() )
-	    throw BrokerError(ErrorType::protocolError,"WebappRequest: Missing user or channel_id field.");
-	return;
-    }
-
-    throw BrokerError(ErrorType::unimplemented,"WebappRequest");
-}
-
 
 /****************************** Responses *******************************/
 

@@ -14,4 +14,5 @@
 * 5: Internal error -- database inconsistency
 * 6: Internal error -- message relay not reachable
 * 7: Internal error -- channel could not be created.
+* 8: Internal error -- UNIMPLEMENTED
 

@@ -175,7 +175,7 @@ void webappDummy(void)
     {
 	std::string input;
 	char* s = new char[128];
-	chattp::WebappRequest req;
+	chattp::WebappRequestMessage req;
 
 	while ( std::cin.good() )
 	{
@@ -206,7 +206,7 @@ void webappDummy(void)
 		getline(raw_msg,user);
 		getline(raw_msg,pwd);
 
-		req.set_type(chattp::WebappRequest::REGISTER);
+		req.set_type(chattp::WebappRequestMessage::REGISTER);
 		req.set_user_name(user);
 		req.set_password(pwd);
 	    } else if ( cmd == "LOGIN" )
@@ -216,7 +216,7 @@ void webappDummy(void)
 		getline(raw_msg,user);
 		getline(raw_msg,pwd);
 
-		req.set_type(chattp::WebappRequest::LOGIN);
+		req.set_type(chattp::WebappRequestMessage::LOGIN);
 
 		req.set_user_name(user);
 		req.set_password(pwd);
@@ -228,13 +228,13 @@ void webappDummy(void)
 		getline(raw_msg,user);
 		getline(raw_msg,chanid);
 
-		req.set_type(chattp::WebappRequest::LOGOUT);
+		req.set_type(chattp::WebappRequestMessage::LOGOUT);
 		req.set_user_name(user);
 		req.set_channel_id(chanid);
 
 	    } else if ( cmd == "SNDMSG" )
 	    {
-		req.set_type(chattp::WebappRequest::SENDMESSAGE);
+		req.set_type(chattp::WebappRequestMessage::SENDMESSAGE);
 
 		chattp::ChattpMessage* mesg = req.mutable_mesg();
 
@@ -247,16 +247,16 @@ void webappDummy(void)
 	    {
 		getline(raw_msg,*(req.mutable_user_name()));
 
-		req.set_type(chattp::WebappRequest::QUERYSTATUS);
+		req.set_type(chattp::WebappRequestMessage::QUERYSTATUS);
 	    } else if ( cmd == "AUTHD" )
 	    {
-		req.set_type(chattp::WebappRequest::AUTHORIZED);
+		req.set_type(chattp::WebappRequestMessage::AUTHORIZED);
 
 		getline(raw_msg,*(req.mutable_user_name()));
 
 	    } else if ( cmd == "MSGGT" )
 	    {
-		req.set_type(chattp::WebappRequest::GETMESSAGES);
+		req.set_type(chattp::WebappRequestMessage::GETMESSAGES);
 
 		getline(raw_msg,*(req.mutable_user_name()));
 		getline(raw_msg,*(req.mutable_channel_id()));
@@ -272,7 +272,7 @@ void webappDummy(void)
 	std::string mesg, src;
 	src.resize(0);
 
-	chattp::WebappRequest req;
+	chattp::WebappRequestMessage req;
 
 	while ( true )
 	{
@@ -354,14 +354,14 @@ void messagerelayDummy(void)
 	src.resize(0);
 
 	chattp::MessageRelayResponse resp;
-	
+
 	while ( true )
 	{
 	    mesg.resize(2048);
 	    sock.rcvfrom(mesg,src);
 
 	    resp.ParseFromString(mesg);
-	    
+
 	    std::cout << resp.DebugString() << std::endl;
 	}
     }

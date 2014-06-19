@@ -7,6 +7,11 @@
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 
+# include <webapp.pb.h>
+
+using chattp::WebappRequestMessage;
+using chattp::WebappResponseMessage;
+
 using std::string;
 using std::istringstream;
 
@@ -17,36 +22,6 @@ using std::istringstream;
  * application; it's described in /doc/protocols/webapp-message-broker.mkd.
  */
 
-/**
- * @brief Channel ID type
- *
- * The channel id is used to identify a user's session; it should be a randomly generated
- * token of currently 64 lower-case characters.
- *
- * The same string is used as an identifier for a session in the nginx delivery back-end.
- */
-typedef string channel_id_t;
-
-/**
- * @brief Command types available for communication with us.
- */
-enum class WebappRequestCode {
-    /// UREG - register a user
-    registerUser,
-    /// LOGIN - mark user as online
-    logIn,
-    /// LOGOUT - mark user as offline
-    logOut,
-    /// SNDMSG - Send a message to another user.
-    sendMessage,
-    /// UONLQ - Ask if specified user is online.
-    isOnline,
-    /// MSGS - Ask for saved messages
-    getMessages,
-    /// ISAUTH
-    isAuthorized
-};
-
 /******************************** Process incoming requests ********************************/
 
 /**
@@ -56,28 +31,26 @@ enum class WebappRequestCode {
 class WebappRequest : public Receivable
 {
 public:
-    WebappRequest(const string&);
+    WebappRequest(const char* buffer, size_t length);
     WebappRequest(void) = default;
 
-    /// for UREG, LOGIN, LOGOUT, UONLQ, SNDMSG (sender's user name)
-    string user;
-    /// for UREG, LOGIN
-    string password;
+    const chattp::WebappRequestMessage& get_protobuf(void) const { return request_buffer; }
 
-    /// for SNDMSG, LOGOUT
-    channel_id_t channel_id;
-    /// for SNDMSG
-    string dest_user;
-    /// for SNDMSG
-    string message;
+	string channel_id_; // FIXME: Only temporary to silence the compiler (onPersistenceCHKDPASS())
 
-    sequence_t sequence_number;
-    WebappRequestCode request_type;
+    const sequence_t sequence_number(void) const { return request_buffer.sequence_number(); }
+    const WebappRequestMessage::WebappRequestType type(void) const { return request_buffer.type(); }
+    const string& user_name(void) const { return request_buffer.user_name(); }
+    const string& password(void) const { return request_buffer.password(); }
+    const string& channel_id(void) const { return request_buffer.channel_id(); }
+    const string& message_sender(void) const { return request_buffer.mesg().sender(); }
+    const string& message_receiver(void) const { return request_buffer.mesg().receiver(); }
+    const string& message_body(void) const { return request_buffer.mesg().body(); }
+    const bool is_group_message(void) const { return request_buffer.mesg().group_message(); }
+
 private:
-    void parseWebappRequest(const string& rq);
+    WebappRequestMessage request_buffer;
 };
-
-extern istringstream& operator>>(istringstream&, WebappRequestCode&);
 
 /****************************** Create outgoing responses ********************************/
 
