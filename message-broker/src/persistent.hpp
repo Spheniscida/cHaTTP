@@ -64,12 +64,12 @@ public:
     /// For MSGSV
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const chattp::ChattpMessage& message);
 
-    const chattp::PersistenceRequest& get_protobuf(void) const { return request; }
+    const chattp::PersistenceRequest& get_protobuf(void) const { return request_buffer; }
     string toString(void) const;
-    sequence_t sequence_number;
+    sequence_t sequence_number(void) const { return request_buffer.sequence_number(); };
 private:
 
-    chattp::PersistenceRequest request;
+    chattp::PersistenceRequest request_buffer;
 };
 
 # endif

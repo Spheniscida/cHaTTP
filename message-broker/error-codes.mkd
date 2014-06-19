@@ -6,7 +6,6 @@
 
 ## Numbers
 
-* 0: The given user doesn't exist.
 * 1: The given user is offline although he should actually be online for this action to succeed.
 * 2: The given user is not authorized to perform that action.
 * 3: The given user is online although he should actually be offline for this action (e.g. LOGIN)
@@ -18,3 +17,7 @@
 * 9: Internal error -- Another broker refused to accept the message.
 * 10: Internal error -- Wrong broker. Something's really gone wrong.
 * 11: Unknown error.
+* 12: Message relay refused to create this channel.
+* 13: The supplied password doesn't look right.
+* 14: Persistence did fail unexpectedly.
+* 15: The given user doesn't exist.

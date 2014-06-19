@@ -38,12 +38,12 @@ WebappRequest::WebappRequest(const char* buffer, size_t length)
  */
 WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc)
 {
-    if ( type == WebappResponseMessage::AUTHORIZED || type == WebappResponseMessage::GOTMESSAGES
-	|| type == WebappResponseMessage::LOGGEDIN || type == WebappResponseMessage::USERSTATUS )
+    if ( type != WebappResponseMessage::LOGGEDOUT && type != WebappResponseMessage::REGISTERED && type != WebappResponseMessage::SENTMESSAGE )
     {
-	throw BrokerError(ErrorType::argumentError,"WebappResponse: AUTHORIZED/LOGGEDIN/GOTMESSAGES/USERSTATUS need more information.");
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED or SENTMESSAGE, but got other type.");
     }
 
+    response_buffer.set_type(type);
     response_buffer.set_sequence_number(seq_num);
     response_buffer.set_status(response_status);
 
@@ -71,12 +71,14 @@ WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::Webapp
 WebappResponse::WebappResponse(sequence_t seq_num,
 			       WebappResponseMessage::WebappResponseType type,
 			       bool response_status,
-			       google::protobuf::RepeatedPtrField< chattp::ChattpMessage >::iterator begin,
-			       google::protobuf::RepeatedPtrField< chattp::ChattpMessage >::iterator end,
+			       google::protobuf::RepeatedPtrField< const chattp::ChattpMessage >::iterator begin,
+			       google::protobuf::RepeatedPtrField< const chattp::ChattpMessage >::iterator end,
 			       string error_desc)
 {
     if ( type != WebappResponseMessage::GOTMESSAGES )
+    {
 	throw BrokerError(ErrorType::argumentError, "WebappResponse: Expected GOTMESSAGES, but got other command type.");
+    }
 
     response_buffer.set_status(response_status);
     response_buffer.set_sequence_number(seq_num);
@@ -85,7 +87,7 @@ WebappResponse::WebappResponse(sequence_t seq_num,
     if ( response_status )
     {
 	// Ugly copy. Almost a hack (note the decltype... *sigh*)
-	for ( decltype(begin) it = begin; it != end; it++ )
+	for ( google::protobuf::RepeatedPtrField<const chattp::ChattpMessage>::iterator it = begin; it != end; it++ )
 	{
 	    *(response_buffer.add_mesgs()) = *it;
 	}
@@ -116,7 +118,9 @@ WebappResponse::WebappResponse(sequence_t seq_num,
 			       string error_desc)
 {
     if ( type != WebappResponseMessage::USERSTATUS && type != WebappResponseMessage::AUTHORIZED )
+    {
 	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected USERSTATUS or AUTHORIZED, but got other type.");
+    }
 
     response_buffer.set_sequence_number(seq_num);
     response_buffer.set_type(type);
@@ -155,7 +159,9 @@ WebappResponse::WebappResponse(sequence_t seq_num,
 			       string error_desc)
 {
     if ( type != WebappResponseMessage::LOGGEDIN )
+    {
 	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDIN, but got other.");
+    }
 
     response_buffer.set_sequence_number(seq_num);
     response_buffer.set_type(type);

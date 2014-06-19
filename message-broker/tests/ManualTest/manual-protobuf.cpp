@@ -129,7 +129,6 @@ void persistenceDummy(void)
 		cmsg->set_receiver(msgdata[1]);
 		cmsg->set_body(msgdata[2]);
 		cmsg->set_timestamp(msgdata[3]);
-		cmsg->set_group_message(false);
 	    } else if ( cmd == "MSGSVD" )
 	    {
 		getline(raw_msg, status);
@@ -139,7 +138,7 @@ void persistenceDummy(void)
 	    } else
 		continue;
 
-            std::cout << response.DebugString() << response.SerializeAsString() << std::endl;
+            std::cout << response.DebugString() << std::endl;
             sock.sndto(response.SerializeAsString(),global_broker_settings.getPersistenceLayerBindAddress().address);
 
 	}
@@ -242,17 +241,19 @@ void webappDummy(void)
 		getline(raw_msg,*(req.mutable_channel_id()));
 		getline(raw_msg,*(mesg->mutable_receiver()));
 		getline(raw_msg,*(mesg->mutable_body()));
+		mesg->set_timestamp("<dummy ts>");
 
 	    } else if ( cmd == "UONLQ" )
 	    {
 		getline(raw_msg,*(req.mutable_user_name()));
 
 		req.set_type(chattp::WebappRequestMessage::QUERYSTATUS);
-	    } else if ( cmd == "AUTHD" )
+	    } else if ( cmd == "ISAUTH" )
 	    {
 		req.set_type(chattp::WebappRequestMessage::AUTHORIZED);
 
 		getline(raw_msg,*(req.mutable_user_name()));
+		getline(raw_msg,*(req.mutable_channel_id()));
 
 	    } else if ( cmd == "MSGGT" )
 	    {
@@ -264,7 +265,7 @@ void webappDummy(void)
 	    } else
 		continue;
 
-	    std::cout << req.DebugString() << req.SerializeAsString() << std::endl;
+	    std::cout << req.DebugString() << std::endl;
 	    sock.sndto(req.SerializeAsString(),global_broker_settings.getWebappBindAddress().address);
 	}
     } else // parent -- receiving, writing to stdout
@@ -272,7 +273,7 @@ void webappDummy(void)
 	std::string mesg, src;
 	src.resize(0);
 
-	chattp::WebappRequestMessage req;
+	chattp::WebappResponseMessage req;
 
 	while ( true )
 	{
@@ -344,7 +345,7 @@ void messagerelayDummy(void)
 	    } else
 		continue;
 
-	    std::cout << resp.DebugString() << resp.SerializeAsString() << std::endl;
+	    std::cout << resp.DebugString() << std::endl;
 
 	    sock.sndto(resp.SerializeAsString(),global_broker_settings.getMessageRelayBindAddress().address);
 	}

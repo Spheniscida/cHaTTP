@@ -40,14 +40,14 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
-    request.set_type(code);
+    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_type(code);
 
     if ( code == PersistenceRequest::LOOKUP )
     {
-	*(request.add_lookup_users()) = user_name; // Persistence expects user names to be looked up in this field.
+	*(request_buffer.add_lookup_users()) = user_name; // Persistence expects user names to be looked up in this field.
     } else
-	request.set_user_name(user_name);
+	request_buffer.set_user_name(user_name);
 }
 
 /**
@@ -63,12 +63,12 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, but got other command type.");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
-    request.set_type(code);
+    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_type(code);
 
     for ( const string& u : user_names )
     {
-	*(request.add_lookup_users()) = u;
+	*(request_buffer.add_lookup_users()) = u;
     }
 }
 
@@ -83,12 +83,12 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password)
 {
     if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: UREG, CHKPASS or MSGSV, but got other command type.");
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected UREG or CHKPASS, but got other command type.");
 
-    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
-    request.set_type(code);
-    request.set_user_name(user);
-    request.set_password(password);
+    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_type(code);
+    request_buffer.set_user_name(user);
+    request_buffer.set_password(password);
 }
 
 /**
@@ -103,11 +103,11 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
 {
-    request.set_sequence_number(sequence_number = getNewSequenceNumber(SequenceCounter::PersistenceCounter));
-    request.set_type(code);
-    request.set_user_name(user);
-    request.set_broker_name(broker);
-    request.set_channel_id(channel);
+    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_type(code);
+    request_buffer.set_user_name(user);
+    request_buffer.set_broker_name(broker);
+    request_buffer.set_channel_id(channel);
 
     if ( code != PersistenceRequest::LOGIN )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOGIN, but got other command type.");
@@ -127,6 +127,9 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::SAVEMESSAGE )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected SAVEMESSAGE, but got other command type.");
 
+    request_buffer.set_type(code);
+    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    *request_buffer.mutable_mesg() = message;
 }
 
 /**
@@ -136,5 +139,5 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  */
 string PersistenceLayerCommand::toString(void) const
 {
-    return request.SerializeAsString();
+    return request_buffer.SerializeAsString();
 }

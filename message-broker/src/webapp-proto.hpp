@@ -60,8 +60,8 @@ public:
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, const string& channel_id, string error_desc);
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, bool online_authorized, string error_desc);
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status,
-		   google::protobuf::RepeatedPtrField<chattp::ChattpMessage>::iterator begin,
-		   google::protobuf::RepeatedPtrField<chattp::ChattpMessage>::iterator end,
+		   google::protobuf::RepeatedPtrField<const chattp::ChattpMessage>::iterator begin,
+		   google::protobuf::RepeatedPtrField<const chattp::ChattpMessage>::iterator end,
 		   string error_desc = "");
 
     string toString(void) const;
