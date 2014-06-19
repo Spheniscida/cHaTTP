@@ -23,52 +23,157 @@ WebappRequest::WebappRequest(const char* buffer, size_t length)
 
 /****************************** Responses *******************************/
 
-WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status, const string& error_desc, const string& response_data)
-    : payload(response_data),
-      error_message(error_desc),
-      sequence_number(seq_num),
-      response_type(type),
-      status(response_status)
+/**
+ * @brief Create a response to webapp for all message types only requiring a boolean status field.
+ *
+ * Those types are: LOGGEDOUT REGISTERED SENTMESSAGE
+ *
+ * @param seq_num The sequence number to use in the response.
+ * @param type
+ * @param response_status
+ * @param error_desc This error description is only used and transmitted if (! response_status). It should be containing
+ * a error code (number) followed by a comma and a human-readable message, as described in error-codes.mkd.
+ *
+ * @throws BrokerError (type argumentError) if a wrong `type` has been given.
+ */
+WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc)
 {
+    if ( type == WebappResponseMessage::AUTHORIZED || type == WebappResponseMessage::GOTMESSAGES
+	|| type == WebappResponseMessage::LOGGEDIN || type == WebappResponseMessage::USERSTATUS )
+    {
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: AUTHORIZED/LOGGEDIN/GOTMESSAGES/USERSTATUS need more information.");
+    }
+
+    response_buffer.set_sequence_number(seq_num);
+    response_buffer.set_status(response_status);
+
+    if ( ! response_status )
+    {
+	unsigned int error_code = removeErrorCode(error_desc);
+
+	response_buffer.set_error_code(error_code);
+	response_buffer.set_error_message(error_desc);
+    }
+}
+
+/**
+ * @brief Create a GOTMESSAGES response.
+ *
+ * @param seq_num The sequence number to use in the response.
+ * @param type
+ * @param response_status
+ * @param begin An iterator pointing to the beginning of a RepeatedPtrField containing several messages.
+ * @param end The iterator pointing to the end of the same container.
+ * @param error_desc An error description used if (! response_status).
+ *
+ * @throws BrokerError (type argumentError) if a wrong `type` has been given.
+ */
+WebappResponse::WebappResponse(sequence_t seq_num,
+			       WebappResponseMessage::WebappResponseType type,
+			       bool response_status,
+			       google::protobuf::RepeatedPtrField< chattp::ChattpMessage >::iterator begin,
+			       google::protobuf::RepeatedPtrField< chattp::ChattpMessage >::iterator end,
+			       string error_desc)
+{
+    if ( type != WebappResponseMessage::GOTMESSAGES )
+	throw BrokerError(ErrorType::argumentError, "WebappResponse: Expected GOTMESSAGES, but got other command type.");
+
+    response_buffer.set_status(response_status);
+    response_buffer.set_sequence_number(seq_num);
+    response_buffer.set_type(type);
+
+    if ( response_status )
+    {
+	// Ugly copy. Almost a hack (note the decltype... *sigh*)
+	for ( decltype(begin) it = begin; it != end; it++ )
+	{
+	    *(response_buffer.add_mesgs()) = *it;
+	}
+    } else
+    {
+	unsigned int error_code = removeErrorCode(error_desc);
+
+	response_buffer.set_error_code(error_code);
+	response_buffer.set_error_message(error_desc);
+    }
+}
+
+/**
+ * @brief Create a USERSTATUS or AUTHORIZED response.
+ *
+ * @param seq_num The sequence number to use in the response.
+ * @param type
+ * @param response_status
+ * @param online_authorized If the user is (respectively) online or authorized.
+ * @param error_desc An error description used if (! response_status).
+ *
+ * @throws BrokerError (type argumentError) if a wrong `type` has been given.
+ */
+WebappResponse::WebappResponse(sequence_t seq_num,
+			       WebappResponseMessage::WebappResponseType type,
+			       bool response_status,
+			       bool online_authorized,
+			       string error_desc)
+{
+    if ( type != WebappResponseMessage::USERSTATUS && type != WebappResponseMessage::AUTHORIZED )
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected USERSTATUS or AUTHORIZED, but got other type.");
+
+    response_buffer.set_sequence_number(seq_num);
+    response_buffer.set_type(type);
+    response_buffer.set_status(response_status);
+
+    if ( ! response_status )
+    {
+	unsigned int error_code = removeErrorCode(error_desc);
+
+	response_buffer.set_error_code(error_code);
+	response_buffer.set_error_message(error_desc);
+    } else
+    { // Only if the status is OK.
+	if ( type == WebappResponseMessage::AUTHORIZED )
+	    response_buffer.set_authorized(online_authorized);
+	else
+	    response_buffer.set_online(online_authorized);
+    }
+}
+
+/**
+ * @brief Create a LOGGEDIN response.
+ *
+ * @param seq_num The sequence number to use in the response.
+ * @param type
+ * @param response_status
+ * @param channel_id The new channel id.
+ * @param error_desc An error description used if (! response_status)
+ *
+ * @throws BrokerError (type argumentError) if a wrong `type` has been given.
+ */
+WebappResponse::WebappResponse(sequence_t seq_num,
+			       WebappResponseMessage::WebappResponseType type,
+			       bool response_status,
+			       const string& channel_id,
+			       string error_desc)
+{
+    if ( type != WebappResponseMessage::LOGGEDIN )
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDIN, but got other.");
+
+    response_buffer.set_sequence_number(seq_num);
+    response_buffer.set_type(type);
+    response_buffer.set_status(response_status);
+
+    if ( response_status )
+	response_buffer.set_channel_id(channel_id);
+    else
+    {
+	unsigned int error_code = removeErrorCode(error_desc);
+
+	response_buffer.set_error_code(error_code);
+	response_buffer.set_error_message(error_desc);
+    }
+
 }
 
 string WebappResponse::toString(void) const
 {
-    ostringstream ostr;
-
-    ostr << sequence_number << '\n';
-
-    bool want_error_message = !status && !error_message.empty();
-
-    switch ( response_type )
-    {
-	case WebappResponseCode::acceptedMessage:
-		ostr << "ACCMSG\n" << (status ? ok_code : "FAIL");
-		break;
-	case WebappResponseCode::isOnline:
-		ostr << "UONL\n" << (status ? "Y" : "N");
-		want_error_message = false;
-		break;
-	case WebappResponseCode::loggedIn:
-		ostr << "LGDIN\n" << (status ? ok_code + "\n" + payload : fail_code);
-		break;
-	case WebappResponseCode::loggedOut:
-		ostr << "LGDOUT\n" << (status ? ok_code  : fail_code);
-		break;
-	case WebappResponseCode::registeredUser:
-		ostr << "UREGD\n" << (status ? ok_code : fail_code);
-		break;
-	case WebappResponseCode::savedMessages:
-		ostr << "MSGS\n" << (status ? ok_code + "\n" + payload : fail_code);
-		break;
-	case WebappResponseCode::isAuthorized:
-		ostr << "AUTHD\n" << (status ? "Y" : "N");
-                want_error_message = false;
-		break;
-    }
-
-    if ( want_error_message )
-	ostr << "\n" << error_message;
-
-    return ostr.str();
+    return response_buffer.SerializeAsString();
 }

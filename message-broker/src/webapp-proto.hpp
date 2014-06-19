@@ -78,10 +78,18 @@ enum class WebappResponseCode {
 class WebappResponse
 {
 public:
-    WebappResponse(sequence_t seq_num, WebappResponseCode type, bool response_status = true, const string& error_message = "", const string& response_data = "");
+    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc); // No default value because ambiguity
+    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, const string& channel_id, string error_desc);
+    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, bool online_authorized, string error_desc);
+    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status,
+		   google::protobuf::RepeatedPtrField<chattp::ChattpMessage>::iterator begin,
+		   google::protobuf::RepeatedPtrField<chattp::ChattpMessage>::iterator end,
+		   string error_desc = "");
 
     string toString(void) const;
+    const chattp::WebappResponseMessage& get_protobuf(void) const { return response_buffer; }
 private:
+    WebappResponseMessage response_buffer;
     /// e.g. LGDIN <channel id> or messages
     string payload;
     /// an error message appended after FAIL

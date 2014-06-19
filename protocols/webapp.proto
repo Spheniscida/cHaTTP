@@ -21,9 +21,9 @@ message WebappRequestMessage
 
     required WebappRequestType type = 2;
 
-    optional string user_name = 3; // REGISTER LOGIN LOGOUT QUERYSTATUS GETMESSAGES AUTHORIZED (SENDMESSAGE)
-    optional string password = 4; // REGISTER LOGIN
-    optional string channel_id = 5; // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
+    optional string user_name = 3;                          // REGISTER LOGIN LOGOUT QUERYSTATUS GETMESSAGES AUTHORIZED (SENDMESSAGE)
+    optional string password = 4;                           // REGISTER LOGIN
+    optional string channel_id = 5;                         // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
 
     optional ChattpMessage mesg = 6;
 }
@@ -44,10 +44,12 @@ message WebappResponseMessage
     }
 
     required WebappResponseType type = 2;
-    optional bool status = 3 [default = true];
-    optional bool online = 4;
-    optional bool authorized = 5;
-    optional string channel_id = 6;
+    optional bool status = 3 [default = true];              // <any>
+    optional bool online = 4;                               // USERSTATUS
+    optional bool authorized = 5;                           // AUTHORIZED
+    optional string channel_id = 6;                         // LOGGEDIN
+    optional string error_message = 7;                      // <any>
+    optional uint32 error_code = 8;                         // <any>, described in error-codes.mkd
 
-    repeated ChattpMessage mesgs = 7;
+    repeated ChattpMessage mesgs = 9;                       // GOTMESSAGES
 }

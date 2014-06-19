@@ -15,4 +15,6 @@
 * 6: Internal error -- message relay not reachable
 * 7: Internal error -- channel could not be created.
 * 8: Internal error -- UNIMPLEMENTED
-
+* 9: Internal error -- Another broker refused to accept the message.
+* 10: Internal error -- Wrong broker. Something's really gone wrong.
+* 11: Unknown error.
