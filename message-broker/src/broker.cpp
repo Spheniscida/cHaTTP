@@ -861,7 +861,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    if ( loc.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
 	    {
-		MessageForRelay msg(original_webapp_request.channel_id(),original_webapp_request.get_protobuf().mesg());
+		MessageForRelay msg(loc.channel_id(),original_webapp_request.get_protobuf().mesg());
 		transaction.type = OutstandingType::messagerelayMSGSNT;
 
 		try
