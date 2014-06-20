@@ -22,17 +22,15 @@ using std::string;
 
 BOOST_AUTO_TEST_SUITE(MiscellaneousBrokerTests)
 
-BOOST_AUTO_TEST_CASE(global_sequence_number_init_1)
+BOOST_AUTO_TEST_CASE(sequence_number_init_1)
 {
-    initializeGlobalSequenceNumber();
-
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::PersistenceCounter),1);
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::B2BCounter),1);
+    BOOST_CHECK_EQUAL(persistence_counter.get(),1);
+    BOOST_CHECK_EQUAL(b2b_counter.get(),1);
 }
 
-BOOST_AUTO_TEST_CASE(global_sequence_number_after_increase)
+BOOST_AUTO_TEST_CASE(sequence_number_after_increase)
 {
-    BOOST_CHECK_EQUAL(getNewSequenceNumber(SequenceCounter::PersistenceCounter),2);
+    BOOST_CHECK_EQUAL(persistence_counter.get(),2);
 }
 
 BOOST_AUTO_TEST_CASE(remove_error_code1)

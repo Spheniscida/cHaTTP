@@ -40,7 +40,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
 
-    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
 
     if ( code == PersistenceRequest::LOOKUP )
@@ -63,7 +63,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::LOOKUP )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, but got other command type.");
 
-    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
 
     for ( const string& u : user_names )
@@ -85,7 +85,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
     if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected UREG or CHKPASS, but got other command type.");
 
-    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
     request_buffer.set_user_name(user);
     request_buffer.set_password(password);
@@ -103,7 +103,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
 {
-    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
     request_buffer.set_user_name(user);
     request_buffer.set_broker_name(broker);
@@ -128,7 +128,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected SAVEMESSAGE, but got other command type.");
 
     request_buffer.set_type(code);
-    request_buffer.set_sequence_number(getNewSequenceNumber(SequenceCounter::PersistenceCounter));
+    request_buffer.set_sequence_number(persistence_counter.get());
     *request_buffer.mutable_mesg() = message;
 }
 

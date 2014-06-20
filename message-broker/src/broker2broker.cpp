@@ -13,7 +13,7 @@ namespace {
  * @brief Initialize an outgoing message of SNDMSG type.
  */
 MessageForB2B::MessageForB2B(const string& sender,const string& msg, const string& chan_id)
-    : sequence_number(getNewSequenceNumber(SequenceCounter::B2BCounter)),
+    : sequence_number(b2b_counter.get()),
     message(msg),
     sender_username(sender),
     channel_id(chan_id),

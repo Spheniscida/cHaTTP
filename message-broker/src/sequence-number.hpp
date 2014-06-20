@@ -6,15 +6,16 @@
 /// A type for sequence numbers.
 typedef unsigned long long sequence_t;
 
+class SequenceCounter
+{
+public:
+    SequenceCounter(void) { current_number = 1; }
+    sequence_t get(void) { return current_number++; }
 
-enum class SequenceCounter {
-    PersistenceCounter,
-    MessageRelayCounter,
-    B2BCounter
+private:
+    std::atomic<sequence_t> current_number;
 };
 
-extern sequence_t getNewSequenceNumber(SequenceCounter which);
-
-extern void initializeGlobalSequenceNumber(void);
+extern SequenceCounter message_relay_counter, persistence_counter, b2b_counter;
 
 # endif
