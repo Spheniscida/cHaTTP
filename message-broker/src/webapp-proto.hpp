@@ -37,15 +37,15 @@ public:
 
 	string channel_id_; // FIXME: Only temporary to silence the compiler (onPersistenceCHKDPASS())
 
-    const sequence_t sequence_number(void) const { return request_buffer.sequence_number(); }
-    const WebappRequestMessage::WebappRequestType type(void) const { return request_buffer.type(); }
+    sequence_t sequence_number(void) const { return request_buffer.sequence_number(); }
+    WebappRequestMessage::WebappRequestType type(void) const { return request_buffer.type(); }
     const string& user_name(void) const { return request_buffer.user_name(); }
     const string& password(void) const { return request_buffer.password(); }
     const string& channel_id(void) const { return request_buffer.channel_id(); }
     const string& message_sender(void) const { return request_buffer.mesg().sender(); }
     const string& message_receiver(void) const { return request_buffer.mesg().receiver(); }
     const string& message_body(void) const { return request_buffer.mesg().body(); }
-    const bool is_group_message(void) const { return request_buffer.mesg().group_message(); }
+    bool is_group_message(void) const { return request_buffer.mesg().group_message(); }
 
 private:
     WebappRequestMessage request_buffer;

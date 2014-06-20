@@ -3,6 +3,12 @@
 
 # include <string>
 
+# include <messagerelay.pb.h>
+# include <message.pb.h>
+
+using chattp::ChattpMessage;
+using chattp::MessageRelayRequest;
+
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 
@@ -17,16 +23,14 @@ enum class MessageForRelayType {
 class MessageForRelay
 {
 public:
-    MessageForRelay(const string& sender, const string& mesg, const string& chan_id);
-    MessageForRelay(const string& chan_id, MessageForRelayType action_type);
+    MessageForRelay(const string& channel_id, const ChattpMessage& mesg);
+    MessageForRelay(const string& chan_id, MessageRelayRequest::MessageRelayRequestType action_type);
 
-    string toString(void) const;
-    const sequence_t seq_num;
+    string toString(void) const { return request_buffer.SerializeAsString(); }
+    sequence_t sequence_number(void) const { return request_buffer.sequence_number(); };
+
 private:
-    string message;
-    string sender_user;
-    string channel_id;
-    MessageForRelayType type;
+    MessageRelayRequest request_buffer;
 };
 
 enum class MessageRelayResponseType {
@@ -38,13 +42,14 @@ enum class MessageRelayResponseType {
 class MessageRelayResponse : public Receivable
 {
 public:
-    MessageRelayResponse(const string& response);
+    MessageRelayResponse(const char* buffer, size_t length);
 
-    sequence_t sequence_number;
-    MessageRelayResponseType response_type;
-    bool status;
+    sequence_t sequence_number(void) const { return response_buffer.sequence_number(); }
+    chattp::MessageRelayResponse::MessageRelayResponseType type(void) const { return response_buffer.type(); }
+    bool status(void) const { return response_buffer.status(); }
 private:
-    void parseMessage(const string& mesg);
+
+    chattp::MessageRelayResponse response_buffer;
 };
 
 # endif

@@ -190,7 +190,7 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
     else if ( sock == unix_persistence_sock )
 	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == unix_msgrelay_sock )
-	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer,received_size)));
     else
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromUNIX: Unknown socket encountered!");
 }
@@ -218,7 +218,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
     else if ( sock == inet_persistence_sock )
 	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == inet_msgrelay_sock )
-	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer,received_size)));
     else if ( sock == inet_b2b_sock )
 	return (static_cast<Receivable*>(new B2BIncoming(message_receiver_buffer,string(inet_sender,last_inet_sender_size))));
     else

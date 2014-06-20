@@ -110,15 +110,15 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 
 void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg)
 {
-    switch ( msg->response_type )
+    switch ( msg->type() )
     {
-	case MessageRelayResponseType::messageSent:
+	case chattp::MessageRelayResponse::SENTMESSAGE:
 	    onMessagerelayMSGSNT(*msg);
 	    break;
-	case MessageRelayResponseType::channelDeleted:
+	case chattp::MessageRelayResponse::DELETEDCHANNEL:
 	    onMessagerelayDELTDCHAN(*msg);
 	    break;
-	case MessageRelayResponseType::channelCreated:
+	case chattp::MessageRelayResponse::CREATEDCHANNEL:
 	    onMessagerelayCHANCREAT(*msg);
 	    break;
     }
@@ -157,12 +157,17 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 
     transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
 
-    MessageForRelay relaymsg(msg.sender_username,msg.message,msg.channel_id);
+    ChattpMessage mesg;
+    mesg.set_body("<dummybody>");
+    mesg.set_sender("<dummysender>");
+    mesg.set_receiver("<dummyreceiver>");
+    mesg.set_timestamp("<dummytimestamp>");
+    MessageForRelay relaymsg(msg.channel_id,mesg);
 
     try
     {
 	communicator.send(relaymsg);
-	transaction_cache.insertTransaction(relaymsg.seq_num,transaction);
+	transaction_cache.insertTransaction(relaymsg.sequence_number(),transaction);
     } catch (libsocket::socket_exception e)
     {
 	MessageForB2B failmsg(msg.sequence_number,false);
@@ -433,7 +438,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	// Send to message relay (other implementation is in onPersistenceULKDUP)
 	if ( receiver.online && receiver.broker_name == global_broker_settings.getMessageBrokerName() )
 	{
-	    MessageForRelay msg(rq.message_receiver(),rq.message_body(), receiver.channel_id);
+	    MessageForRelay msg(receiver.channel_id,rq.get_protobuf().mesg());
 
 	    try
 	    {
@@ -441,7 +446,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
 		messages_processed++;
 		transaction.type = OutstandingType::messagerelayMSGSNT;
-		transaction_cache.insertTransaction(msg.seq_num,transaction);
+		transaction_cache.insertTransaction(msg.sequence_number(),transaction);
 	    } catch (libsocket::socket_exception e)
 	    {
 		// Message relay is offline (unreachable), therefore save that message.
@@ -747,14 +752,14 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 	// That's this hacky construction again -- the channel_id was not actually in that request!
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	MessageForRelay newchanmsg(original_webapp_request.channel_id_,MessageForRelayType::createChannel);
+	MessageForRelay newchanmsg(original_webapp_request.channel_id_,MessageRelayRequest::CREATECHANNEL);
 
 	try
 	{
 	    communicator.send(newchanmsg);
 
 	    transaction.type = OutstandingType::messagerelayCHANCREAT;
-	    transaction_cache.eraseAndInsertTransaction(seqnum,newchanmsg.seq_num,transaction);
+	    transaction_cache.eraseAndInsertTransaction(seqnum,newchanmsg.sequence_number(),transaction);
 	} catch (libsocket::socket_exception e)
 	{
 	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"6,Internal error! (Channel registration failed b/c relay is down)");
@@ -856,14 +861,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    if ( loc.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
 	    {
-		MessageForRelay msg(original_webapp_request.message_sender(),original_webapp_request.message_body(), loc.channel_id());
-
+		MessageForRelay msg(original_webapp_request.channel_id(),original_webapp_request.get_protobuf().mesg());
 		transaction.type = OutstandingType::messagerelayMSGSNT;
 
 		try
 		{
 		    communicator.send(msg);
-		    transaction_cache.eraseAndInsertTransaction(seqnum,msg.seq_num,transaction);
+		    transaction_cache.eraseAndInsertTransaction(seqnum,msg.sequence_number(),transaction);
 		} catch (libsocket::socket_exception e)
 		{
 		    // Message relay is offline, therefore save that message.
@@ -1188,10 +1192,10 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	// online predicate is checked before broker_name and channel_id; those may be left empty.
 	user_cache.insertUserInCache(original_webapp_request.user_name(),string(),string(),false);
 
-	MessageForRelay delchanmsg(original_webapp_request.channel_id(),MessageForRelayType::deleteChannel);
+	MessageForRelay delchanmsg(original_webapp_request.channel_id(),MessageRelayRequest::DELETECHANNEL);
 
 	transaction.type = OutstandingType::messagerelayDELTDCHAN;
-	transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.seq_num,transaction);
+	transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.sequence_number(),transaction);
 
 	communicator.send(delchanmsg);
     } else if ( transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
@@ -1254,7 +1258,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 {
     // After onPersistenceULKDUP
 
-    const sequence_t seqnum = rp.sequence_number;
+    const sequence_t seqnum = rp.sequence_number();
 
     OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
@@ -1271,7 +1275,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	if ( rp.status )
+	if ( rp.status() )
 	{
 	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,"");
 
@@ -1304,7 +1308,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
     {
 	const string& message_sender_broker = transaction_cache.lookupB2BOrigin(transaction.original_sequence_number);
 
-	MessageForB2B mesg(transaction.original_sequence_number,rp.status);
+	MessageForB2B mesg(transaction.original_sequence_number,rp.status());
 
 	// UDP doesn't fail.
 	communicator.send(mesg,message_sender_broker);
@@ -1322,7 +1326,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 void ProtocolDispatcher::onMessagerelayDELTDCHAN(const MessageRelayResponse& rp)
 {
-    const sequence_t seqnum = rp.sequence_number;
+    const sequence_t seqnum = rp.sequence_number();
 
     OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
@@ -1341,7 +1345,7 @@ void ProtocolDispatcher::onMessagerelayDELTDCHAN(const MessageRelayResponse& rp)
 
 void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 {
-    const sequence_t seqnum = rp.sequence_number;
+    const sequence_t seqnum = rp.sequence_number();
 
     OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
@@ -1358,11 +1362,11 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-        if ( rp.status )
+        if ( rp.status() )
 	{
             user_cache.insertUserInCache(original_webapp_request.user_name(),original_webapp_request.channel_id_,global_broker_settings.getMessageBrokerName(),true);
 
-	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,rp.status,original_webapp_request.channel_id_,"12,Channel couldn't be created");
+	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,rp.status(),original_webapp_request.channel_id_,"12,Channel couldn't be created");
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
