@@ -20,6 +20,8 @@
 * 12: Message relay refused to create this channel.
 * 13: The supplied password doesn't look right.
 * 14: Persistence did fail unexpectedly.
-* 15: The given user doesn't exist.
+* 15: The given user doesn't exist. It is improbable
+    but possible that this is actually a different error (15 actually means that persistence returned
+    FAIL in return to a lookup operation)
 * 16: Webapp error -- the broker couldn't be reached.
-
+* 17: Unknown error from persistence.

@@ -295,10 +295,10 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 
 	if ( ! cached_user.online )
 	    error_string = "1,User is already offline";
+	else if ( cached_user.broker_name != global_broker_settings.getMessageBrokerName() )
+	    error_string = "10,Logout on wrong broker.";
 	else if ( cached_user.channel_id != rq.channel_id() )
 	    error_string = "2,Logout: authentication error (wrong channel id)";
-	else if ( cached_user.broker_name != global_broker_settings.getMessageBrokerName() )
-	    error_string = "15,Logout on wrong broker.";
 
 	// offline or unauthenticated -- deny!
 	WebappResponse resp(seqnum,WebappResponseMessage::LOGGEDOUT,false,error_string);
@@ -764,25 +764,35 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 
     if ( transaction.type == OutstandingType::persistenceLGDIN )
     {
-	// That's this hacky construction again -- the channel_id was not actually in that request!
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
-
-	MessageForRelay newchanmsg(original_webapp_request.channel_id_,MessageRelayRequest::CREATECHANNEL);
-
-	try
+	if ( rp.status() )
 	{
-	    communicator.send(newchanmsg);
+	    // That's this hacky construction again -- the channel_id was not actually in that request!
+	    MessageForRelay newchanmsg(original_webapp_request.channel_id_,MessageRelayRequest::CREATECHANNEL);
 
-	    transaction.type = OutstandingType::messagerelayCHANCREAT;
-	    transaction_cache.eraseAndInsertTransaction(seqnum,newchanmsg.sequence_number(),transaction);
-	} catch (libsocket::socket_exception e)
+	    try
+	    {
+		communicator.send(newchanmsg);
+
+		transaction.type = OutstandingType::messagerelayCHANCREAT;
+		transaction_cache.eraseAndInsertTransaction(seqnum,newchanmsg.sequence_number(),transaction);
+	    } catch (libsocket::socket_exception e)
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"6,Internal error! (Channel registration failed b/c relay is down)");
+		communicator.send(failresp);
+
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		transaction_cache.eraseTransaction(seqnum);
+		throw e;
+	    }
+	} else
 	{
-	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"6,Internal error! (Channel registration failed b/c relay is down)");
+	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"17,Persistence denied login");
+
 	    communicator.send(failresp);
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
-	    throw e;
 	}
     } else
     {
@@ -810,24 +820,97 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	return;
     }
 
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+    // We abort the transaction if it failed or no users were returned (both conditions should normally be true)
+    if ( ! rp.status() || rp.get_protobuf().user_locations_size() < 1 )
+    {
+	WebappResponseMessage::WebappResponseType type;
+
+	switch ( transaction.type )
+	{
+	    case OutstandingType::persistenceSndmsgSenderULKDUP:
+		// Intentionally left blank
+	    case OutstandingType::persistenceSndmsgReceiverULKDUP:
+		type = WebappResponseMessage::SENTMESSAGE;
+		break;
+	    case OutstandingType::persistenceUonlqULKDUP:
+		type = WebappResponseMessage::USERSTATUS;
+		break; //  login logout messageget isauth
+	    case OutstandingType::persistenceLoginULKDUP:
+		type = WebappResponseMessage::LOGGEDIN;
+		break;
+	    case OutstandingType::persistenceLogoutULKDUP:
+		type = WebappResponseMessage::LOGGEDOUT;
+		break;
+	    case OutstandingType::persistenceMessageGetULKDUP:
+		type = WebappResponseMessage::GOTMESSAGES;
+		break;
+	    case OutstandingType::persistenceIsauthULKDUP:
+		type = WebappResponseMessage::AUTHORIZED;
+		break;
+	    default:
+		throw BrokerError(ErrorType::genericImplementationError,"This should not have happened – unexpected transaction type in onPersistenceULKDUP");
+	}
+
+	const string error_message = "15,User doesn't exist (whatever, Persistence failed)";
+
+	switch ( type )
+	{
+	    case WebappResponseMessage::LOGGEDOUT:
+	    case WebappResponseMessage::SENTMESSAGE:
+	    case WebappResponseMessage::REGISTERED:
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,error_message);
+		communicator.send(failresp);
+	    }
+		break;
+	    case WebappResponseMessage::GOTMESSAGES:
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,
+		    rp.get_protobuf().mesgs().begin(),rp.get_protobuf().mesgs().begin(),error_message); // no iterations allowed (it1 == it2)
+		communicator.send(failresp);
+	    }
+		break;
+	    case WebappResponseMessage::USERSTATUS:
+	    case WebappResponseMessage::AUTHORIZED:
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,false,error_message);
+		communicator.send(failresp);
+	    }
+		break;
+	    case WebappResponseMessage::LOGGEDIN:
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,string(""),error_message);
+		communicator.send(failresp);
+	    }
+		break;
+	}
+
+
+	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+
     // We are in the process of sending a message and we just received information on the sender.
     // Is the sender authorized? If yes, ask for the receiver's information and return. If not,
     // respond with an error.
     if ( transaction.type == OutstandingType::persistenceSndmsgSenderULKDUP )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::SENDMESSAGE )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type SENDMESSAGE; however, this is not the case.");
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
 
-	if ( !rp.status() || ! loc.online() || loc.channel_id() != original_webapp_request.channel_id() || loc.broker_name() != global_broker_settings.getMessageBrokerName() )
+	if ( ! loc.online() || loc.channel_id() != original_webapp_request.channel_id() || loc.broker_name() != global_broker_settings.getMessageBrokerName() )
 	{
 	    string error_message;
 
-	    if ( ! rp.status() )
-		error_message = "15,Sender doesn't exist";
-	    else if ( ! loc.online() )
+	    if ( ! loc.online() )
 		error_message = "1,Sender is offline";
 	    else if ( loc.channel_id() != original_webapp_request.channel_id() )
 		error_message = "2,Sender unauthorized";
@@ -864,9 +947,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceSndmsgReceiverULKDUP )
     {
-	// send to persistence
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::SENDMESSAGE )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
 
+	// send to persistence
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	user_cache.insertUserInCache(original_webapp_request.message_receiver(),loc.channel_id(),loc.broker_name(),loc.online());
@@ -972,12 +1056,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	if ( original_webapp_request.type() != WebappRequestMessage::QUERYSTATUS )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type QUERYSTATUS; however, this is not the case.");
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	// Respond to the "is user online?" request.
-	WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,rp.status(),
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,rp.status() /* is true here! */,
 			    loc.online() &&
 			    (global_broker_settings.getClusteredMode() || loc.broker_name() == global_broker_settings.getMessageBrokerName()),
 			    "15,User probably doesn't exist"
@@ -992,10 +1077,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	communicator.send(resp);
     } else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
-
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGOUT )
-	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type logOut; however, this is not the case.");
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
@@ -1032,8 +1115,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		error_message = "1,User is already offline";
 	    else if ( loc.channel_id() != original_webapp_request.channel_id() )
 		error_message = "2,User not authorized to do logout";
-	    else if ( ! rp.status() )
-		error_message = "15,User doesn't exist/Internal error";
+	    else if ( loc.broker_name() != global_broker_settings.getMessageBrokerName() )
+		error_message = "10,Wrong broker!";
 
 	    // User is not authorized to do a LOGOUT operation.
 	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,false,error_message);
@@ -1045,7 +1128,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	}
     } else if ( transaction.type == OutstandingType::persistenceLoginULKDUP )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGIN )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGIN; however, this is not the case.");
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
@@ -1090,9 +1174,9 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceMessageGetULKDUP )
     {
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::GETMESSAGES )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type GETMESSAGES; however, this is not the case.");
 	// Next: send msggt to persistence.
-
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
@@ -1140,8 +1224,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceIsauthULKDUP )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
-
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::AUTHORIZED )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
 	if ( rp.status() )
 	{
 	    PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
@@ -1229,7 +1313,8 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	communicator.send(resp);
 
 	// online predicate is checked before broker_name and channel_id; those may be left empty.
-	user_cache.insertUserInCache(original_webapp_request.user_name(),string(),string(),false);
+	if ( rp.status() )
+	    user_cache.insertUserInCache(original_webapp_request.user_name(),string(),string(),false);
 
 	MessageForRelay delchanmsg(original_webapp_request.channel_id(),MessageRelayRequest::DELETECHANNEL);
 
