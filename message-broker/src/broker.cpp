@@ -158,12 +158,7 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 
     transaction_cache.insertB2BOrigin(seqnum,msg.origin_broker);
 
-    ChattpMessage mesg;
-    mesg.set_body("<dummybody>");
-    mesg.set_sender("<dummysender>");
-    mesg.set_receiver("<dummyreceiver>");
-    mesg.set_timestamp("<dummytimestamp>");
-    MessageForRelay relaymsg(msg.channel_id(),mesg);
+    MessageForRelay relaymsg(msg.channel_id(),msg.get_protobuf().mesg());
 
     try
     {
