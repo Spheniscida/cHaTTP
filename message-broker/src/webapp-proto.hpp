@@ -35,7 +35,7 @@ public:
 
     const chattp::WebappRequestMessage& get_protobuf(void) const { return request_buffer; }
 
-	string channel_id_; // FIXME: Only temporary to silence the compiler (onPersistenceCHKDPASS())
+	string channel_id_; // This field stores the channel id for LOGIN operations, i.e. when the WebappRequest object is in the webapp request cache.
 
     sequence_t sequence_number(void) const { return request_buffer.sequence_number(); }
     WebappRequestMessage::WebappRequestType type(void) const { return request_buffer.type(); }
