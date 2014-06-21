@@ -38,7 +38,8 @@ The answers from the web server MUST be in JSON format. Fields that are always a
 
 * "status" (boolean) -- success or fail
 * "error" (string) -- reason for fail, empty on success
-* "type" (string) -- type of transaction; this may be `logged-in`, `registered`, `logged-out`, `message-accepted` and `isonline`.
+* "error-code" (integer) -- a message-broker error code (cf. message-broker/error-codes.mkd). Its value is 0 if there was no error or the broker didn't provide an explicit code.
+* "type" (string) -- type of transaction; this may be `logged-in`, `registered`, `logged-out`, `message-accepted`, `saved-messages` and `isonline`.
 The names stay the same on errors; `message-accepted` with `status == false` means that the message hasn't been accepted.
 
 Additional fields are described for each command.
@@ -102,10 +103,10 @@ in turn allows any characters to be used in the message content. You may want to
 
     GET $base/chattp_request/isonline?user_name=<user>
 
-Asks if the specified user is online. If he is, the JSON object in the reply body will have its "status" field set to `true`, else to `false`.
-It is also set to `false` if the specified user doesn't exist. The "type" field is set to "isonline".
+Asks if the specified user is online; the `status` field indicates success (i.e. the user exists) while the
+separate `online` field informs about the actual status.
 
-**See "http-messages.mkd" for how to receive messages.**
+**See "http-messages.mkd" for how to receive live messages.**
 
 ### Receiving saved messages
 
@@ -143,5 +144,5 @@ a) The settings that were uploaded were valid JSON.
 b) The settings that were uploaded were not valid JSON.
 
 → A JSON object similar to that one above is returned, but the `settings` field does not contain a JSON object but a string.
-This string contains the uploaded settings.
+This string contains the uploaded settings in whatever format you uploaded them (I hope for you that it wasn't XML).
 

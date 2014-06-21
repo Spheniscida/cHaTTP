@@ -1,17 +1,20 @@
 module Chattp.Webapp.InternalCommunication where
 
+import Chattp.WebappResponseMessage as Rp
+import Chattp.WebappRequestMessage as Rq
+
 import Chattp.Webapp.Protocol
 
 import Control.Concurrent
 
 import qualified Data.HashTable.IO as HT
 
-type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan BrokerAnswer)
+type DispatcherTable = HT.BasicHashTable SequenceNumber (Chan WebappResponseMessage)
 
-data CenterRequestOrResponse = RegisterSequenceNumber (SequenceNumber,Chan BrokerAnswer) | BrokerCenterResponse BrokerAnswerMessage
+data CenterRequestOrResponse = RegisterSequenceNumber (SequenceNumber,Chan WebappResponseMessage) | BrokerCenterResponse WebappResponseMessage
 
 data ChanInfo = ChanInfo { requestsAndResponsesToCenterChan :: Chan CenterRequestOrResponse,
-                           brokerRequestChan :: Chan BrokerRequestMessage,
+                           brokerRequestChan :: Chan WebappRequestMessage,
                            sequenceCounterChan :: Chan (Chan SequenceNumber) }
 
 -- This thread ensures unique sequence numbers.
@@ -33,16 +36,16 @@ centerThread centerchan = do
             msg <- readChan chan
             case msg of
                 RegisterSequenceNumber (seqn,backchan) -> HT.insert tbl seqn backchan
-                BrokerCenterResponse (BrokerAnswerMessage seqn answer) -> sendResponseToFCGI tbl seqn answer
+                BrokerCenterResponse rp -> sendResponseToFCGI tbl rp
             manager chan tbl
           ----------------------------------------------------------------------------------
-          sendResponseToFCGI :: DispatcherTable -> SequenceNumber -> BrokerAnswer -> IO () -- Look up the channel of that sequence number and reply with the BrokerAnswer
-          sendResponseToFCGI tbl seqn answer = do
-                backchan <- HT.lookup tbl seqn
-                HT.delete tbl seqn
+          sendResponseToFCGI :: DispatcherTable -> WebappResponseMessage -> IO () -- Look up the channel of that sequence number and reply with the BrokerAnswer
+          sendResponseToFCGI tbl rp = do
+                backchan <- HT.lookup tbl (fromIntegral $ Rp.sequence_number rp)
+                HT.delete tbl (fromIntegral $ Rp.sequence_number rp)
                 case backchan of
                     Nothing -> return () -- "Dangling transaction"
-                    Just fcgichan -> writeChan fcgichan answer
+                    Just fcgichan -> writeChan fcgichan rp
 
 
 
