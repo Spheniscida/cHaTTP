@@ -18,6 +18,7 @@ MessageForB2B::MessageForB2B(const chattp::ChattpMessage& mesg, const string& ch
  */
 MessageForB2B::MessageForB2B(sequence_t seq_num, bool status)
 {
+    message_buffer.set_sequence_number(seq_num);
     message_buffer.set_type(B2BMessage::MESSAGESENT);
     message_buffer.set_status(status);
 }
