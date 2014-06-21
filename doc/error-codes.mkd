@@ -1,4 +1,4 @@
-# Error codes returned from the message broker
+# Error codes.
 
 ## Format
 
@@ -25,3 +25,4 @@
     FAIL in return to a lookup operation)
 * 16: Webapp error -- the broker couldn't be reached.
 * 17: Unknown error from persistence.
+* 18: Timeout in webapp.

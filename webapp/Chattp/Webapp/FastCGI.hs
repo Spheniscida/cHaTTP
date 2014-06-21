@@ -29,6 +29,8 @@ import Control.Concurrent.Chan
 
 import Database.Redis
 
+import System.Timeout
+
 -- This function will be run by runFastCGIConcurrent
 
 fcgiMain :: Connection -> ChanInfo -> CGI CGIResult
