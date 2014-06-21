@@ -126,12 +126,12 @@ void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayRespon
 
 void ProtocolDispatcher::handleBrokerMessage(shared_ptr<B2BIncoming> msg)
 {
-    switch ( msg->type )
+    switch ( msg->type() )
     {
-	case B2BMessageType::B2BSNDMSG:
+	case B2BMessage::SENDMESSAGE:
 	    onB2BSNDMSG(*msg);
 	    break;
-	case B2BMessageType::B2BMSGSNT:
+	case B2BMessage::MESSAGESENT:
 	    onB2BMSGSNT(*msg);
 	    break;
     }
@@ -141,28 +141,29 @@ void ProtocolDispatcher::handleBrokerMessage(shared_ptr<B2BIncoming> msg)
 
 void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 {
+    const sequence_t seqnum = msg.sequence_number();
     OutstandingTransaction transaction;
 
     transaction.type = OutstandingType::messagerelayB2BMSGSNT;
-    transaction.original_sequence_number = msg.sequence_number;
+    transaction.original_sequence_number = seqnum;
 
     if ( ! global_broker_settings.getClusteredMode() ) // Shouldn't happen.
     {
-	MessageForB2B failmsg(msg.sequence_number,false);
+	MessageForB2B failmsg(seqnum,false);
 
 	communicator.send(failmsg,msg.origin_broker);
 
 	return;
     }
 
-    transaction_cache.insertB2BOrigin(msg.sequence_number,msg.origin_broker);
+    transaction_cache.insertB2BOrigin(seqnum,msg.origin_broker);
 
     ChattpMessage mesg;
     mesg.set_body("<dummybody>");
     mesg.set_sender("<dummysender>");
     mesg.set_receiver("<dummyreceiver>");
     mesg.set_timestamp("<dummytimestamp>");
-    MessageForRelay relaymsg(msg.channel_id,mesg);
+    MessageForRelay relaymsg(msg.channel_id(),mesg);
 
     try
     {
@@ -170,7 +171,7 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 	transaction_cache.insertTransaction(relaymsg.sequence_number(),transaction);
     } catch (libsocket::socket_exception e)
     {
-	MessageForB2B failmsg(msg.sequence_number,false);
+	MessageForB2B failmsg(seqnum,false);
 
 	// This one should work because we received this message!
 	communicator.send(failmsg,msg.origin_broker);
@@ -180,21 +181,23 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 
 void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 {
-    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(msg.sequence_number);
+    const sequence_t seqnum = msg.sequence_number();
+
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number )
     {
 	debug_log("Received dangling transaction (B2B MSGSNT)");
 
-	transaction_cache.eraseTransaction(msg.sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
 
 	return;
     }
 
-    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,msg.status,"9,Couldn't deliver message");
+    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,msg.status(),"9,Couldn't deliver message");
 
     transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-    transaction_cache.eraseTransaction(msg.sequence_number);
+    transaction_cache.eraseTransaction(seqnum);
 
     communicator.send(resp);
 }
@@ -894,10 +897,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		}
 	    } else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
 	    {
-		MessageForB2B broker_message(original_webapp_request.message_sender(),original_webapp_request.message_body(),loc.channel_id());
+		MessageForB2B broker_message(original_webapp_request.get_protobuf().mesg(),loc.channel_id());
 
 		transaction.type = OutstandingType::b2bMSGSNT;
-		transaction_cache.eraseAndInsertTransaction(seqnum,broker_message.sequence_number,transaction);
+		transaction_cache.eraseAndInsertTransaction(seqnum,broker_message.sequence_number(),transaction);
 
 		// UDP doesn't fail
 		communicator.send(broker_message,loc.broker_name());

@@ -14,12 +14,6 @@ using chattp::MessageRelayRequest;
 
 using std::string;
 
-enum class MessageForRelayType {
-    sendMessage,
-    createChannel,
-    deleteChannel
-};
-
 class MessageForRelay
 {
 public:
@@ -33,16 +27,12 @@ private:
     MessageRelayRequest request_buffer;
 };
 
-enum class MessageRelayResponseType {
-    messageSent,
-    channelCreated,
-    channelDeleted
-};
-
 class MessageRelayResponse : public Receivable
 {
 public:
     MessageRelayResponse(const char* buffer, size_t length);
+
+    const chattp::MessageRelayResponse& get_protobuf(void) const { return response_buffer; }
 
     sequence_t sequence_number(void) const { return response_buffer.sequence_number(); }
     chattp::MessageRelayResponse::MessageRelayResponseType type(void) const { return response_buffer.type(); }
