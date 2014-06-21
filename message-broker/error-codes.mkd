@@ -21,3 +21,5 @@
 * 13: The supplied password doesn't look right.
 * 14: Persistence did fail unexpectedly.
 * 15: The given user doesn't exist.
+* 16: Webapp error -- the broker couldn't be reached.
+

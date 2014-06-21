@@ -47,5 +47,3 @@ centerThread centerchan = do
                     Nothing -> return () -- "Dangling transaction"
                     Just fcgichan -> writeChan fcgichan rp
 
-
-
