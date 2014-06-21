@@ -447,48 +447,65 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 		transaction_cache.insertTransaction(msg.sequence_number(),transaction);
 	    } catch (libsocket::socket_exception e)
 	    {
-		// Message relay is offline (unreachable), therefore save that message.
-		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
-
-		transaction.type = OutstandingType::persistenceMSGSVD;
-
-		try
+		if ( ! rq.get_protobuf().mesg().is_typing() && ! rq.get_protobuf().mesg().has_seen() )
 		{
-		    communicator.send(cmd);
-		    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-		} catch (libsocket::socket_exception e)
+		    // Message relay is offline (unreachable), therefore save that message.
+		    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
+
+		    transaction.type = OutstandingType::persistenceMSGSVD;
+
+		    try
+		    {
+			communicator.send(cmd);
+			transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+		    } catch (libsocket::socket_exception e)
+		    {
+			WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"Internal error! (Message relay down, Persistence too)");
+			communicator.send(failresp);
+
+			transaction_cache.eraseTransaction(seqnum);
+
+			throw e;
+		    }
+		} else
 		{
-		    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"Internal error! (Message relay down, Persistence too)");
-		    communicator.send(failresp);
+		    WebappResponse resp(seqnum,WebappResponseMessage::SENTMESSAGE,true,"");
 
-		    transaction_cache.eraseTransaction(seqnum);
-
-		    throw e;
+		    communicator.send(resp);
 		}
 	    }
 
 	} else if ( receiver.online && receiver.broker_name != global_broker_settings.getMessageBrokerName() ) // ...and not on this broker. Implicit: !clustered_mode
 	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"Internal error! (clustering disabled)");
+	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"16,Internal error! (clustering disabled)");
 	    communicator.send(failresp);
 
 	} else if ( ! receiver.online )
 	{
-	    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
-
-	    try
+	    // Discard meta-messages if they'd have to be stored.
+	    if ( ! rq.get_protobuf().mesg().is_typing() && ! rq.get_protobuf().mesg().has_seen() )
 	    {
-		communicator.send(cmd);
+		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
 
-		messages_processed++;
-		transaction.type = OutstandingType::persistenceMSGSVD;
-		transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    } catch (libsocket::socket_exception e)
+		try
+		{
+		    communicator.send(cmd);
+
+		    messages_processed++;
+		    transaction.type = OutstandingType::persistenceMSGSVD;
+		    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+		    communicator.send(failresp);
+
+		    throw e;
+		}
+	    } else
 	    {
-		WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"Internal error! (Persistence down)");
-		communicator.send(failresp);
+		WebappResponse resp(seqnum,WebappResponseMessage::SENTMESSAGE,true,"");
 
-		throw e;
+		communicator.send(resp);
 	    }
 	}
 
@@ -869,23 +886,35 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		} catch (libsocket::socket_exception e)
 		{
 		    // Message relay is offline, therefore save that message.
-		    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-		    transaction.type = OutstandingType::persistenceMSGSVD;
-
-		    try
+		    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
 		    {
-			communicator.send(cmd);
-			transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-		    } catch (libsocket::socket_exception e)
-		    {
-			WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
-			communicator.send(failresp);
+			PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
 
-			transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+			transaction.type = OutstandingType::persistenceMSGSVD;
+
+			try
+			{
+			    communicator.send(cmd);
+			    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+			} catch (libsocket::socket_exception e)
+			{
+			    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
+			    communicator.send(failresp);
+
+			    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+			    transaction_cache.eraseTransaction(seqnum);
+
+			    throw e;
+			}
+		    } else
+		    {
+			WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,string("6,Internal error! (Message relay down)"));
+
+			communicator.send(resp);
+
+			transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 			transaction_cache.eraseTransaction(seqnum);
 
-			throw e;
 		    }
 
 		    throw e;
@@ -907,25 +936,37 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
 		transaction_cache.eraseTransaction(seqnum);
 	    }
-	} else // Save message to persistence layer
+	} else // Save message to persistence layer...
 	{
-	    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-	    transaction.type = OutstandingType::persistenceMSGSVD;
-
-	    try
+	    // ...but only if it's no "meta message" (those are useless if not transmitted in real-time)
+	    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
 	    {
-		communicator.send(cmd);
-		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-	    } catch (libsocket::socket_exception e)
+		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
+
+		transaction.type = OutstandingType::persistenceMSGSVD;
+
+		try
+		{
+		    communicator.send(cmd);
+		    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+		    communicator.send(failresp);
+
+		    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		    transaction_cache.eraseTransaction(seqnum);
+
+		    throw e;
+		}
+	    } else
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
-		communicator.send(failresp);
+		WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,string(""));
+
+		communicator.send(resp);
 
 		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 		transaction_cache.eraseTransaction(seqnum);
-
-		throw e;
 	    }
 	}
 
@@ -1273,7 +1314,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	if ( rp.status() )
+	if ( rp.status() || (original_webapp_request.get_protobuf().mesg().is_typing() || original_webapp_request.get_protobuf().mesg().has_seen()) )
 	{
 	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,"");
 
@@ -1281,7 +1322,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 	    transaction_cache.eraseTransaction(seqnum);
 
 	    communicator.send(resp);
-	} else // save message to persistence
+	} else // save message to persistence (only if non-meta, check is in previous condition)
 	{
 	    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
 

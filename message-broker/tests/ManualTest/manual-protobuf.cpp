@@ -243,6 +243,18 @@ void webappDummy(void)
 		getline(raw_msg,*(mesg->mutable_body()));
 		mesg->set_timestamp("<dummy ts>");
 
+	    } else if ( cmd == "TYPING" )
+	    {
+		req.set_type(chattp::WebappRequestMessage::SENDMESSAGE);
+
+		chattp::ChattpMessage* mesg = req.mutable_mesg();
+
+		getline(raw_msg,*(mesg->mutable_sender()));
+		getline(raw_msg,*(req.mutable_channel_id()));
+		getline(raw_msg,*(mesg->mutable_receiver()));
+		mesg->set_timestamp("<dummy ts>");
+		mesg->set_is_typing(true);
+
 	    } else if ( cmd == "UONLQ" )
 	    {
 		getline(raw_msg,*(req.mutable_user_name()));
