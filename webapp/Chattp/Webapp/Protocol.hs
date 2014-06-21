@@ -24,6 +24,7 @@ import qualified Chattp.ChattpMessage as Msg
 import Chattp.ChattpMessage(ChattpMessage)
 
 type SequenceNumber = Int
+type UserName = BS.ByteString
 
 {-
 data WebappRequestMessage = WebappRequestMessage{sequence_number :: !P'.Word64,
