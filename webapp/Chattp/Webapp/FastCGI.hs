@@ -75,6 +75,7 @@ handleLogin chans = do
                     case Rp.type' brokeranswer of
                         LOGGEDIN -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleLogin,wrongAnswerType]" []
         _ -> outputError 400 "Login request lacking request parameter(s)" []
@@ -103,6 +104,7 @@ handleLogout chans = do
                     case Rp.type' brokeranswer of
                         LOGGEDOUT -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleLogout,wrongAnswerType]" []
         _ -> outputError 400 "Logout request lacking request parameter(s)" []
@@ -131,6 +133,7 @@ handleRegister chans = do
                     case Rp.type' brokeranswer of
                         REGISTERED -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleRegister,wrongAnswerType]" []
         _ -> outputError 400 "Register request lacking request parameter(s)" []
@@ -169,6 +172,7 @@ handleSendMessage chans = do
                     case Rp.type' brokeranswer of
                         SENTMESSAGE -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleSendMessage,wrongAnswerType]" []
         _ -> outputError 400 "Message send request lacking request parameter(s)" []
@@ -195,6 +199,7 @@ handleStatusRequest chans = do
                     case Rp.type' brokeranswer of
                         USERSTATUS -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleStatusRequest,wrongAnswerType]" []
         _ -> outputError 400 "Status request lacking request parameter" []
@@ -223,6 +228,7 @@ handleMessagesRequest chans = do
                     case Rp.type' brokeranswer of
                         GOTMESSAGES -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error [handleMessagesRequest,wrongAnswerType]" []
         _ -> outputError 400 "Saved-messages request lacking request parameter" []
@@ -258,9 +264,11 @@ handleConfSaveRequest conn chans = do
                                 then (True,"")
                                 else (False,result)
 
-                            outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                            let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
                                                          "status" .= status,
                                                          "error" .= (err :: String)]
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
+                            outputFPS jsonresponse
                         (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Save-settings request lacking request parameter" []
@@ -294,10 +302,12 @@ handleConfGetRequest conn chans = do
                                                         Just o -> o
                                                         Nothing -> AE.String . TS.decodeUtf8 . BS.toStrict $ settings
 
-                                outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
                                                           "status" .= True,
                                                           "error" .= T.decodeUtf8 "",
                                                           "settings" .= settings_json]
+                                setHeader "Content-length" (show . BS.length $ jsonresponse)
+                                outputFPS jsonresponse
                         (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Get-settings request lacking request parameter" []
