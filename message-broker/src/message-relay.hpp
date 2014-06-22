@@ -18,7 +18,7 @@ class MessageForRelay
 {
 public:
     MessageForRelay(const string& channel_id, const ChattpMessage& mesg);
-    MessageForRelay(const string& chan_id, MessageRelayRequest::MessageRelayRequestType action_type);
+    MessageForRelay(const string& channel_id, MessageRelayRequest::MessageRelayRequestType action_type);
 
     string toString(void) const { return request_buffer.SerializeAsString(); }
     sequence_t sequence_number(void) const { return request_buffer.sequence_number(); };

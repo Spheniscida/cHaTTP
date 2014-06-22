@@ -16,7 +16,7 @@ message MessageRelayRequest
     }
 
     required MessageRelayRequestType type = 2;
-    required string channel_id = 3;
+    repeated string channel_id = 3;
 
     optional ChattpMessage mesg = 4;
 
