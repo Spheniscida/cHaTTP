@@ -8,6 +8,14 @@ import System.IO.Error
 import Chattp.Relay.Config
 import Chattp.Relay.Protocol
 
+import Text.ProtocolBuffers.Header
+import Text.ProtocolBuffers.WireMessage (messagePut)
+
+import Chattp.MessageRelayRequest as Rq
+import Chattp.MessageRelayResponse as Rp
+import Chattp.MessageRelayRequest.MessageRelayRequestType
+import Chattp.MessageRelayResponse.MessageRelayResponseType
+
 import qualified Data.Text.Lazy.Encoding as T
 
 import Data.Aeson.Encode
@@ -57,18 +65,18 @@ router hs allconf@(RouterConfig relayconf sock) = do
     (msg,from) <- recvFrom sock 16384 -- Max. raw message length of message broker
     case parseRequest (BS.fromStrict msg) of
         Left _ -> router (Just hstream) allconf -- ignore, malformed.
-        Right (BrokerRequestMessage seqn broker_request) -> do
-                                            let http_req = makeHTTPRequest allconf broker_request
-                                            send_result <- sendFailSafe 2 hstream http_req
-                                            (hstream',response_message) <- case send_result of
-                                                Just (hstream',http_resp) -> do
-                                                                broker_response <- handleResponse broker_request (Just http_resp)
-                                                                return (Just hstream',broker_response)
-                                                Nothing -> do
-                                                                broker_response <- handleResponse broker_request Nothing
-                                                                return (Nothing,broker_response)
-                                            _ <- sendTo sock (BS.toStrict . responseToRaw $ BrokerResponseMessage seqn response_message) from
-                                            router hstream' allconf
+        Right broker_request -> do
+                let http_req = makeHTTPRequest allconf broker_request
+                send_result <- sendFailSafe 3 hstream http_req
+                (hstream',response_message) <- case send_result of
+                    Just (hstream',http_resp) -> do
+                                    broker_response <- handleResponse (Rq.type' broker_request) (Just http_resp)
+                                    return (Just hstream',broker_response)
+                    Nothing -> do
+                                    broker_response <- handleResponse (Rq.type' broker_request) Nothing
+                                    return (Nothing,broker_response)
+                _ <- sendTo sock (BS.toStrict . messagePut $ response_message { Rp.sequence_number = Rq.sequence_number broker_request } ) from
+                router hstream' allconf
     -- tries to send three times (usually called with count = 0), stops after. For the case that the web server closed the connection
     where   sendFailSafe :: Int -> HandleStream BS.ByteString -> Request BS.ByteString -> IO (Maybe (HandleStream BS.ByteString,Response BS.ByteString))
             sendFailSafe count hstream req
@@ -82,51 +90,53 @@ router hs allconf@(RouterConfig relayconf sock) = do
                         Left _ -> return Nothing
                 | otherwise = return Nothing
 
-makeHTTPRequest :: RouterConfig -> BrokerRequest -> Request BS.ByteString
-makeHTTPRequest (RouterConfig relayconf _) (NEWCHAN chanid) =
+makeHTTPRequest :: RouterConfig -> MessageRelayRequest -> Request BS.ByteString
+--- CREATECHANNEL
+makeHTTPRequest (RouterConfig relayconf _) rq@(MessageRelayRequest { Rq.type' = CREATECHANNEL }) =
     -- publishURL is the URL up to the '=' character.
-    let url = BS.append (publishURL relayconf) chanid
+    let url = BS.append (publishURL relayconf) (utf8 $ Rq.channel_id rq)
         empty_val = "" :: Value -- explicit type
-        json_data = encode . object $ ["ignore" .= True, "message" .= empty_val, "from" .= empty_val]
+        json_data = encode $ makeJSONMessage True defaultValue -- ignore this empty message
         http_req = (postRequest (BS.unpack url)) { rqBody = json_data,
-                                                   rqHeaders = [Header HdrContentType "application/json",
-                                                                Header HdrConnection "keep-alive",
-                                                                Header HdrContentLength (show . BS.length $ json_data)] }
+                                                   rqHeaders = makeHTTPHeaders (fromIntegral . BS.length $ json_data) }
        in http_req
-makeHTTPRequest (RouterConfig relayconf _) (DELCHAN chanid) =
-    let url = BS.append (publishURL relayconf) chanid
+--- DELETECHANNEL
+makeHTTPRequest (RouterConfig relayconf _) rq@(MessageRelayRequest { Rq.type' = DELETECHANNEL }) =
+    let url = BS.append (publishURL relayconf) (utf8 $ Rq.channel_id rq)
         Just u = parseURI (BS.unpack url)
         http_req = Request { rqURI = u,
                              rqMethod = DELETE,
                              rqHeaders = [],
-                             rqBody = "" :: BS.ByteString
+                             rqBody = BS.empty
     }
         in http_req
-makeHTTPRequest (RouterConfig relayconf _) (SNDMSG from chan msg) =
-    let url = BS.append (publishURL relayconf) chan
-        json_data = encode . object $ ["ignore" .= False, "message" .= T.decodeUtf8 msg, "from" .= T.decodeUtf8 from]
+--- SENDMESSAGE
+makeHTTPRequest (RouterConfig relayconf _) rq@(MessageRelayRequest { Rq.type' = SENDMESSAGE }) =
+    let url = BS.append (publishURL relayconf) (utf8 $ Rq.channel_id rq)
+        json_data = encode $ makeJSONMessage False (fromMaybe defaultValue (Rq.mesg rq))
         http_req = (postRequest (BS.unpack url)) { rqBody = json_data,
-                                                   rqHeaders = [Header HdrContentType "application/json",
-                                                                Header HdrConnection "keep-alive",
-                                                                Header HdrContentLength (show . BS.length $ json_data)] }
+                                                   rqHeaders = makeHTTPHeaders (fromIntegral . BS.length $ json_data) }
         in http_req
 
+makeHTTPHeaders :: Int -> [Header]
+makeHTTPHeaders length = [Header HdrContentType "application/json",
+                          Header HdrConnection "keep-alive",
+                          Header HdrContentLength (show length) ]
 
-handleResponse :: BrokerRequest -> Maybe (Response BS.ByteString) -> IO BrokerResponse
-handleResponse SNDMSG{} Nothing = return (MSGSNT FAIL)
-handleResponse SNDMSG{} (Just resp) =
+handleResponse :: MessageRelayRequestType -> Maybe (Response BS.ByteString) -> IO MessageRelayResponse
+handleResponse SENDMESSAGE Nothing = return (defaultValue { Rp.status = Just False, Rp.type' = SENTMESSAGE })
+handleResponse SENDMESSAGE (Just resp) =
         case rspCode resp of
-                        (2,0,1) -> return (MSGSNT OK) -- Delivered.
-                        (2,0,2) -> return (MSGSNT OK) -- Queued.
-                        c -> putStrLn ("Unexpected HTTP code (sndmsg) " ++ show c) >> return (MSGSNT FAIL)
-handleResponse NEWCHAN{} Nothing = return (CHANCREAT FAIL)
-handleResponse NEWCHAN{} (Just resp) =
+                        (2,0,x) | x == 1 || x == 2-> return (defaultValue { Rp.status = Just True, Rp.type' = SENTMESSAGE }) -- Delivered or queued.
+                        c -> putStrLn ("Unexpected HTTP code (sndmsg) " ++ show c) >> return (defaultValue { Rp.status = Just False, Rp.type' = SENTMESSAGE })
+handleResponse CREATECHANNEL Nothing = return (defaultValue { Rp.status = Just False, Rp.type' = CREATEDCHANNEL })
+handleResponse CREATECHANNEL (Just resp) =
         case rspCode resp of
-                        (2,0,2) -> return (CHANCREAT OK)
-                        c -> putStrLn ("Unexpected HTTP code (chancreat) " ++ show c) >> return (CHANCREAT FAIL)
-handleResponse DELCHAN{} Nothing = return (DELTDCHAN FAIL)
-handleResponse DELCHAN{} (Just resp) =
+                        (2,0,2) -> return (defaultValue { Rp.status = Just True, Rp.type' = CREATEDCHANNEL} )
+                        c -> putStrLn ("Unexpected HTTP code (chancreat) " ++ show c) >> return (defaultValue { Rp.status = Just False, Rp.type' = CREATEDCHANNEL })
+handleResponse DELETECHANNEL Nothing = return (defaultValue { Rp.status = Just False, Rp.type' = DELETEDCHANNEL })
+handleResponse DELETECHANNEL (Just resp) =
         case rspCode resp of
-                        (2,0,0) -> return (DELTDCHAN OK)
-                        c -> putStrLn ("Unexpected HTTP code (delchan) " ++ show c) >> return (DELTDCHAN FAIL)
+                        (2,0,0) -> return (defaultValue { Rp.status = Just True, Rp.type' = DELETEDCHANNEL })
+                        c -> putStrLn ("Unexpected HTTP code (delchan) " ++ show c) >> return (defaultValue { Rp.status = Just False, Rp.type' = DELETEDCHANNEL })
 
