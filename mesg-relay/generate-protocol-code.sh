@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROTOFILES="message.proto webapp.proto"
+PROTOFILES="message.proto messagerelay.proto"
 
 PATH=.cabal-sandbox/bin:$PATH
 
