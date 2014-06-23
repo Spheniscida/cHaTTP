@@ -21,7 +21,7 @@ const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
 const unsigned int max_raw_message_size = 12288;
 
-extern BrokerSettings global_broker_settings;
+extern const BrokerSettings global_broker_settings;
 
 /// Thread #. 0 is the main process.
 extern thread_local unsigned int thread_id;
