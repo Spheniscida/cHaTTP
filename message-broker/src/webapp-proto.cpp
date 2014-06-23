@@ -38,9 +38,10 @@ WebappRequest::WebappRequest(const char* buffer, size_t length)
  */
 WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc)
 {
-    if ( type != WebappResponseMessage::LOGGEDOUT && type != WebappResponseMessage::REGISTERED && type != WebappResponseMessage::SENTMESSAGE )
+    if ( type != WebappResponseMessage::LOGGEDOUT && type != WebappResponseMessage::REGISTERED
+      && type != WebappResponseMessage::SENTMESSAGE && type != WebappResponseMessage::SAVEDSETTINGS )
     {
-	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED or SENTMESSAGE, but got other type.");
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED/SENTMESSAGE/SAVEDSETTINGS, but got other type.");
     }
 
     response_buffer.set_type(type);
@@ -155,26 +156,34 @@ WebappResponse::WebappResponse(sequence_t seq_num,
 WebappResponse::WebappResponse(sequence_t seq_num,
 			       WebappResponseMessage::WebappResponseType type,
 			       bool response_status,
-			       const string& channel_id,
+			       const string& channel_id_or_settings,
 			       string error_desc)
 {
-    if ( type != WebappResponseMessage::LOGGEDIN )
+    if ( type != WebappResponseMessage::LOGGEDIN && type != WebappResponseMessage::GOTSETTINGS )
     {
-	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDIN, but got other.");
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDIN/GOTSETTINGS, but got other.");
     }
 
     response_buffer.set_sequence_number(seq_num);
     response_buffer.set_type(type);
     response_buffer.set_status(response_status);
 
-    if ( response_status )
-	response_buffer.set_channel_id(channel_id);
-    else
+    if ( ! response_status )
     {
 	unsigned int error_code = removeErrorCode(error_desc);
 
 	response_buffer.set_error_code(error_code);
 	response_buffer.set_error_message(error_desc);
+
+	return;
+    }
+
+    if ( type == WebappResponseMessage::LOGGEDIN )
+    {
+	response_buffer.set_channel_id(channel_id_or_settings);
+    } else if ( type == WebappResponseMessage::GOTSETTINGS )
+    {
+	response_buffer.set_settings(channel_id_or_settings);
     }
 
 }

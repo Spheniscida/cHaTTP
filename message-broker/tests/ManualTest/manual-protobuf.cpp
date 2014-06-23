@@ -135,6 +135,19 @@ void persistenceDummy(void)
 
 		response.set_status(status == "OK");
 		response.set_type(chattp::PersistenceResponse::SAVEDMESSAGE);
+	    } else if ( cmd == "GOTSETTINGS" )
+	    {
+		getline(raw_msg, status);
+		getline(raw_msg, *(response.mutable_settings()));
+
+		response.set_status(status == "OK");
+		response.set_type(chattp::PersistenceResponse::GOTSETTINGS);
+	    } else if ( cmd == "SAVEDSETTINGS" )
+	    {
+		getline(raw_msg, status);
+
+		response.set_status(status == "OK");
+		response.set_type(chattp::PersistenceResponse::SAVEDSETTINGS);
 	    } else
 		continue;
 
@@ -273,7 +286,19 @@ void webappDummy(void)
 
 		getline(raw_msg,*(req.mutable_user_name()));
 		getline(raw_msg,*(req.mutable_channel_id()));
+	    } else if ( cmd == "GETSETTINGS" )
+	    {
+		req.set_type(chattp::WebappRequestMessage::GETSETTINGS);
 
+		getline(raw_msg,*(req.mutable_user_name()));
+		getline(raw_msg,*(req.mutable_channel_id()));
+	    } else if ( cmd == "SAVESETTINGS" )
+	    {
+		req.set_type(chattp::WebappRequestMessage::SAVESETTINGS);
+
+		getline(raw_msg,*(req.mutable_user_name()));
+		getline(raw_msg,*(req.mutable_channel_id()));
+		getline(raw_msg,*(req.mutable_settings()));
 	    } else
 		continue;
 

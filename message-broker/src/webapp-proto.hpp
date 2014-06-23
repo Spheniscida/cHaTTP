@@ -45,6 +45,7 @@ public:
     const string& message_sender(void) const { return request_buffer.mesg().sender(); }
     const string& message_receiver(void) const { return request_buffer.mesg().receiver(); }
     const string& message_body(void) const { return request_buffer.mesg().body(); }
+    const string& settings(void) const { return request_buffer.settings(); }
     bool is_group_message(void) const { return request_buffer.mesg().group_message(); }
 
 private:
@@ -57,7 +58,7 @@ class WebappResponse
 {
 public:
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc); // No default value because ambiguity
-    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, const string& channel_id, string error_desc);
+    WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, const string& channel_id_or_settings, string error_desc);
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, bool online_authorized, string error_desc);
     WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status,
 		   google::protobuf::RepeatedPtrField<const chattp::ChattpMessage>::iterator begin,

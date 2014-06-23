@@ -17,6 +17,9 @@ message WebappRequestMessage
 	QUERYSTATUS = 4;
 	GETMESSAGES = 5;
 	AUTHORIZED = 6;
+
+        SAVESETTINGS = 7;
+        GETSETTINGS = 8;
     }
 
     required WebappRequestType type = 2;
@@ -26,6 +29,8 @@ message WebappRequestMessage
     optional string channel_id = 5;                         // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
 
     optional ChattpMessage mesg = 6;
+
+    optional string settings = 7;
 }
 
 message WebappResponseMessage
@@ -41,6 +46,9 @@ message WebappResponseMessage
 	USERSTATUS = 4;
 	GOTMESSAGES = 5;
 	AUTHORIZED = 6;
+
+        SAVEDSETTINGS = 7;
+        GOTSETTINGS = 8;
     }
 
     required WebappResponseType type = 2;
@@ -52,4 +60,6 @@ message WebappResponseMessage
     optional uint32 error_code = 8;                         // <any>, described in error-codes.mkd
 
     repeated ChattpMessage mesgs = 9;                       // GOTMESSAGES
+
+    optional string settings = 10;
 }

@@ -77,6 +77,10 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerRes
 	case chattp::PersistenceResponse::GOTMESSAGES:
 	    onPersistenceMSGS(*msg);
 	    break;
+	case chattp::PersistenceResponse::SAVEDSETTINGS:
+	case chattp::PersistenceResponse::GOTSETTINGS:
+	    onPersistenceSettingsResponse(*msg);
+	    break;
     }
 }
 
@@ -104,6 +108,10 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 	    break;
 	case WebappRequestMessage::AUTHORIZED:
 	    onWebAppISAUTH(*msg);
+	    break;
+	case WebappRequestMessage::GETSETTINGS:
+	case WebappRequestMessage::SAVESETTINGS:
+	    onWebAppSettingsRequest(*msg);
 	    break;
     }
 }
@@ -651,6 +659,62 @@ void ProtocolDispatcher::onWebAppISAUTH(const WebappRequest& rq)
 
 }
 
+// Because it's so simple, handle both SAVESETTINGS and GETSETTINGS requests.
+void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
+{
+    const sequence_t seqnum = rq.sequence_number();
+
+    OutstandingTransaction transaction;
+
+    transaction.original_sequence_number = seqnum;
+
+    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user_name());
+
+    if ( ! user.found )
+    {
+	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSaveSettingsULKDUP : OutstandingType::persistenceGetSettingsULKDUP;
+
+	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
+
+	try
+	{
+	    communicator.send(cmd);
+
+	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
+	} catch (libsocket::socket_exception e)
+	{
+	    WebappResponse failresp(seqnum,
+				    rq.type() == WebappRequestMessage::SAVESETTINGS ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
+				    false,"4,Internal error (Persistence down)");
+
+	    communicator.send(failresp);
+	}
+    } else if ( user.online && user.channel_id == rq.channel_id() && user.broker_name == global_broker_settings.getMessageBrokerName() )
+    {
+	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSAVEDSETTINGS : OutstandingType::persistenceGOTSETTINGS;
+
+	PersistenceLayerCommand cmd(rq.type() == WebappRequestMessage::SAVESETTINGS ? chattp::PersistenceRequest::SAVESETTINGS : chattp::PersistenceRequest::GETSETTINGS,
+				    rq.user_name());
+
+	try
+	{
+	    communicator.send(cmd);
+
+	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
+	} catch (libsocket::socket_exception e)
+	{
+	    WebappResponse failresp(seqnum,
+				    rq.type() == WebappRequestMessage::SAVESETTINGS ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
+				    false,"4,Internal error (Persistence down)");
+
+	    communicator.send(failresp);
+	}
+    }
+
+}
+
 void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 {
     const sequence_t seqnum = rp.sequence_number();
@@ -849,17 +913,23 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    case OutstandingType::persistenceIsauthULKDUP:
 		type = WebappResponseMessage::AUTHORIZED;
 		break;
+	    case OutstandingType::persistenceSaveSettingsULKDUP:
+		type = WebappResponseMessage::SAVEDSETTINGS;
+		break;
+	    case OutstandingType::persistenceGetSettingsULKDUP:
+		type = WebappResponseMessage::GOTSETTINGS;
 	    default:
 		throw BrokerError(ErrorType::genericImplementationError,"This should not have happened – unexpected transaction type in onPersistenceULKDUP");
 	}
 
-	const string error_message = "15,User doesn't exist (whatever, Persistence failed)";
+	const string error_message = "15,User doesn't exist (or Persistence failed otherwise)";
 
 	switch ( type )
 	{
 	    case WebappResponseMessage::LOGGEDOUT:
 	    case WebappResponseMessage::SENTMESSAGE:
 	    case WebappResponseMessage::REGISTERED:
+	    case WebappResponseMessage::SAVEDSETTINGS:
 	    {
 		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,error_message);
 		communicator.send(failresp);
@@ -880,6 +950,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    }
 		break;
 	    case WebappResponseMessage::LOGGEDIN:
+	    case WebappResponseMessage::GOTSETTINGS:
 	    {
 		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,string(""),error_message);
 		communicator.send(failresp);
@@ -1248,6 +1319,68 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
 
+    } else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP || transaction.type == OutstandingType::persistenceGetSettingsULKDUP )
+    {
+	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
+
+	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
+
+	if ( !loc.online() || loc.channel_id() != original_webapp_request.channel_id() || loc.broker_name() != global_broker_settings.getMessageBrokerName() )
+	{
+	    string err_msg = ! loc.online() ? "1,User is offline" : "2,User not authorized";
+
+	    WebappResponse failresp(original_webapp_request.sequence_number(),
+		    transaction.type == OutstandingType::persistenceSaveSettingsULKDUP ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
+		    false,err_msg);
+
+	    communicator.send(failresp);
+
+	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+	    transaction_cache.eraseTransaction(seqnum);
+	}
+
+	if ( original_webapp_request.type() == WebappRequestMessage::SAVESETTINGS )
+	{
+	    PersistenceLayerCommand cmd(PersistenceRequest::SAVESETTINGS,original_webapp_request.user_name(),original_webapp_request.settings());
+
+	    transaction.type = OutstandingType::persistenceSAVEDSETTINGS;
+
+	    try
+	    {
+		communicator.send(cmd);
+
+		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+	    } catch ( libsocket::socket_exception e )
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SAVEDSETTINGS,false,"4,Internal error! (Persistence down)");
+
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		transaction_cache.eraseTransaction(seqnum);
+
+		communicator.send(failresp);
+
+		throw e;
+	    }
+
+	} else if ( original_webapp_request.type() == WebappRequestMessage::GETSETTINGS )
+	{
+	    PersistenceLayerCommand cmd(PersistenceRequest::GETSETTINGS,original_webapp_request.user_name());
+
+	    transaction.type = OutstandingType::persistenceGOTSETTINGS;
+
+	    try
+	    {
+		communicator.send(cmd);
+
+		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+	    } catch ( libsocket::socket_exception e )
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTSETTINGS,false,"4,Internal error! (Persistence down)");
+
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		transaction_cache.eraseTransaction(seqnum);
+	    }
+	}
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
@@ -1376,6 +1509,49 @@ void ProtocolDispatcher::onPersistenceMSGS(const PersistenceLayerResponse& rp)
 
     transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
     transaction_cache.eraseTransaction(seqnum);
+}
+
+void ProtocolDispatcher::onPersistenceSettingsResponse(const PersistenceLayerResponse& rp)
+{
+    const sequence_t seqnum = rp.sequence_number();
+
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+
+    if ( ! transaction.original_sequence_number )
+    {
+	debug_log("Received dangling transaction reference (persistence layer)");
+
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+
+    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+    if ( transaction.type == OutstandingType::persistenceSAVEDSETTINGS )
+    {
+	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SAVEDSETTINGS,rp.status(),"17,Persistence refused to save settings.");
+
+	communicator.send(resp);
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+    } else if ( transaction.type == OutstandingType::persistenceGOTSETTINGS )
+    {
+	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTSETTINGS,rp.status(),rp.get_protobuf().settings(),"17,Persistence didn't deliver settings.");
+
+	communicator.send(resp);
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGS: Expected type persistenceMSGS, but got other.");
+    }
+
 }
 
 void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)

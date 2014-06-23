@@ -37,7 +37,8 @@ PersistenceLayerResponse::PersistenceLayerResponse(const char* buffer, size_t le
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name)
 {
-    if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::GETMESSAGES )
+    if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT
+      && code != PersistenceRequest::GETMESSAGES && code != PersistenceRequest::GETSETTINGS )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
 
     request_buffer.set_sequence_number(persistence_counter.get());
@@ -80,15 +81,18 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password_or_settings)
 {
-    if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS )
+    if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS && code != PersistenceRequest::SAVESETTINGS )
 	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected UREG or CHKPASS, but got other command type.");
 
     request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
     request_buffer.set_user_name(user);
-    request_buffer.set_password(password);
+    if ( code != PersistenceRequest::SAVESETTINGS )
+	request_buffer.set_password(password_or_settings);
+    else
+	request_buffer.set_settings(password_or_settings);
 }
 
 /**

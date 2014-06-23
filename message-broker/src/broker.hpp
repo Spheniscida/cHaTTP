@@ -35,6 +35,7 @@ public:
     void onWebAppUONLQ(const WebappRequest& rq);
     void onWebAppMSGGT(const WebappRequest& rq);
     void onWebAppISAUTH(const WebappRequest& rq);
+    void onWebAppSettingsRequest(const WebappRequest& rq);
     void onPersistenceUREGD(const PersistenceLayerResponse& rp);
     void onPersistenceCHKDPASS(const PersistenceLayerResponse& rp);
     void onPersistenceLGDIN(const PersistenceLayerResponse& rp);
@@ -42,6 +43,7 @@ public:
     void onPersistenceULKDUP(const PersistenceLayerResponse& rp);
     void onPersistenceMSGSVD(const PersistenceLayerResponse& rp);
     void onPersistenceMSGS(const PersistenceLayerResponse& rp);
+    void onPersistenceSettingsResponse(const PersistenceLayerResponse& rp);
     void onMessagerelayMSGSNT(const MessageRelayResponse& rp);
     void onMessagerelayCHANCREAT(const MessageRelayResponse& rp);
     void onMessagerelayDELTDCHAN(const MessageRelayResponse& rp);
@@ -74,11 +76,16 @@ enum class OutstandingType {
     persistenceLogoutULKDUP,
     persistenceMessageGetULKDUP,
     persistenceIsauthULKDUP,
+    persistenceGetSettingsULKDUP,
+    persistenceSaveSettingsULKDUP,
     persistenceUREGD,
     persistenceMSGS,
 
     // for MSGSV
     persistenceMSGSVD,
+
+    persistenceSAVEDSETTINGS,
+    persistenceGOTSETTINGS,
 
     // for MSGSNT
     messagerelayMSGSNT,
@@ -87,7 +94,7 @@ enum class OutstandingType {
     messagerelayCHANCREAT,
 
     // b2b msgsnt
-    b2bMSGSNT
+    b2bMSGSNT,
 };
 
 /**

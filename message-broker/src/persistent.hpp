@@ -60,7 +60,7 @@ public:
     /// For UREG, CHKPASS
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel);
     /// For LOGIN
-    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password);
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password_or_settings);
     /// For MSGSV
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const chattp::ChattpMessage& message);
 
