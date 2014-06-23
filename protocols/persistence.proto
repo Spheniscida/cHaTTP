@@ -17,17 +17,26 @@ message PersistenceRequest
         LOOKUP = 4;
         SAVEMESSAGE = 5;
         GETMESSAGES = 6;
+
+        // Used by webapp
+        SAVESETTINGS = 7;
+        GETSETTINGS = 8;
     }
     required PersistenceRequestType type = 2;
     
     optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. Not used for LOOKUPs!
     optional string password = 4; // REGISTER CHECKPASS
-    optional string channel_id = 5; // LOGIN (LOGOUT, in future)
-    optional string broker_name = 6; // LOGIN
 
-    repeated string lookup_users = 7; // LOOKUP multiple users.
+    optional string email = 5; // REGISTER
 
-    optional ChattpMessage mesg = 8; // SAVEMESSAGE
+    optional string channel_id = 6; // LOGIN (LOGOUT, in future for multiple logged-in users)
+    optional string broker_name = 7; // LOGIN
+
+    repeated string lookup_users = 8; // LOOKUP multiple users.
+
+    optional ChattpMessage mesg = 9; // SAVEMESSAGE
+
+    optional string settings = 10; // SAVESETTINGS
 }
 
 message PersistenceResponse
@@ -43,6 +52,10 @@ message PersistenceResponse
         LOOKEDUP = 4;
         SAVEDMESSAGE = 5;
         GOTMESSAGES = 6;
+
+        // Used for webapp
+        SAVEDSETTINGS = 7;
+        GOTSETTINGS = 8;
     }
 
     required PersistenceResponseType type = 2;
@@ -59,4 +72,6 @@ message PersistenceResponse
     repeated UserLocation user_locations = 4;
 
     repeated ChattpMessage mesgs = 5; // GOTMESSAGES
+
+    optional string settings = 6; // GOTSETTINGS
 }
