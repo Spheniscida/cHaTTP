@@ -1,6 +1,7 @@
 module Main where
 
 import Chattp.PersistencePg.Config
+import Chattp.PersistencePg.Database
 
 import Control.Monad (replicateM_)
 

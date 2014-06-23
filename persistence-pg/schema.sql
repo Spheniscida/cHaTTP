@@ -9,7 +9,8 @@ CREATE TABLE chattp_users
     user_settings TEXT,
 
     PRIMARY KEY (user_id),
-    UNIQUE (user_id)
+    UNIQUE (user_id),
+    UNIQUE (user_name)
 );
 
 -- We select mainly over user_name
