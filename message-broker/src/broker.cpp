@@ -694,25 +694,40 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
     {
 	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSAVEDSETTINGS : OutstandingType::persistenceGOTSETTINGS;
 
-	PersistenceLayerCommand cmd(rq.type() == WebappRequestMessage::SAVESETTINGS ? chattp::PersistenceRequest::SAVESETTINGS : chattp::PersistenceRequest::GETSETTINGS,
-				    rq.user_name());
-
-	try
+	if ( rq.type() == WebappRequestMessage::GETSETTINGS )
 	{
-	    communicator.send(cmd);
+	    PersistenceLayerCommand cmd(chattp::PersistenceRequest::GETSETTINGS, rq.user_name());
 
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch (libsocket::socket_exception e)
+	    try
+	    {
+		communicator.send(cmd);
+
+		transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+		transaction_cache.insertWebappRequest(seqnum,rq);
+	    } catch (libsocket::socket_exception e)
+	    {
+		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,"4,Internal error (Persistence down)");
+
+		communicator.send(failresp);
+	    }
+	} else if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
 	{
-	    WebappResponse failresp(seqnum,
-				    rq.type() == WebappRequestMessage::SAVESETTINGS ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
-				    false,"4,Internal error (Persistence down)");
+	    PersistenceLayerCommand cmd(chattp::PersistenceRequest::SAVESETTINGS, rq.user_name(), rq.settings());
 
-	    communicator.send(failresp);
+	    try
+	    {
+		communicator.send(cmd);
+
+		transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+		transaction_cache.insertWebappRequest(seqnum,rq);
+	    } catch (libsocket::socket_exception e)
+	    {
+		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,"4,Internal error (Persistence down)");
+
+		communicator.send(failresp);
+	    }
 	}
     }
-
 }
 
 void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)

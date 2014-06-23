@@ -248,28 +248,20 @@ handleConfSaveRequest conn chans = do
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
-                                                 Rq.type' = Rq.AUTHORIZED,
+                                                 Rq.type' = Rq.SAVESETTINGS,
                                                  Rq.user_name = Just $ unsafeToUtf8 usr,
-                                                 Rq.channel_id = Just $ unsafeToUtf8 chan }
+                                                 Rq.channel_id = Just $ unsafeToUtf8 chan,
+                                                 Rq.settings = Just $ unsafeToUtf8 raw_settings }
 
                     liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case (Rp.type' brokeranswer,Rp.status brokeranswer) of
-                        (Rp.AUTHORIZED,Just True) -> do
-                            result <- liftIO $ storeUserSettings conn usr raw_settings
-
-                            let (status,err) = if result == ""
-                                then (True,"")
-                                else (False,result)
-
-                            let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
-                                                         "status" .= status,
-                                                         "error" .= (err :: String)]
+                    case Rp.type' brokeranswer of
+                        Rp.SAVEDSETTINGS -> do -- default value
+                            let jsonresponse = responseToJSON brokeranswer
                             setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
-                        (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Save-settings request lacking request parameter" []
 
@@ -287,7 +279,7 @@ handleConfGetRequest conn chans = do
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
                     let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
-                                                 Rq.type' = Rq.AUTHORIZED,
+                                                 Rq.type' = Rq.GETSETTINGS,
                                                  Rq.user_name = Just $ unsafeToUtf8 usr,
                                                  Rq.channel_id = Just $ unsafeToUtf8 chan }
 
@@ -295,20 +287,11 @@ handleConfGetRequest conn chans = do
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case (Rp.type' brokeranswer,Rp.status brokeranswer) of
-                        (Rp.AUTHORIZED,Just True) -> do
-                                settings <- liftIO $ getUserSettings conn usr
-                                let settings_json = case AE.decode settings of
-                                                        Just o -> o
-                                                        Nothing -> AE.String . TS.decodeUtf8 . BS.toStrict $ settings
-
-                                let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
-                                                          "status" .= True,
-                                                          "error" .= T.decodeUtf8 "",
-                                                          "settings" .= settings_json]
+                    case Rp.type' brokeranswer of
+                        Rp.GOTSETTINGS -> do
+                                let jsonresponse = responseToJSON brokeranswer
                                 setHeader "Content-length" (show . BS.length $ jsonresponse)
                                 outputFPS jsonresponse
-                        (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Get-settings request lacking request parameter" []
 

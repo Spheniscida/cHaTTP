@@ -39,7 +39,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
 {
     if ( code != PersistenceRequest::LOOKUP && code != PersistenceRequest::LOGOUT
       && code != PersistenceRequest::GETMESSAGES && code != PersistenceRequest::GETSETTINGS )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT or GETMESSAGES, but got other command type");
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOOKUP, LOGOUT, GETSETTINGS or GETMESSAGES, but got other command type");
 
     request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
