@@ -11,21 +11,24 @@ using std::chrono::steady_clock;
 
 class BrokerSettings;
 
+/// UDP port for broker2broker communication.
+const string message_broker_port = "27533";
+/// Enables extensive logging
+const bool debugging_mode = true;
+
 /// Maximum message size accepted by this program (message: text sent from a user).
 const unsigned int max_message_size = 16384;
 /// Maximum size of incoming requests/responses (message: protocol message)
 const unsigned int max_raw_message_size = 12288;
 
-/// UDP port for broker2broker communication.
-const string message_broker_port = "27533";
+extern const BrokerSettings global_broker_settings;
 
-extern BrokerSettings global_broker_settings;
-
-const bool debugging_mode = true;
-
+/// Thread #. 0 is the main process.
 extern thread_local unsigned int thread_id;
+/// Time of start-up
 extern time_point<steady_clock> start_time;
-extern std::atomic<unsigned int> packets_processed;
+/// Counter of packets/messages processed (messages = actual messages)
+extern std::atomic<unsigned int> packets_processed, messages_processed;
 
 /**
  * @brief Enumeration for connection type: UNIX/UDP

@@ -1,0 +1,62 @@
+package chattp;
+
+import "message.proto";
+
+//option optimize_for = LITE_RUNTIME;
+
+message PersistenceRequest
+{
+    required uint64 sequence_number = 1;
+    
+    enum PersistenceRequestType
+    {
+        REGISTER = 0;
+        LOGIN = 1;
+        LOGOUT = 2;
+        CHECKPASS = 3;
+        LOOKUP = 4;
+        SAVEMESSAGE = 5;
+        GETMESSAGES = 6;
+    }
+    required PersistenceRequestType type = 2;
+    
+    optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. Not used for LOOKUPs!
+    optional string password = 4; // REGISTER CHECKPASS
+    optional string channel_id = 5; // LOGIN (LOGOUT, in future)
+    optional string broker_name = 6; // LOGIN
+
+    repeated string lookup_users = 7; // LOOKUP multiple users.
+
+    optional ChattpMessage mesg = 8; // SAVEMESSAGE
+}
+
+message PersistenceResponse
+{
+    required uint64 sequence_number = 1;
+
+    enum PersistenceResponseType
+    {
+        REGISTERED = 0;
+        LOGGEDIN = 1;
+        LOGGEDOUT = 2;
+        CHECKEDPASS = 3;
+        LOOKEDUP = 4;
+        SAVEDMESSAGE = 5;
+        GOTMESSAGES = 6;
+    }
+
+    required PersistenceResponseType type = 2;
+    optional bool status = 3 [default = true];
+
+    message UserLocation
+    {
+        optional bool online = 1 [default = true];
+        optional string user_name = 2;
+        optional string broker_name = 3;
+        optional string channel_id = 4;
+    }
+
+    repeated UserLocation user_locations = 4;
+
+    repeated ChattpMessage mesgs = 5; // GOTMESSAGES
+}

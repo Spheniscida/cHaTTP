@@ -6,6 +6,11 @@ import Chattp.Webapp.Conf
 import Chattp.Webapp.Protocol
 import Chattp.Webapp.InternalCommunication
 
+import Text.ProtocolBuffers.Header
+import Text.ProtocolBuffers.WireMessage
+import Chattp.WebappRequestMessage as Rq
+import Chattp.WebappResponseMessage as Rp
+
 import Control.Concurrent
 import qualified Data.ByteString.Lazy.Char8 as BS
 import System.Directory
@@ -22,18 +27,22 @@ socketIncoming sock chanToCenter = do
     (contents,_addr) <- NBS.recvFrom sock 16384
     case parseAnswer (BS.fromStrict contents) of
         Right msg -> writeChan chanToCenter (BrokerCenterResponse msg) >> socketIncoming sock chanToCenter
-        Left _err -> socketIncoming sock chanToCenter
+        Left err -> putStrLn ("ERR : Discarded message because of: " ++ err) >> socketIncoming sock chanToCenter -- discard
 
 -- Thread code handling outgoing messages
 socketOutgoing :: WebappConfiguration -> Socket -> ChanInfo -> IO ()
 socketOutgoing conf sock chans = do
     msg <- readChan (brokerRequestChan chans)
-    let rawMessage = BS.toStrict . requestToByteString $ msg
+    let rawMessage = BS.toStrict . messagePut $ msg
     catchIOError (NBS.sendTo sock rawMessage (brokerSockAddr conf)) (errHandler (requestsAndResponsesToCenterChan chans) msg)
     socketOutgoing conf sock chans
 
-    where errHandler :: Chan CenterRequestOrResponse -> BrokerRequestMessage -> IOError -> IO Int -- if there is an error, an error message is sent back.
-          errHandler bc msg@(BrokerRequestMessage seqn _) _ = writeChan bc (BrokerCenterResponse . BrokerAnswerMessage seqn . errorFromRequest $ msg) >> return 0
+    where errHandler :: Chan CenterRequestOrResponse -> WebappRequestMessage -> IOError -> IO Int -- if there is an error, an error message is sent back.
+          errHandler bc msg _ = writeChan bc
+            (BrokerCenterResponse $ defaultValue { Rp.sequence_number = Rq.sequence_number msg,
+                                                   Rp.status = Just False,
+                                                   Rp.error_message = Just $ uFromString "Couldn't reach broker",
+                                                   Rp.error_code = Just $ fromIntegral 16 } ) >> return 0
 
 -- Socket setup
 

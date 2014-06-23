@@ -186,11 +186,11 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 
     packets_processed++;
     if ( sock == unix_webapp_sock )
-	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer,received_size)));
     else if ( sock == unix_persistence_sock )
-	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == unix_msgrelay_sock )
-	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer,received_size)));
     else
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromUNIX: Unknown socket encountered!");
 }
@@ -214,13 +214,13 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 
     packets_processed++;
     if ( sock == inet_webapp_sock )
-	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer,received_size)));
     else if ( sock == inet_persistence_sock )
-	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new PersistenceLayerResponse(message_receiver_buffer,received_size)));
     else if ( sock == inet_msgrelay_sock )
-	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer)));
+	return (static_cast<Receivable*>(new MessageRelayResponse(message_receiver_buffer,received_size)));
     else if ( sock == inet_b2b_sock )
-	return (static_cast<Receivable*>(new B2BIncoming(message_receiver_buffer,string(inet_sender,last_inet_sender_size))));
+	return (static_cast<Receivable*>(new B2BIncoming(message_receiver_buffer,received_size,string(inet_sender,last_inet_sender_size))));
     else
 	throw BrokerError(ErrorType::ipcError,"Communicator::receiveFromINET: Unknown socket encountered!");
 }
@@ -228,7 +228,7 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 void Communicator::send(const PersistenceLayerCommand& cmd)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log("Sent to Persistence Layer: ", cmd.toString());
+	debug_log("Sent to Persistence Layer: ", cmd.get_protobuf().DebugString());
 
     if ( inet_persistence_sock )
 	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
@@ -243,7 +243,7 @@ void Communicator::send(const PersistenceLayerCommand& cmd)
 void Communicator::send(const WebappResponse& cmd)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log("Sent to WebApp (response): ", cmd.toString());
+	debug_log("Sent to WebApp (response): ", cmd.get_protobuf().DebugString());
 
     if ( unix_webapp_sock )
 	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);

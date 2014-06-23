@@ -5,6 +5,8 @@
 # include <vector>
 # include <sstream>
 
+# include <persistence.pb.h>
+
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 
@@ -12,24 +14,10 @@ using std::string;
 using std::vector;
 using std::istringstream;
 
-/*********************** Parsing and representing protocol responses ***************************/
+using chattp::PersistenceResponse;
+using chattp::PersistenceRequest;
 
-enum class PersistenceLayerResponseCode {
-    /// User has been registered (or not...)
-    userRegistered,
-    /// Password was checked.
-    passwordChecked,
-    /// User has been marked as online
-    loggedIn,
-    /// User has been marked as offline
-    loggedOut,
-    /// User lookup results
-    lookedUpUser,
-    /// Message has been saved.
-    savedMessage,
-    /// Retained messages.
-    messages
-};
+/*********************** Parsing and representing protocol responses ***************************/
 
 /**
  * @brief A generic response from the persistence layer
@@ -45,75 +33,43 @@ enum class PersistenceLayerResponseCode {
 class PersistenceLayerResponse : public Receivable
 {
 public:
-    PersistenceLayerResponse(const string&);
+    PersistenceLayerResponse(const char* buffer, size_t length);
 
-    /// Field for message retrieval responses. Not used yet.
-    string messages;
+    // for direct operations on the protobuf object, e.g. collecting repeated elements
+    const chattp::PersistenceResponse& get_protobuf(void) const { return response_buffer; }
 
-    /// A unique sequence number of a transaction which may be used to find and restart an operation.
-    sequence_t sequence_number;
-    string broker_name;
-    string channel_id;
+    // Some shortcuts so the protobuf doesn't leak too much.
+    const sequence_t sequence_number(void) const { return response_buffer.sequence_number(); }
+    const bool status(void) const { return response_buffer.status(); }
+    const PersistenceResponse::PersistenceResponseType type(void) const { return response_buffer.type(); }
 
-    /// OK/FAIL?
-    bool status;
-
-    /// for ULKDUP
-    bool online;
-
-    PersistenceLayerResponseCode response_type;
 private:
-    void parsePersistenceResponse(const string& message);
+    chattp::PersistenceResponse response_buffer;
 
 };
-
-extern istringstream& operator>>(istringstream& stream, PersistenceLayerResponseCode& code);
 
 /************************************* Creating protocol messages **************************************/
-
-/**
- * @brief Possible command types.
- */
-enum class PersistenceLayerCommandCode {
-    /// Register a user
-    registerUser,
-    /// Check if a certain password is valid for a user
-    checkPassword,
-    /// Mark a user as online
-    logIn,
-    /// Mark a user as offline
-    logOut,
-    /// Get information on a user (broker location, channel id)
-    lookUpUser,
-    /// Save a message for a user who's offline
-    saveMessage,
-    /// Get saved messages for a user
-    getMessages
-};
 
 class PersistenceLayerCommand
 {
 public:
-    /// For ULKUP, LOGOUT, MSGGT
-    PersistenceLayerCommand(PersistenceLayerCommandCode, const string& user_name);
-    /// For UREG, CHKPASS, MSGSV
-    PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& broker, const string& channel);
+    /// For MSGGT, LOGOUT, ULKUP
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name);
+    /// For ULKUP
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const vector<string>& user_name);
+    /// For UREG, CHKPASS
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel);
     /// For LOGIN
-    PersistenceLayerCommand(PersistenceLayerCommandCode code, const string& user, const string& data);
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password);
+    /// For MSGSV
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const chattp::ChattpMessage& message);
 
+    const chattp::PersistenceRequest& get_protobuf(void) const { return request_buffer; }
     string toString(void) const;
-    /// This one is initialized automatically. We need to expose it so the function using this class may store the generated
-    /// sequence number.
-    sequence_t sequence_number;
+    sequence_t sequence_number(void) const { return request_buffer.sequence_number(); };
 private:
-    string user_name, sender_name;
 
-    // Those are mutually exclusive. {
-    string password_or_message;
-    string broker_name;
-    // }
-
-    string channel_id;
-    PersistenceLayerCommandCode request_type;
+    chattp::PersistenceRequest request_buffer;
 };
+
 # endif

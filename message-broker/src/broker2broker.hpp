@@ -3,17 +3,16 @@
 
 # include <string>
 
+# include <broker2broker.pb.h>
+
+using chattp::B2BMessage;
+
 # include "error.hpp"
 # include "conf.hpp"
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 
 using std::string;
-
-enum class B2BMessageType {
-    B2BSNDMSG,
-    B2BMSGSNT
-};
 
 /**
  * @brief Class for outgoing B2B messages.
@@ -22,21 +21,15 @@ class MessageForB2B
 {
 public:
     // for SNDMSG
-    MessageForB2B(const string& sender, const string& message, const string& channel_id);
+    MessageForB2B(const chattp::ChattpMessage& mesg, const string& channel_id);
     // for MSGSNT
-    MessageForB2B(sequence_t sequence_number, bool status);
+    MessageForB2B(sequence_t seq_num, bool status);
 
-    string toString(void) const;
-
-    const sequence_t sequence_number;
-
+    string toString(void) const { return message_buffer.SerializeAsString(); }
+    sequence_t sequence_number(void) const { return message_buffer.sequence_number(); }
 private:
 
-    string message;
-    string sender_username;
-    string channel_id;
-    B2BMessageType type;
-    bool status;
+    B2BMessage message_buffer;
 };
 
 /**
@@ -45,18 +38,19 @@ private:
 class B2BIncoming : public Receivable
 {
 public:
-    B2BIncoming(const string& message, const string& sender);
+    B2BIncoming(const char* buffer, size_t length, const string& origin_b);
 
-    sequence_t sequence_number;
-    string message;
-    string channel_id;
-    string sender_username;
-    string origin_broker;
-    B2BMessageType type;
-    bool status;
+    const chattp::B2BMessage& get_protobuf(void) const { return message_buffer; }
 
+    bool type(void) const { return message_buffer.type(); }
+    bool status(void) const { return message_buffer.status(); }
+    const string& channel_id(void) const { return message_buffer.channel_id(); }
+    sequence_t sequence_number(void) const { return message_buffer.sequence_number(); }
+
+    const string origin_broker;
 private:
-    void parseMessage(const string& msg);
+
+    B2BMessage message_buffer;
 };
 
 # endif

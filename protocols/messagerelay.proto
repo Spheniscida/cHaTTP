@@ -1,0 +1,39 @@
+package chattp;
+
+import "message.proto";
+
+//option optimize_for = LITE_RUNTIME;
+
+message MessageRelayRequest
+{
+    required uint64 sequence_number = 1;
+
+    enum MessageRelayRequestType
+    {
+	SENDMESSAGE = 0;
+	CREATECHANNEL = 1;
+	DELETECHANNEL = 2;
+    }
+
+    required MessageRelayRequestType type = 2;
+    repeated string channel_id = 3;
+
+    optional ChattpMessage mesg = 4;
+
+}
+
+message MessageRelayResponse
+{
+    required uint64 sequence_number = 1;
+
+    enum MessageRelayResponseType
+    {
+	SENTMESSAGE = 0;
+	CREATEDCHANNEL = 1;
+	DELETEDCHANNEL = 2;
+    }
+
+    required MessageRelayResponseType type = 2;
+
+    optional bool status = 3 [default = true];
+}

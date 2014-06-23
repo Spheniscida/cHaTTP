@@ -22,6 +22,6 @@ executable mesg-relay
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.6, network >= 2.4, HTTP >= 4000, bytestring >= 0.10.4, aeson >= 0.7,
-                       text >= 1, attoparsec >= 0.11, directory >= 1.2
+                       text >= 1, attoparsec >= 0.11, directory >= 1.2, protocol-buffers >= 2
   -- hs-source-dirs:      
   default-language:    Haskell2010

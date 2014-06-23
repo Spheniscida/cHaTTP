@@ -1,0 +1,16 @@
+package chattp;
+
+//option optimize_for = LITE_RUNTIME;
+
+message ChattpMessage
+{
+    required string sender = 1;
+    required string receiver = 2;                           // group name if group_message.
+    required string timestamp = 3;                          // possibly RFC2822 (Mon, 16 Jun 2014 21:47:06 +0200)
+
+    optional string body = 4;
+
+    optional bool group_message = 5 [default = false];
+    optional bool is_typing = 6 [default = false];          // To send the "Typing..." status. The body is not checked.
+    optional bool has_seen = 7 [default = false];           // User has seen last message.
+}

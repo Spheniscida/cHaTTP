@@ -1,14 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-
+    - This file contains functions implementing the different protocols, e.g. creating HTTP messages,
+    - handling broker communication and JSON messages.
+-}
+
 module Chattp.Relay.Protocol where
 
-import Data.Monoid ((<>))
-
-import qualified Data.ByteString.Lazy.Builder as BSB
 import qualified Data.ByteString.Lazy.Char8 as BS
 
-import Data.Attoparsec.ByteString.Lazy as AP hiding (satisfy,takeWhile)
-import Data.Attoparsec.ByteString.Char8 as AP hiding (parse,Result,Done,Fail)
+import Data.Aeson
+
+import Text.ProtocolBuffers.Header
+import Text.ProtocolBuffers.WireMessage
+
+import Chattp.MessageRelayRequest as Rq
+
+import Chattp.ChattpMessage as Msg
 
 type ChannelID = BS.ByteString
 type UserName = BS.ByteString
@@ -16,82 +24,36 @@ type Message = BS.ByteString
 
 type SequenceNumber = Int
 
-data Status = OK | FAIL deriving Show
+{-
+data MessageRelayRequest = MessageRelayRequest{sequence_number :: !P'.Word64,
+                                               type' :: !Chattp.MessageRelayRequest.MessageRelayRequestType,
+                                               channel_id :: !(P'.Seq P'.Utf8), mesg :: !(P'.Maybe Chattp.ChattpMessage)}
+                         deriving (Prelude'.Show, Prelude'.Eq, Prelude'.Ord, Prelude'.Typeable, Prelude'.Data)
 
-data BrokerRequestMessage = BrokerRequestMessage SequenceNumber BrokerRequest deriving Show
+data MessageRelayResponse = MessageRelayResponse{sequence_number :: !P'.Word64,
+                                                 type' :: !Chattp.MessageRelayResponse.MessageRelayResponseType,
+                                                 status :: !(P'.Maybe P'.Bool)}
+                         deriving (Prelude'.Show, Prelude'.Eq, Prelude'.Ord, Prelude'.Typeable, Prelude'.Data)
 
-data BrokerRequest = SNDMSG UserName ChannelID Message
-                   | NEWCHAN ChannelID
-                   | DELCHAN ChannelID deriving Show
+data ChattpMessage = ChattpMessage{sender :: !P'.Utf8, receiver :: !P'.Utf8, timestamp :: !P'.Utf8, body :: !(P'.Maybe P'.Utf8),
+                                   group_message :: !(P'.Maybe P'.Bool), is_typing :: !(P'.Maybe P'.Bool),
+                                   has_seen :: !(P'.Maybe P'.Bool)}
+                         deriving (Prelude'.Show, Prelude'.Eq, Prelude'.Ord, Prelude'.Typeable, Prelude'.Data)
+-}
 
-data BrokerResponseMessage = BrokerResponseMessage SequenceNumber BrokerResponse deriving Show
+parseRequest :: BS.ByteString -> Either String MessageRelayRequest
+parseRequest b = case messageGet b of
+                    Left e -> Left ("Could not parse MessageRelayRequest: " ++ e)
+                    Right (rq,rst) | rst == BS.empty -> Right rq
+                                   | otherwise -> Left "Could not parse MessageRelayRequest"
 
-data BrokerResponse = MSGSNT Status
-                    | CHANCREAT Status
-                    | DELTDCHAN Status deriving Show
-
-
--- Serializing
-
-bldShow :: Show a => a -> BSB.Builder
-bldShow = BSB.string8 . show
-
-bldNL :: BSB.Builder
-bldNL = BSB.char8 '\n'
-
-responseToRaw :: BrokerResponseMessage -> BS.ByteString
-responseToRaw (BrokerResponseMessage seqn (MSGSNT stat)) = BSB.toLazyByteString $
-                                                            bldShow seqn
-                                                         <> bldNL
-                                                         <> BSB.string8 "MSGSNT"
-                                                         <> bldNL
-                                                         <> bldShow stat
-responseToRaw (BrokerResponseMessage seqn (CHANCREAT stat)) = BSB.toLazyByteString $
-                                                            bldShow seqn
-                                                         <> bldNL
-                                                         <> BSB.string8 "CHANCREAT"
-                                                         <> bldNL
-                                                         <> bldShow stat
-responseToRaw (BrokerResponseMessage seqn (DELTDCHAN stat)) = BSB.toLazyByteString $
-                                                            bldShow seqn
-                                                         <> bldNL
-                                                         <> BSB.string8 "DELTDCHAN"
-                                                         <> bldNL
-                                                         <> bldShow stat
-
--- Parsing
-
-type ProtoParser = Parser BrokerRequestMessage
-
-parseRequest :: BS.ByteString -> Either String BrokerRequestMessage
-parseRequest rq = case parse brokerRequestParser rq of
-                    Fail _ _ e -> Left e
-                    Done _ r -> Right r
-
-brokerRequestParser :: ProtoParser
-brokerRequestParser = do
-    seqn <- decimal
-    char '\n'
-    request <- choice [string "SNDMSG\n" >> parseSNDMSG,
-                       string "NEWCHAN\n" >> parseNEWCHAN,
-                       string "DELCHAN\n" >> parseDELCHAN]
-    return (BrokerRequestMessage seqn request)
-
-parseSNDMSG, parseNEWCHAN, parseDELCHAN :: Parser BrokerRequest
-
-parseSNDMSG = do
-    usr <- fmap BS.fromStrict (AP.takeWhile (/= '\n'))
-    char '\n'
-    channel <- fmap BS.fromStrict (AP.takeWhile (/= '\n'))
-    char '\n'
-    message <- fmap BS.fromStrict takeByteString
-    return (SNDMSG usr channel message)
-
-parseNEWCHAN = do
-    channel <- takeByteString
-    return (NEWCHAN $ BS.fromStrict channel)
-
-parseDELCHAN = do
-    channel <- takeByteString
-    return (DELCHAN $ BS.fromStrict channel)
+makeJSONMessage :: Bool -> ChattpMessage -> Value
+makeJSONMessage ign msg = object [ "ignore" .= ign,
+                                   "message" .= maybe "" uToString (Msg.body msg),
+                                   "from" .= uToString (Msg.sender msg),
+                                   "to" .= uToString (Msg.receiver msg),
+                                   "timestamp" .= uToString (Msg.timestamp msg),
+                                   "is_typing" .= fromMaybe False (Msg.is_typing msg),
+                                   "group_message" .= fromMaybe False (Msg.group_message msg),
+                                   "has_seen" .= fromMaybe False (Msg.has_seen msg)]
 

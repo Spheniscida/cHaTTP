@@ -6,13 +6,16 @@
 /// A type for sequence numbers.
 typedef unsigned long long sequence_t;
 
-typedef std::atomic<sequence_t> atomicSequenceState;
+class SequenceCounter
+{
+public:
+    SequenceCounter(void) { current_number = 1; }
+    sequence_t get(void) { return current_number++; }
 
-/// The current global state of the sequence number.
-extern atomicSequenceState current_sequence_number;
+private:
+    std::atomic<sequence_t> current_number;
+};
 
-extern sequence_t getNewSequenceNumber(void);
-
-extern void initializeGlobalSequenceNumber(void);
+extern SequenceCounter message_relay_counter, persistence_counter, b2b_counter;
 
 # endif

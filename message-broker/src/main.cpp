@@ -27,7 +27,6 @@ void initMessageBrokerThread(void)
  */
 void globalInit(void)
 {
-    initializeGlobalSequenceNumber();
     initializeUrandomSource();
     packets_processed = 0;
 }

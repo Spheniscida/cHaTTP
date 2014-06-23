@@ -9,6 +9,13 @@ UserCache::UserCache(void)
     not_found = c;
 }
 
+/*
+ * @brief Insert a user's location into the user cache.
+ *
+ * @param user_name
+ * @param channel_id
+ * @param broker_name
+ */
 void UserCache::insertUserInCache(const string& user_name, const string& channel_id, const string& broker_name, bool online)
 {
     if ( ! global_broker_settings.getClusteredMode() )

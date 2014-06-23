@@ -13,6 +13,8 @@ extern std::fstream urandom;
 
 void stderrWrite(void);
 
+unsigned int removeErrorCode(string& message);
+
 template<typename T>
 const T removeStringNewlines(const T arg)
 {

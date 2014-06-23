@@ -6,6 +6,15 @@ import Chattp.Webapp.InternalCommunication
 import Chattp.Webapp.Protocol
 import Chattp.Webapp.Storage
 
+import Text.ProtocolBuffers.Header -- defaultValue
+
+import Chattp.WebappResponseMessage as Rp
+import Chattp.WebappRequestMessage as Rq
+import Chattp.ChattpMessage as Msg
+
+import Chattp.WebappRequestMessage.WebappRequestType as Rq
+import Chattp.WebappResponseMessage.WebappResponseType as Rp
+
 import qualified Data.Text.Lazy.Encoding as T
 import qualified Data.Text.Encoding as TS
 
@@ -19,6 +28,8 @@ import Network.FastCGI
 import Control.Concurrent.Chan
 
 import Database.Redis
+
+import System.Timeout
 
 -- This function will be run by runFastCGIConcurrent
 
@@ -53,14 +64,18 @@ handleLogin chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (Login usr pwd)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = LOGIN,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.password = Just $ unsafeToUtf8 pwd }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (UserLoggedIn _ _) -> do
+                    case Rp.type' brokeranswer of
+                        LOGGEDIN -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleLogin,wrongAnswerType]" []
         _ -> outputError 400 "Login request lacking request parameter(s)" []
@@ -78,14 +93,18 @@ handleLogout chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (Logout usr channel)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = LOGOUT,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.channel_id = Just $ unsafeToUtf8 channel }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (UserLoggedOut _) -> do
+                    case Rp.type' brokeranswer of
+                        LOGGEDOUT -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleLogout,wrongAnswerType]" []
         _ -> outputError 400 "Logout request lacking request parameter(s)" []
@@ -103,14 +122,18 @@ handleRegister chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (RegisterUser usr pwd)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = REGISTER,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.password = Just $ unsafeToUtf8 pwd }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (UserRegistered _) -> do
+                    case Rp.type' brokeranswer of
+                        REGISTERED -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleRegister,wrongAnswerType]" []
         _ -> outputError 400 "Register request lacking request parameter(s)" []
@@ -132,21 +155,27 @@ handleSendMessage chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let mangled_message = BS.map mangleMsg mesg
-                    let request = BrokerRequestMessage seqn (SendMessage usr channel dst mangled_message)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let message = defaultValue { Msg.sender = unsafeToUtf8 usr,
+                                                 Msg.receiver = unsafeToUtf8 dst,
+                                                 Msg.timestamp = unsafeToUtf8 "<dummy>",
+                                                 Msg.body = Just $ unsafeToUtf8 mesg }
+
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = SENDMESSAGE,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.channel_id = Just $ unsafeToUtf8 channel,
+                                                 Rq.mesg = Just message }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (MessageAccepted _) -> do
+                    case Rp.type' brokeranswer of
+                        SENTMESSAGE -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleSendMessage,wrongAnswerType]" []
         _ -> outputError 400 "Message send request lacking request parameter(s)" []
-    where mangleMsg :: Char -> Char
-          mangleMsg '\n' = ' '
-          mangleMsg c = c
 
 handleStatusRequest :: ChanInfo -> CGI CGIResult
 handleStatusRequest chans = do
@@ -160,14 +189,17 @@ handleStatusRequest chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (QueryStatus usr)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = QUERYSTATUS,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (UserStatus _) -> do
+                    case Rp.type' brokeranswer of
+                        USERSTATUS -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error. [handleStatusRequest,wrongAnswerType]" []
         _ -> outputError 400 "Status request lacking request parameter" []
@@ -185,14 +217,18 @@ handleMessagesRequest chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (GetMessages usr chan)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = GETMESSAGES,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.channel_id = Just $ unsafeToUtf8 chan }
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        (SavedMessages _ _) -> do
+                    case Rp.type' brokeranswer of
+                        GOTMESSAGES -> do
                             let jsonresponse = responseToJSON brokeranswer
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
                         _ -> outputError 500 "Sorry, this is an implementation error [handleMessagesRequest,wrongAnswerType]" []
         _ -> outputError 400 "Saved-messages request lacking request parameter" []
@@ -211,23 +247,29 @@ handleConfSaveRequest conn chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
-                    liftIO $ writeChan (brokerRequestChan chans) (request)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = Rq.AUTHORIZED,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.channel_id = Just $ unsafeToUtf8 chan }
+
+                    liftIO $ writeChan (brokerRequestChan chans) request
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        Authorized True -> do
-                                result <- liftIO $ storeUserSettings conn usr raw_settings
+                    case (Rp.type' brokeranswer,Rp.status brokeranswer) of
+                        (Rp.AUTHORIZED,Just True) -> do
+                            result <- liftIO $ storeUserSettings conn usr raw_settings
 
-                                let (status,err) = if result == ""
-                                                   then (True,"")
-                                                   else (False,result)
+                            let (status,err) = if result == ""
+                                then (True,"")
+                                else (False,result)
 
-                                outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
-                                                          "status" .= status,
-                                                          "error" .= (T.decodeUtf8 . BS.pack $ err)]
-                        Authorized False -> outputFPS $ responseToJSON brokeranswer
+                            let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                                         "status" .= status,
+                                                         "error" .= (err :: String)]
+                            setHeader "Content-length" (show . BS.length $ jsonresponse)
+                            outputFPS jsonresponse
+                        (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Save-settings request lacking request parameter" []
 
@@ -244,23 +286,29 @@ handleConfGetRequest conn chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
-                    let request = BrokerRequestMessage seqn (IsAuthorized usr chan)
+                    let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                                 Rq.type' = Rq.AUTHORIZED,
+                                                 Rq.user_name = Just $ unsafeToUtf8 usr,
+                                                 Rq.channel_id = Just $ unsafeToUtf8 chan }
+
                     liftIO $ writeChan (brokerRequestChan chans) (request)
 
                     brokeranswer <- liftIO $ readChan answerchan
 
-                    case brokeranswer of
-                        Authorized True -> do
+                    case (Rp.type' brokeranswer,Rp.status brokeranswer) of
+                        (Rp.AUTHORIZED,Just True) -> do
                                 settings <- liftIO $ getUserSettings conn usr
                                 let settings_json = case AE.decode settings of
                                                         Just o -> o
                                                         Nothing -> AE.String . TS.decodeUtf8 . BS.toStrict $ settings
 
-                                outputFPS . encode $ object ["type" .= T.decodeUtf8 "saved-settings",
+                                let jsonresponse = encode $ object ["type" .= T.decodeUtf8 "saved-settings",
                                                           "status" .= True,
                                                           "error" .= T.decodeUtf8 "",
                                                           "settings" .= settings_json]
-                        Authorized False -> outputFPS $ responseToJSON brokeranswer
+                                setHeader "Content-length" (show . BS.length $ jsonresponse)
+                                outputFPS jsonresponse
+                        (Rp.AUTHORIZED,_) -> outputFPS $ responseToJSON brokeranswer
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Get-settings request lacking request parameter" []
 

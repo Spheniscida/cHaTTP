@@ -21,7 +21,7 @@ using std::string;
  * heavily impairs the functionality, i.e. it doesn't work.
  *
  * Control "clustered mode" with the CHATTP_MSGBROKER_RUN_CLUSTERED environment
- * variable. If it is set to "Y", the user cache is disabled.
+ * variable. If it is set to "Y", the user cache is completely disabled.
  */
 class UserCache
 {
