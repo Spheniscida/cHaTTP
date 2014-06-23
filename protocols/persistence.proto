@@ -17,6 +17,10 @@ message PersistenceRequest
         LOOKUP = 4;
         SAVEMESSAGE = 5;
         GETMESSAGES = 6;
+
+        // Used by webapp
+        SAVESETTINGS = 7;
+        GETSETTINGS = 8;
     }
     required PersistenceRequestType type = 2;
     
@@ -28,6 +32,8 @@ message PersistenceRequest
     repeated string lookup_users = 7; // LOOKUP multiple users.
 
     optional ChattpMessage mesg = 8; // SAVEMESSAGE
+
+    optional string settings = 9; // SAVESETTINGS
 }
 
 message PersistenceResponse
@@ -43,6 +49,10 @@ message PersistenceResponse
         LOOKEDUP = 4;
         SAVEDMESSAGE = 5;
         GOTMESSAGES = 6;
+
+        // Used for webapp
+        SAVEDSETTINGS = 7;
+        GOTSETTINGS = 8;
     }
 
     required PersistenceResponseType type = 2;
@@ -59,4 +69,6 @@ message PersistenceResponse
     repeated UserLocation user_locations = 4;
 
     repeated ChattpMessage mesgs = 5; // GOTMESSAGES
+
+    optional string settings = 6; // GOTSETTINGS
 }

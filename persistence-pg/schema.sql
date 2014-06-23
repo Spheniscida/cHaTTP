@@ -6,6 +6,7 @@ CREATE TABLE chattp_users
     user_name VARCHAR(50) NOT NULL,
     user_email VARCHAR(50) NOT NULL,
     user_password VARCHAR(72) NOT NULL, -- max. bf password length
+    user_settings TEXT,
 
     PRIMARY KEY (user_id),
     UNIQUE (user_id)
@@ -48,8 +49,8 @@ CREATE TABLE chattp_locations
     broker_id INTEGER NOT NULL,
     channel_id CHARACTER(64) NOT NULL,
 
-    FOREIGN KEY (user_id) REFERENCES chattp_users(user_id),
-    FOREIGN KEY (broker_id) REFERENCES chattp_brokers(broker_id),
+    FOREIGN KEY (user_id) REFERENCES chattp_users (user_id),
+    FOREIGN KEY (broker_id) REFERENCES chattp_brokers (broker_id),
     UNIQUE (channel_id)
 );
 
