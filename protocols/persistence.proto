@@ -7,7 +7,7 @@ import "message.proto";
 message PersistenceRequest
 {
     required uint64 sequence_number = 1;
-    
+
     enum PersistenceRequestType
     {
         REGISTER = 0;
@@ -23,7 +23,7 @@ message PersistenceRequest
         GETSETTINGS = 8;
     }
     required PersistenceRequestType type = 2;
-    
+
     optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. Not used for LOOKUPs!
     optional string password = 4; // REGISTER CHECKPASS
 
