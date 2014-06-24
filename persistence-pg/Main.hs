@@ -1,23 +1,28 @@
 module Main where
 
 import Chattp.PersistencePg.Config
-import Chattp.PersistencePg.Database
+import Chattp.PersistencePg.Talk
 
 import Control.Monad (replicateM_)
 
 import Control.Concurrent (forkIO)
 
-import Network.Socket
+import Network (Socket)
+import Network.Socket.ByteString
 
 main :: IO ()
 main = do
     sock <- makePersistenceSocket
     brokeraddr <- makeBrokerSockAddr
-    replicateM_ 2 (forkIO $ workerThread sock brokeraddr) -- 2 + 1 = 3 threads
-    workerThread sock brokeraddr
+    replicateM_ 2 (forkIO $ workerThread sock) -- 2 + 1 = 3 threads
+    workerThread sock
 
-workerThread :: Socket -> SockAddr -> IO ()
-workerThread mysock brokeraddr = do
+workerThread :: Socket -> IO ()
+workerThread mysock = do
     pgconn <- pgConnection
-    undefined
+    (msg,sender) <- recvFrom mysock 16384
+    resp <- handleMessage pgconn msg
+    case resp of
+        Nothing -> workerThread mysock
+        Just r -> sendTo mysock r sender >> workerThread mysock
 

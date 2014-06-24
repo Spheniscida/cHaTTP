@@ -4,7 +4,7 @@ module Chattp.PersistencePg.Database where
 
 import Data.ByteString.Lazy.Char8 as BS
 
-import Control.Monad (void,liftM)
+import Control.Monad (liftM)
 
 import Database.PostgreSQL.Simple
 
@@ -65,8 +65,8 @@ getSettingsQuery = "SELECT coalesce(user_settings,'') FROM chattp_users WHERE us
 userExists :: String -> Connection -> IO Bool
 userExists usr conn = (query conn userExistsQuery (Only usr) :: IO [Only Int]) >>= \(Only n :_) -> return (n > 0)
 
-registerUser :: (String,String,String) -> Connection -> IO ()
-registerUser credentials@(_usr,_pwd,_email) conn = void $ execute conn userRegisterQuery credentials
+registerUser :: (String,String,String) -> Connection -> IO Bool
+registerUser credentials@(_usr,_pwd,_email) conn = liftM (>0) $ execute conn userRegisterQuery credentials
 
 -- Returns True if user is logged in, False if user doesn't exist
 loginUser :: (String,String,String) -> Connection -> IO Bool
