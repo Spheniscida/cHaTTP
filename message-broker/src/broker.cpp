@@ -556,7 +556,7 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 	transaction_cache.insertWebappRequest(seqnum,rq);
     } catch (libsocket::socket_exception e)
     {
-	WebappResponse failresp(seqnum,WebappResponseMessage::USERSTATUS,false,"Internal error! (Persistence down)");
+	WebappResponse failresp(seqnum,WebappResponseMessage::USERSTATUS,false,"4,Internal error! (Persistence down)");
 	communicator.send(failresp);
 
 	throw e;
@@ -608,14 +608,17 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,"Internal error (Persistence down)");
+	    WebappResponseMessage mesg;
+
+	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),"4,Internal error (Persistence down)");
 	    communicator.send(failresp);
 
 	    throw e;
 	}
     } else if ( user.found && (! user.online || user.channel_id != rq.channel_id()) )
     {
-	WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,user.online ? "Wrong channel id" : "User is offline");
+	WebappResponseMessage mesg;
+	WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),user.online ? "2,Wrong channel id" : "1,User is offline");
 
 	communicator.send(failresp);
 	return;
@@ -711,7 +714,6 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
     {
 	if ( ! (user.online && user.channel_id == rq.channel_id() && user.broker_name == global_broker_settings.getMessageBrokerName()) )
 	{
-	    WebappResponseMessage::WebappResponseType type;
 	    string error_string;
 
 	    if ( ! user.online )
@@ -723,9 +725,7 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 
 	    if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
 	    {
-		type = WebappResponseMessage::SAVEDSETTINGS;
-
-		WebappResponse failresp(seqnum,type,false,error_string);
+		WebappResponse failresp(seqnum,WebappResponseMessage::SAVEDSETTINGS,false,error_string);
 
 		communicator.send(failresp);
 
@@ -733,9 +733,7 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 	    }
 	    else
 	    {
-		type = WebappResponseMessage::GOTSETTINGS;
-
-		WebappResponse failresp(seqnum,type,false,string(""),error_string);
+		WebappResponse failresp(seqnum,WebappResponseMessage::GOTSETTINGS,false,string(""),error_string);
 
 		communicator.send(failresp);
 
@@ -957,55 +955,55 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     // We abort the transaction if it failed or no users were returned (both conditions should normally be true)
     if ( ! rp.status() || rp.get_protobuf().user_locations_size() < 1 )
     {
-	WebappResponseMessage::WebappResponseType type;
+	WebappResponseMessage::WebappResponseType response_type;
 
 	switch ( transaction.type )
 	{
 	    case OutstandingType::persistenceSndmsgSenderULKDUP:
 		// Intentionally left blank
 	    case OutstandingType::persistenceSndmsgReceiverULKDUP:
-		type = WebappResponseMessage::SENTMESSAGE;
+		response_type = WebappResponseMessage::SENTMESSAGE;
 		break;
 	    case OutstandingType::persistenceUonlqULKDUP:
-		type = WebappResponseMessage::USERSTATUS;
+		response_type = WebappResponseMessage::USERSTATUS;
 		break; //  login logout messageget isauth
 	    case OutstandingType::persistenceLoginULKDUP:
-		type = WebappResponseMessage::LOGGEDIN;
+		response_type = WebappResponseMessage::LOGGEDIN;
 		break;
 	    case OutstandingType::persistenceLogoutULKDUP:
-		type = WebappResponseMessage::LOGGEDOUT;
+		response_type = WebappResponseMessage::LOGGEDOUT;
 		break;
 	    case OutstandingType::persistenceMessageGetULKDUP:
-		type = WebappResponseMessage::GOTMESSAGES;
+		response_type = WebappResponseMessage::GOTMESSAGES;
 		break;
 	    case OutstandingType::persistenceIsauthULKDUP:
-		type = WebappResponseMessage::AUTHORIZED;
+		response_type = WebappResponseMessage::AUTHORIZED;
 		break;
 	    case OutstandingType::persistenceSaveSettingsULKDUP:
-		type = WebappResponseMessage::SAVEDSETTINGS;
+		response_type = WebappResponseMessage::SAVEDSETTINGS;
 		break;
 	    case OutstandingType::persistenceGetSettingsULKDUP:
-		type = WebappResponseMessage::GOTSETTINGS;
+		response_type = WebappResponseMessage::GOTSETTINGS;
 	    default:
 		throw BrokerError(ErrorType::genericImplementationError,"This should not have happened – unexpected transaction type in onPersistenceULKDUP");
 	}
 
 	const string error_message = "15,User doesn't exist (or Persistence failed otherwise)";
 
-	switch ( type )
+	switch ( response_type )
 	{
 	    case WebappResponseMessage::LOGGEDOUT:
 	    case WebappResponseMessage::SENTMESSAGE:
 	    case WebappResponseMessage::REGISTERED:
 	    case WebappResponseMessage::SAVEDSETTINGS:
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,error_message);
+		WebappResponse failresp(original_webapp_request.sequence_number(),response_type,false,error_message);
 		communicator.send(failresp);
 	    }
 		break;
 	    case WebappResponseMessage::GOTMESSAGES:
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,
+		WebappResponse failresp(original_webapp_request.sequence_number(),response_type,false,
 		    rp.get_protobuf().mesgs().begin(),rp.get_protobuf().mesgs().begin(),error_message); // no iterations allowed (it1 == it2)
 		communicator.send(failresp);
 	    }
@@ -1013,14 +1011,14 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    case WebappResponseMessage::USERSTATUS:
 	    case WebappResponseMessage::AUTHORIZED:
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,false,error_message);
+		WebappResponse failresp(original_webapp_request.sequence_number(),response_type,false,false,error_message);
 		communicator.send(failresp);
 	    }
 		break;
 	    case WebappResponseMessage::LOGGEDIN:
 	    case WebappResponseMessage::GOTSETTINGS:
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),type,false,string(""),error_message);
+		WebappResponse failresp(original_webapp_request.sequence_number(),response_type,false,string(""),error_message);
 		communicator.send(failresp);
 	    }
 		break;
@@ -1377,24 +1375,17 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::AUTHORIZED )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
-	if ( rp.status() )
-	{
-	    PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	    user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
+	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	    bool auth_status = loc.online()
-			    && loc.broker_name() == global_broker_settings.getMessageBrokerName()
-			    && loc.channel_id() == original_webapp_request.channel_id();
+	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
 
-	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::AUTHORIZED,rp.status(),auth_status,"15,User probably doesn't exist");
-	    communicator.send(resp);
-	} else
-	{
-	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::AUTHORIZED,rp.status(),false,"15,User probably doesn't exist");
+	bool auth_status = loc.online()
+			&& loc.broker_name() == global_broker_settings.getMessageBrokerName()
+			&& loc.channel_id() == original_webapp_request.channel_id();
 
-	    communicator.send(resp);
-	}
+	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::AUTHORIZED,rp.status(),auth_status,"15,User probably doesn't exist");
+	communicator.send(resp);
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
