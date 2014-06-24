@@ -69,8 +69,7 @@ enum class OutstandingType {
     persistenceAfterFailedChancreatLogout,
 
     // for ULKDUP
-    persistenceSndmsgSenderULKDUP,
-    persistenceSndmsgReceiverULKDUP,
+    persistenceSndmsgULKDUP,
     persistenceUonlqULKDUP,
     persistenceLoginULKDUP,
     persistenceLogoutULKDUP,

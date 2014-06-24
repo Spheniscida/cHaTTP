@@ -97,7 +97,7 @@ handleRequest conn CHECKPASS msg = do
 -- LOOKUP
 handleRequest conn LOOKUP msg = do
     --print msg
-    exist <- mapM (\u -> userExists (uToString u) conn) (toList (Rq.lookup_users msg))
+    exist <- mapM (\u -> userExists (uToString u) conn) (toList (Rq.lookup_users msg)) -- very inefficient, better solution?
     if and exist
         then do
             locs <- liftM concat $ mapM lookupOne (toList (Rq.lookup_users msg))
