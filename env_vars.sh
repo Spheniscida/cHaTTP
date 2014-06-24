@@ -21,12 +21,21 @@ export CHATTP_PERSISTENCE_LAYER_ADDR="/tmp/persistence-layer"
 export CHATTP_PERSISTENCE_LAYER_FAMILY="UNIX"
 export CHATTP_PERSISTENCE_LAYER_PORT=""
 
+# Database connections
+
+# Only for conventional persistence-layer
 export CHATTP_REDIS_FAMILY="INET"
 export CHATTP_REDIS_ADDR="localhost"
 export CHATTP_REDIS_PORT="6379"
 
-##### Message broker bind ports -- the message broker as 4 sockets, each dedicated to one external application
-##### The address family is the same one as in the application bind addresses above.
+# Only for persistence-pg
+
+# Parameters: host port dbname user password. Quote the values in single quotes.
+export CHATTP_POSTGRES_CONNECTION="dbname='chattp' user='chattp' password='chattp_default'"
+
+##### Message broker bind ports -- the message broker uses as much as 4 sockets, each dedicated to one external application.
+##### Those sockets are the ones the other applications send messages to if they want to talk to the broker.
+##### The address family is the same as in the application bind addresses above.
 
 # This one is used by the persistence layer
 export CHATTP_MSGBROKER_PERSISTENCE_BIND_ADDR="/tmp/msg-broker-persistence"

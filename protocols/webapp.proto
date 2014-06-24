@@ -31,6 +31,7 @@ message WebappRequestMessage
     optional ChattpMessage mesg = 6;
 
     optional string settings = 7;
+    optional string email = 8;                              // REGISTER
 }
 
 message WebappResponseMessage
