@@ -10,7 +10,7 @@ import qualified Data.ByteString.Char8 as SBS
 
 import Control.Exception.Base
 
-import Control.Monad (liftM,mapM)
+import Control.Monad (liftM)
 import Data.Functor ((<$))
 
 import Chattp.PersistencePg.Database
@@ -18,12 +18,10 @@ import Chattp.PersistencePg.Database
 import Text.ProtocolBuffers.Header
 import Text.ProtocolBuffers.WireMessage
 
-import Chattp.ChattpMessage
 import Chattp.PersistenceRequest as Rq
 import Chattp.PersistenceRequest.PersistenceRequestType
 import Chattp.PersistenceResponse as Rp
 import Chattp.PersistenceResponse.PersistenceResponseType
-import Chattp.PersistenceResponse.UserLocation
 
 import Database.PostgreSQL.Simple
 
@@ -60,10 +58,10 @@ handleRequest conn REGISTER msg = do
     if exists || null (maybe "" uToString $ Rq.user_name msg) || null (maybe "" uToString $ Rq.password msg)
         then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = REGISTERED }
         else do
-            status <- catch (registerUser ( maybe "" uToString $ Rq.user_name msg,
+            stat <- catch (registerUser ( maybe "" uToString $ Rq.user_name msg,
                                             maybe "" uToString $ Rq.password msg,
                                             maybe "" uToString $ Rq.email msg ) conn ) handleSQLError
-            return $ (defaultAnswer msg) { Rp.status = Just status, Rp.type' = REGISTERED }
+            return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = REGISTERED }
 -- LOGIN
 handleRequest conn LOGIN msg = do
     print msg
@@ -87,41 +85,46 @@ handleRequest conn LOGIN msg = do
 -- LOGOUT
 handleRequest conn LOGOUT msg = do
     print msg
-    status <- catch (logoutUser (maybe "" uToString $ Rq.user_name msg,
+    stat <- catch (logoutUser (maybe "" uToString $ Rq.user_name msg,
                                  maybe "" uToString $ Rq.channel_id msg) conn) handleSQLError
-    return $ (defaultAnswer msg) { Rp.status = Just status, Rp.type' = LOGGEDOUT }
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = LOGGEDOUT }
 -- CHECKPASS
 handleRequest conn CHECKPASS msg = do
     print msg
-    status <- catch (checkPassword (maybe "" uToString $ Rq.user_name msg,
+    stat <- catch (checkPassword (maybe "" uToString $ Rq.user_name msg,
                                     maybe "" uToString $ Rq.password msg) conn) handleSQLError
-    return $ (defaultAnswer msg) { Rp.status = Just status, Rp.type' = CHECKEDPASS }
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = CHECKEDPASS }
 -- LOOKUP
 handleRequest conn LOOKUP msg = do
     print msg
-    locs <- liftM concat $ mapM lookupOne (toList (Rq.lookup_users msg))
-    return $ (defaultAnswer msg) { Rp.status = Just True, Rp.user_locations = Seq.fromList locs, Rp.type' = LOOKEDUP }
+    exist <- mapM (\u -> userExists (uToString u) conn) (toList (Rq.lookup_users msg))
+    if and exist
+        then do
+            locs <- liftM concat $ mapM lookupOne (toList (Rq.lookup_users msg))
+            return $ (defaultAnswer msg) { Rp.status = Just True, Rp.user_locations = Seq.fromList locs, Rp.type' = LOOKEDUP }
+        else return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = LOOKEDUP }
     where lookupOne usr = catch (lookupUser (uToString usr) conn) (\e -> [] <$ handleSQLError e)
 -- SAVEMESSAGE
 handleRequest conn SAVEMESSAGE msg = do
     print msg
-    status <- catch (saveMessage (fromMaybe defaultValue $ Rq.mesg msg) conn) handleSQLError
-    return $ (defaultAnswer msg) { Rp.status = Just status, Rp.type' = SAVEDMESSAGE }
+    stat <- catch (saveMessage (fromMaybe defaultValue $ Rq.mesg msg) conn) handleSQLError
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = SAVEDMESSAGE }
 -- GETMESSAGES
 handleRequest conn GETMESSAGES msg = do
     print msg
     msgs <- catch (getMessages (maybe "" uToString $ Rq.user_name msg) conn) (([]<$) . handleSQLError)
+    _ <- catch (deleteMessages (maybe "" uToString $ Rq.user_name msg) conn) handleSQLError
     return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = GOTMESSAGES, Rp.mesgs = Seq.fromList msgs }
 -- SAVESETTINGS
 handleRequest conn SAVESETTINGS msg = do
     print msg
-    status <- catch (saveSettings (maybe "" uToString $ Rq.user_name msg, maybe "" utf8 $ Rq.settings msg) conn) handleSQLError
-    return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = SAVEDSETTINGS }
+    stat <- catch (saveSettings (maybe "" uToString $ Rq.user_name msg, maybe "" utf8 $ Rq.settings msg) conn) handleSQLError
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = SAVEDSETTINGS }
 -- GETSETTINGS
 handleRequest conn GETSETTINGS msg = do
     print msg
-    settings <- catch (getSettings (maybe "" uToString $ Rq.user_name msg) conn) ((Nothing<$) . handleSQLError)
-    case settings of
+    sets <- catch (getSettings (maybe "" uToString $ Rq.user_name msg) conn) ((Nothing<$) . handleSQLError)
+    case sets of
         Nothing -> return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = GOTSETTINGS }
         Just set -> return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = GOTSETTINGS, Rp.settings = Just $ unsafeToUtf8 set }
 

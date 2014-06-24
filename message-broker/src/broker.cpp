@@ -488,6 +488,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"16,Internal error! (clustering disabled)");
 	    communicator.send(failresp);
 
+	    return;
 	} else if ( ! receiver.online )
 	{
 	    // Discard meta-messages if they'd have to be stored.
@@ -615,6 +616,7 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 	WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,user.online ? "Wrong channel id" : "User is offline");
 
 	communicator.send(failresp);
+	return;
     }
 }
 
@@ -689,9 +691,44 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 				    false,"4,Internal error (Persistence down)");
 
 	    communicator.send(failresp);
+	    return;
 	}
-    } else if ( user.online && user.channel_id == rq.channel_id() && user.broker_name == global_broker_settings.getMessageBrokerName() )
+    } else if ( user.found )
     {
+	if ( ! (user.online && user.channel_id == rq.channel_id() && user.broker_name == global_broker_settings.getMessageBrokerName()) )
+	{
+	    WebappResponseMessage::WebappResponseType type;
+	    string error_string;
+
+	    if ( ! user.online )
+		error_string = "1,User is offline";
+	    else if ( user.channel_id != rq.channel_id() )
+		error_string = "2,User is not authorized";
+	    else
+		error_string = "10,Wrong broker <?>";
+
+	    if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
+	    {
+		type = WebappResponseMessage::SAVEDSETTINGS;
+
+		WebappResponse failresp(seqnum,type,false,error_string);
+
+		communicator.send(failresp);
+
+		return;
+	    }
+	    else
+	    {
+		type = WebappResponseMessage::GOTSETTINGS;
+
+		WebappResponse failresp(seqnum,type,false,string(""),error_string);
+
+		communicator.send(failresp);
+
+		return;
+	    }
+
+	}
 	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSAVEDSETTINGS : OutstandingType::persistenceGOTSETTINGS;
 
 	if ( rq.type() == WebappRequestMessage::GETSETTINGS )
@@ -709,6 +746,7 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,"4,Internal error (Persistence down)");
 
 		communicator.send(failresp);
+		return;
 	    }
 	} else if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
 	{
@@ -872,6 +910,7 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
+	    return;
 	}
     } else
     {
@@ -1352,6 +1391,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
 	    transaction_cache.eraseTransaction(seqnum);
+
+	    return;
 	}
 
 	if ( original_webapp_request.type() == WebappRequestMessage::SAVESETTINGS )
@@ -1394,6 +1435,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 		transaction_cache.eraseTransaction(seqnum);
+
+		throw e;
 	    }
 	}
     } else

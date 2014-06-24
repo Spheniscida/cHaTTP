@@ -54,6 +54,9 @@ saveMessageQuery = "INSERT INTO chattp_messages (receiver,sender,timestamp,group
 getMessagesQuery :: Query -- Parameter: user_name (receiver)
 getMessagesQuery = "SELECT r.user_name, s.user_name, timestamp, group_message, body FROM chattp_messages JOIN chattp_users AS r ON (receiver = r.user_id) JOIN chattp_users AS s ON (sender = s.user_id) WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
 
+deleteMessagesQuery :: Query -- Parameter: user_name
+deleteMessagesQuery = "DELETE FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
+
 saveSettingsQuery :: Query -- Parameters: settings, user_name
 saveSettingsQuery = "UPDATE chattp_users SET user_settings = ? WHERE user_name = ?"
 
@@ -114,6 +117,9 @@ getMessages usr conn = fold conn getMessagesQuery (Only usr) []
                                  timestamp = unsafeToUtf8 tmstmp,
                                  group_message = Just grp_msg,
                                  body = if bdy == BS.empty then Nothing else Just $ unsafeToUtf8 bdy }) : msgs)
+
+deleteMessages :: String -> Connection -> IO Bool
+deleteMessages usr conn = execute conn deleteMessagesQuery (Only usr) >> return True
 
 saveSettings :: (String,ByteString) -> Connection -> IO Bool
 saveSettings (usr,settngs) conn = liftM (>0) $ execute conn saveSettingsQuery (BS.toStrict settngs,usr)
