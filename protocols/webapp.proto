@@ -26,6 +26,8 @@ message WebappRequestMessage
     optional string channel_id = 5;                         // LOGOUT AUTHORIZED GETMESSAGES SENDMESSAGE
 
     optional ChattpMessage mesg = 6;
+
+    optional string email = 7;                              // REGISTER
 }
 
 message WebappResponseMessage
