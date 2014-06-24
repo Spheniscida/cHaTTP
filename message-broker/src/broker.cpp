@@ -587,7 +587,9 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch ( libsocket::socket_exception e )
 	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,"Internal error (Persistence down)");
+	    WebappResponseMessage mesg;
+
+	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),"4,Internal error (Persistence down)");
 	    communicator.send(failresp);
 
 	    throw e;
@@ -686,11 +688,23 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse failresp(seqnum,
-				    rq.type() == WebappRequestMessage::SAVESETTINGS ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
-				    false,"4,Internal error (Persistence down)");
+	    if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
+	    {
+		WebappResponse failresp(seqnum,
+					WebappResponseMessage::SAVEDSETTINGS,
+					false,"4,Internal error (Persistence down)");
 
-	    communicator.send(failresp);
+		communicator.send(failresp);
+	    } else
+	    {
+		WebappResponse failresp(seqnum,
+					WebappResponseMessage::GOTSETTINGS,
+					false,
+					string(""),
+					"4,Internal error (Persistence down)");
+
+		communicator.send(failresp);
+	    }
 	    return;
 	}
     } else if ( user.found )
@@ -743,7 +757,7 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 		transaction_cache.insertWebappRequest(seqnum,rq);
 	    } catch (libsocket::socket_exception e)
 	    {
-		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,"4,Internal error (Persistence down)");
+		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,string(""),"4,Internal error (Persistence down)");
 
 		communicator.send(failresp);
 		return;
@@ -760,7 +774,7 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 		transaction_cache.insertWebappRequest(seqnum,rq);
 	    } catch (libsocket::socket_exception e)
 	    {
-		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,"4,Internal error (Persistence down)");
+		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,string(""),"4,Internal error (Persistence down)");
 
 		communicator.send(failresp);
 	    }
@@ -1316,7 +1330,13 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    else
 		error_message = "2,User not authorized";
 
-	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTMESSAGES,false,error_message);
+	    WebappResponse failresp(original_webapp_request.sequence_number(),
+				    WebappResponseMessage::GOTMESSAGES,
+				    false,
+				    rp.get_protobuf().mesgs().begin(),
+				    rp.get_protobuf().mesgs().end(),
+				    error_message
+   				);
 
 	    communicator.send(failresp);
 
@@ -1337,8 +1357,14 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
 	} catch ( libsocket::socket_exception e )
 	{
-	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTMESSAGES,false,"4,Internal error! (Persistence down)");
 
+	    WebappResponse failresp(original_webapp_request.sequence_number(),
+				    WebappResponseMessage::GOTMESSAGES,
+				    false,
+				    rp.get_protobuf().mesgs().begin(),
+				    rp.get_protobuf().mesgs().end(),
+				    "4,Internal error! (Persistence down)"
+   				);
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    transaction_cache.eraseTransaction(seqnum);
 
@@ -1383,11 +1409,21 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	{
 	    string err_msg = ! loc.online() ? "1,User is offline" : "2,User not authorized";
 
-	    WebappResponse failresp(original_webapp_request.sequence_number(),
-		    transaction.type == OutstandingType::persistenceSaveSettingsULKDUP ? WebappResponseMessage::SAVEDSETTINGS : WebappResponseMessage::GOTSETTINGS,
-		    false,err_msg);
+	    if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP )
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),
+			WebappResponseMessage::SAVEDSETTINGS,
+			false,err_msg);
 
-	    communicator.send(failresp);
+		communicator.send(failresp);
+	    } else
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),
+			WebappResponseMessage::GOTSETTINGS,
+			false,string(""),err_msg);
+
+		communicator.send(failresp);
+	    }
 
 	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
 	    transaction_cache.eraseTransaction(seqnum);
@@ -1431,7 +1467,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
 	    } catch ( libsocket::socket_exception e )
 	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTSETTINGS,false,"4,Internal error! (Persistence down)");
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTSETTINGS,false,string(""),"4,Internal error! (Persistence down)");
 
 		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 		transaction_cache.eraseTransaction(seqnum);

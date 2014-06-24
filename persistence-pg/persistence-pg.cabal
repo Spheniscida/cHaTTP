@@ -18,6 +18,7 @@ cabal-version:       >=1.10
 
 executable persistence-pg
   main-is:             Main.hs
+  ghc-options:         -threaded -with-rtsopts=-N
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.9, postgresql-simple >= 0.4, bytestring >= 0.10,
