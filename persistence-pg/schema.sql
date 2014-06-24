@@ -20,7 +20,7 @@ CREATE TABLE chattp_messages
 (
     receiver INTEGER NOT NULL,
     sender INTEGER NOT NULL,
-    timestamp VARCHAR(20) NOT NULL, -- The timestamp is handled only by the client, we don't need to parse it
+    timestamp VARCHAR(40) NOT NULL, -- The timestamp is handled only by the client, we don't need to parse it
     group_message BOOLEAN,
     body TEXT,
 
