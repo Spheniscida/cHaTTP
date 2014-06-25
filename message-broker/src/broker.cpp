@@ -6,9 +6,10 @@
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
+# include <cassert>
+
 namespace {
     TransactionMap transaction_cache;
-    UserCache user_cache;
 }
 
 /**
@@ -54,6 +55,7 @@ void ProtocolDispatcher::dispatch(void)
 void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerResponse> msg)
 {
 
+    debug_log("tid ", thread_id, " received from Persistence: ", msg->get_protobuf().DebugString());
     switch ( msg->type() )
     {
 	case chattp::PersistenceResponse::LOOKEDUP:
@@ -86,6 +88,7 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerRes
 
 void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 {
+    debug_log("tid ", thread_id, " received from Webapp: ", msg->get_protobuf().DebugString());
     switch ( msg->type() )
     {
 	case WebappRequestMessage::QUERYSTATUS:
@@ -118,6 +121,7 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 
 void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg)
 {
+    debug_log("tid ", thread_id, " received from Message Relay: ", msg->get_protobuf().DebugString());
     switch ( msg->type() )
     {
 	case chattp::MessageRelayResponse::SENTMESSAGE:
@@ -134,6 +138,7 @@ void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayRespon
 
 void ProtocolDispatcher::handleBrokerMessage(shared_ptr<B2BIncoming> msg)
 {
+    debug_log("tid ", thread_id, " received from other Broker: ", msg->get_protobuf().DebugString());
     switch ( msg->type() )
     {
 	case B2BMessage::SENDMESSAGE:
@@ -163,7 +168,6 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 
     transaction.type = OutstandingType::messagerelayB2BMSGSNT;
     transaction.original_sequence_number = seqnum;
-
 
     MessageForRelay relaymsg(msg.channel_id(),msg.get_protobuf().mesg());
 
@@ -197,13 +201,29 @@ void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 	return;
     }
 
-    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,msg.status(),"9,Couldn't deliver message");
+    if ( ! msg.status() )
+    {
+	transaction.type = OutstandingType::persistenceB2BMSGSVD;
 
-    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-    transaction_cache.eraseB2BOrigin(seqnum);
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE,original_webapp_request.get_protobuf().mesg());
+
+	transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+
+	communicator.send(cmd);
+    }
+
+    if ( --(*transaction.remaining_count) == 0 )
+    {
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,msg.status(),"9,Couldn't deliver message");
+	communicator.send(resp);
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	delete transaction.remaining_count;
+    }
+
     transaction_cache.eraseTransaction(seqnum);
-
-    communicator.send(resp);
 }
 
 void ProtocolDispatcher::onWebAppUREG(const WebappRequest& rq)
@@ -237,53 +257,22 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
     OutstandingTransaction transaction;
     transaction.original_sequence_number = seqnum;
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user_name());
+    // Next step is ULKUP, then CHKPASS, then LOGIN
+    transaction.type = OutstandingType::persistenceLoginULKDUP;
 
-    // Can't log-in if already online
-    if ( cached_user.found && cached_user.online )
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
+
+    try
     {
-	WebappResponse resp(seqnum,WebappResponseMessage::LOGGEDIN,false,string("")/*no channel id needed*/,"3,User is already online");
+	communicator.send(cmd);
 
-	communicator.send(resp);
-
-	return;
-    } if ( cached_user.found && ! cached_user.online ) // up next: CHKPASS, then LOGIN
+	new_seqnum = cmd.sequence_number();
+    } catch (libsocket::socket_exception e)
     {
-	transaction.type = OutstandingType::persistenceCHKDPASS;
+	WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDIN,false,string(""),"4,Internal error! (Persistence down)");
+	communicator.send(failresp);
 
-	PersistenceLayerCommand cmd(PersistenceRequest::CHECKPASS,rq.user_name(),rq.password());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    new_seqnum = cmd.sequence_number();
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDIN,false,string(""),"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-    } else
-    {
-	// Next step is ULKUP, then CHKPASS, then LOGIN
-	transaction.type = OutstandingType::persistenceLoginULKDUP;
-
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    new_seqnum = cmd.sequence_number();
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDIN,false,string(""),"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
+	throw e;
     }
 
     transaction_cache.insertTransaction(new_seqnum,transaction);
@@ -296,65 +285,23 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     sequence_t new_seqnum;
     const sequence_t seqnum = rq.sequence_number();
 
-    UserCache::CachedUser cached_user = user_cache.lookupUserInCache(rq.user_name());
+    // Online and authenticated -- logout!
+    transaction.type = OutstandingType::persistenceLGDOUT;
+    transaction.original_sequence_number = seqnum;
 
-    if ( cached_user.found && (! cached_user.online || cached_user.channel_id != rq.channel_id() || cached_user.broker_name != global_broker_settings.getMessageBrokerName()) ) // Unauthorized/invalid
+    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name(),"",rq.channel_id());
+
+    try
     {
-	string error_string;
+	communicator.send(cmd);
 
-	if ( ! cached_user.online )
-	    error_string = "1,User is already offline";
-	else if ( cached_user.broker_name != global_broker_settings.getMessageBrokerName() )
-	    error_string = "10,Logout on wrong broker.";
-	else if ( cached_user.channel_id != rq.channel_id() )
-	    error_string = "2,Logout: authentication error (wrong channel id)";
-
-	// offline or unauthenticated -- deny!
-	WebappResponse resp(seqnum,WebappResponseMessage::LOGGEDOUT,false,error_string);
-
-	communicator.send(resp);
-
-	return;
-    } else if ( cached_user.found ) // Authorized
+	new_seqnum = cmd.sequence_number();
+    } catch (libsocket::socket_exception e)
     {
-	// Online and authenticated -- logout!
-	transaction.type = OutstandingType::persistenceLGDOUT;
-	transaction.original_sequence_number = seqnum;
+	WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
+	communicator.send(failresp);
 
-	PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    new_seqnum = cmd.sequence_number();
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-    } else // not found
-    {
-	// Do procedure via ULKUP
-	transaction.type = OutstandingType::persistenceLogoutULKDUP;
-	transaction.original_sequence_number = seqnum;
-
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    new_seqnum = cmd.sequence_number();
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
+	throw e;
     }
 
     transaction_cache.insertTransaction(new_seqnum,transaction);
@@ -370,6 +317,7 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
     OutstandingTransaction transaction;
 
     transaction.original_sequence_number = seqnum;
+    transaction.type = OutstandingType::persistenceSndmsgULKDUP;
 
     if ( rq.is_group_message() )
     {
@@ -378,138 +326,28 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	return;
     }
 
-    UserCache::CachedUser sender = user_cache.lookupUserInCache(rq.message_sender()), receiver = user_cache.lookupUserInCache(rq.message_receiver());
+    // Sender must remain at first position!
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,vector<string>({rq.message_sender(), rq.message_receiver()}));
 
-    if ( ! sender.found || ! receiver.found ) // We don't have this sender in cache, do normal procedure with two look-ups. Normal in clustered mode.
+    try
     {
-	transaction.type = OutstandingType::persistenceSndmsgULKDUP;
+	communicator.send(cmd);
 
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,vector<string>({rq.message_sender(), rq.message_receiver()}));
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    messages_processed++;
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-
-    } else if ( sender.found && receiver.found ) // We have both users in cache, the receiver is fully in cache. Implicit: !clustered_mode
-    {
-	// Unauthorized!
-	if ( ! sender.online || rq.channel_id() != sender.channel_id )
-	{
-	    WebappResponse resp(seqnum,WebappResponseMessage::SENTMESSAGE,false,!sender.online ? "Sender offline" : "Sender unauthorized");
-	    communicator.send(resp);
-
-	    return;
-	}
-	// Send to message relay (other implementation is in onPersistenceULKDUP)
-	if ( receiver.online && receiver.broker_name == global_broker_settings.getMessageBrokerName() )
-	{
-	    MessageForRelay msg(receiver.channel_id,rq.get_protobuf().mesg());
-
-	    try
-	    {
-		communicator.send(msg);
-
-		messages_processed++;
-		transaction.type = OutstandingType::messagerelayMSGSNT;
-		transaction_cache.insertTransaction(msg.sequence_number(),transaction);
-	    } catch (libsocket::socket_exception e)
-	    {
-		if ( ! rq.get_protobuf().mesg().is_typing() && ! rq.get_protobuf().mesg().has_seen() )
-		{
-		    // Message relay is offline (unreachable), therefore save that message.
-		    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
-
-		    transaction.type = OutstandingType::persistenceMSGSVD;
-
-		    try
-		    {
-			communicator.send(cmd);
-			transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-		    } catch (libsocket::socket_exception e)
-		    {
-			WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"Internal error! (Message relay down, Persistence too)");
-			communicator.send(failresp);
-
-			transaction_cache.eraseTransaction(seqnum);
-
-			throw e;
-		    }
-		} else
-		{
-		    WebappResponse resp(seqnum,WebappResponseMessage::SENTMESSAGE,true,"");
-
-		    communicator.send(resp);
-		}
-	    }
-
-	} else if ( receiver.online && receiver.broker_name != global_broker_settings.getMessageBrokerName() ) // ...and not on this broker. Implicit: !clustered_mode
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"16,Internal error! (clustering disabled)");
-	    communicator.send(failresp);
-
-	    return;
-	} else if ( ! receiver.online )
-	{
-	    // Discard meta-messages if they'd have to be stored.
-	    if ( ! rq.get_protobuf().mesg().is_typing() && ! rq.get_protobuf().mesg().has_seen() )
-	    {
-		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, rq.get_protobuf().mesg());
-
-		try
-		{
-		    communicator.send(cmd);
-
-		    messages_processed++;
-		    transaction.type = OutstandingType::persistenceMSGSVD;
-		    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-		} catch (libsocket::socket_exception e)
-		{
-		    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
-		    communicator.send(failresp);
-
-		    throw e;
-		}
-	    } else
-	    {
-		WebappResponse resp(seqnum,WebappResponseMessage::SENTMESSAGE,true,"");
-
-		communicator.send(resp);
-	    }
-	}
-
+	messages_processed++;
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
 	transaction_cache.insertWebappRequest(seqnum,rq);
+    } catch (libsocket::socket_exception e)
+    {
+	WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+	communicator.send(failresp);
+
+	throw e;
     }
-    // Next up: onPersistenceULKDUP (sender) → onPersistenceULKDUP (receiver) → onMessagerelayMSGSNT/onPersistenceMSGSVD
 }
 
 void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 {
     const sequence_t seqnum = rq.sequence_number();
-
-    UserCache::CachedUser cache_entry = user_cache.lookupUserInCache(rq.user_name());
-
-    if ( cache_entry.found )
-    {
-	// non-clustered mode.
-	WebappResponse resp(seqnum,WebappResponseMessage::USERSTATUS,true,
-			    cache_entry.online && cache_entry.broker_name == global_broker_settings.getMessageBrokerName(),
-			    "" /* Always successful */);
-
-	communicator.send(resp);
-
-	return;
-    }
 
     OutstandingTransaction transaction;
 
@@ -540,58 +378,24 @@ void ProtocolDispatcher::onWebAppMSGGT(const WebappRequest& rq)
     OutstandingTransaction transaction;
 
     transaction.original_sequence_number = seqnum;
+    transaction.type = OutstandingType::persistenceMessageGetULKDUP;
 
-    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user_name());
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
 
-    if ( user.found && (user.online && user.channel_id == rq.channel_id()) )
+    try
     {
-	PersistenceLayerCommand cmd(PersistenceRequest::GETMESSAGES,rq.user_name());
+	communicator.send(cmd);
 
-	transaction.type = OutstandingType::persistenceMSGS;
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch ( libsocket::socket_exception e )
-	{
-	    WebappResponseMessage mesg;
-
-	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),"4,Internal error (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-    } else if ( ! user.found )
-    {
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
-
-	transaction.type = OutstandingType::persistenceMessageGetULKDUP;
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponseMessage mesg;
-
-	    WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),"4,Internal error (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-    } else if ( user.found && (! user.online || user.channel_id != rq.channel_id()) )
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	transaction_cache.insertWebappRequest(seqnum,rq);
+    } catch (libsocket::socket_exception e)
     {
 	WebappResponseMessage mesg;
-	WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),user.online ? "2,Wrong channel id" : "1,User is offline");
 
+	WebappResponse failresp(seqnum,WebappResponseMessage::GOTMESSAGES,false,mesg.mesgs().begin(), mesg.mesgs().end(),"4,Internal error (Persistence down)");
 	communicator.send(failresp);
-	return;
+
+	throw e;
     }
 }
 
@@ -599,41 +403,26 @@ void ProtocolDispatcher::onWebAppISAUTH(const WebappRequest& rq)
 {
     const sequence_t seqnum = rq.sequence_number();
 
-    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user_name());
+    OutstandingTransaction transaction;
 
-    if ( !user.found )
+    transaction.type = OutstandingType::persistenceIsauthULKDUP;
+    transaction.original_sequence_number = seqnum;
+
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
+
+    try
     {
-	OutstandingTransaction transaction;
+	communicator.send(cmd);
 
-	transaction.type = OutstandingType::persistenceIsauthULKDUP;
-	transaction.original_sequence_number = seqnum;
-
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch (libsocket::socket_exception e)
-	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::AUTHORIZED,false,false,"4,Internal error! (Persistence down)");
-	    communicator.send(failresp);
-
-	    throw e;
-	}
-    } else
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	transaction_cache.insertWebappRequest(seqnum,rq);
+    } catch (libsocket::socket_exception e)
     {
-	bool auth_status = user.online
-			&& user.channel_id == rq.channel_id()
-			&& user.broker_name == global_broker_settings.getMessageBrokerName();
+	WebappResponse failresp(seqnum,WebappResponseMessage::AUTHORIZED,false,false,"4,Internal error! (Persistence down)");
+	communicator.send(failresp);
 
-	WebappResponse resp(seqnum,WebappResponseMessage::AUTHORIZED,true,auth_status,"" /* Never fails */);
-
-	communicator.send(resp);
+	throw e;
     }
-
 }
 
 // Because it's so simple, handle both SAVESETTINGS and GETSETTINGS requests.
@@ -645,110 +434,40 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
 
-    UserCache::CachedUser user = user_cache.lookupUserInCache(rq.user_name());
+    transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSaveSettingsULKDUP : OutstandingType::persistenceGetSettingsULKDUP;
 
-    if ( ! user.found )
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
+
+    try
     {
-	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSaveSettingsULKDUP : OutstandingType::persistenceGetSettingsULKDUP;
+	communicator.send(cmd);
 
-	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
-
-	try
-	{
-	    communicator.send(cmd);
-
-	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	    transaction_cache.insertWebappRequest(seqnum,rq);
-	} catch (libsocket::socket_exception e)
-	{
-	    if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
-	    {
-		WebappResponse failresp(seqnum,
-					WebappResponseMessage::SAVEDSETTINGS,
-					false,"4,Internal error (Persistence down)");
-
-		communicator.send(failresp);
-	    } else
-	    {
-		WebappResponse failresp(seqnum,
-					WebappResponseMessage::GOTSETTINGS,
-					false,
-					string(""),
-					"4,Internal error (Persistence down)");
-
-		communicator.send(failresp);
-	    }
-	    return;
-	}
-    } else if ( user.found )
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	transaction_cache.insertWebappRequest(seqnum,rq);
+    } catch (libsocket::socket_exception e)
     {
-	if ( ! (user.online && user.channel_id == rq.channel_id() && user.broker_name == global_broker_settings.getMessageBrokerName()) )
+	if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
 	{
-	    string error_string;
+	    WebappResponse failresp(seqnum,
+				    WebappResponseMessage::SAVEDSETTINGS,
+				    false,"4,Internal error (Persistence down)");
 
-	    if ( ! user.online )
-		error_string = "1,User is offline";
-	    else if ( user.channel_id != rq.channel_id() )
-		error_string = "2,User is not authorized";
-	    else
-		error_string = "10,Wrong broker <?>";
+	    communicator.send(failresp);
+	} else
+	{
+	    WebappResponse failresp(seqnum,
+				    WebappResponseMessage::GOTSETTINGS,
+				    false,
+				    string(""),
+				    "4,Internal error (Persistence down)");
 
-	    if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
-	    {
-		WebappResponse failresp(seqnum,WebappResponseMessage::SAVEDSETTINGS,false,error_string);
-
-		communicator.send(failresp);
-
-		return;
-	    }
-	    else
-	    {
-		WebappResponse failresp(seqnum,WebappResponseMessage::GOTSETTINGS,false,string(""),error_string);
-
-		communicator.send(failresp);
-
-		return;
-	    }
-
+	    communicator.send(failresp);
 	}
-	transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSAVEDSETTINGS : OutstandingType::persistenceGOTSETTINGS;
-
-	if ( rq.type() == WebappRequestMessage::GETSETTINGS )
-	{
-	    PersistenceLayerCommand cmd(chattp::PersistenceRequest::GETSETTINGS, rq.user_name());
-
-	    try
-	    {
-		communicator.send(cmd);
-
-		transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-		transaction_cache.insertWebappRequest(seqnum,rq);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,string(""),"4,Internal error (Persistence down)");
-
-		communicator.send(failresp);
-		return;
-	    }
-	} else if ( rq.type() == WebappRequestMessage::SAVESETTINGS )
-	{
-	    PersistenceLayerCommand cmd(chattp::PersistenceRequest::SAVESETTINGS, rq.user_name(), rq.settings());
-
-	    try
-	    {
-		communicator.send(cmd);
-
-		transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-		transaction_cache.insertWebappRequest(seqnum,rq);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(seqnum, WebappResponseMessage::GOTSETTINGS, false,string(""),"4,Internal error (Persistence down)");
-
-		communicator.send(failresp);
-	    }
-	}
+	return;
     }
+
 }
+
 
 void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 {
@@ -916,6 +635,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     const sequence_t seqnum = rp.sequence_number();
 
+    // No reference! We need this after the transaction is removed from the cache.
     OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number ) // Hit non-existent transaction
@@ -1008,10 +728,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     // Vectored lookup
     if ( transaction.type == OutstandingType::persistenceSndmsgULKDUP )
     {
+
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::SENDMESSAGE )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type SENDMESSAGE; however, this is not the case.");
 
-	const PersistenceResponse::UserLocation sender = rp.get_protobuf().user_locations(0), receiver = rp.get_protobuf().user_locations(1);
+	const PersistenceResponse::UserLocation sender = rp.get_protobuf().user_locations(0);
 
 	// Sender not authorized.
 	if ( ! sender.online() || sender.channel_id() != original_webapp_request.channel_id() || sender.broker_name() != global_broker_settings.getMessageBrokerName() )
@@ -1035,100 +756,116 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    return;
 	}
 
-	if ( receiver.online() )
+	transaction_cache.eraseTransaction(seqnum);
+	std::atomic<unsigned int>* remaining_counter = new std::atomic<unsigned int>;
+	*remaining_counter = rp.get_protobuf().user_locations_size() - 1;
+
+	OutstandingTransaction new_transaction;
+	new_transaction.remaining_count = remaining_counter;
+	new_transaction.original_sequence_number = original_webapp_request.sequence_number();
+
+	for ( int receiver_ix = 1; receiver_ix < rp.get_protobuf().user_locations_size(); receiver_ix++ )
 	{
-	    if ( receiver.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
+	    const PersistenceResponse::UserLocation& receiver = rp.get_protobuf().user_locations(receiver_ix);
+
+	    if ( receiver.online() )
 	    {
-		MessageForRelay msg(receiver.channel_id(),original_webapp_request.get_protobuf().mesg());
-		transaction.type = OutstandingType::messagerelayMSGSNT;
+		if ( receiver.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
+		{
+		    MessageForRelay msg(receiver.channel_id(),original_webapp_request.get_protobuf().mesg());
+		    new_transaction.type = OutstandingType::messagerelayMSGSNT;
 
-		try
-		{
-		    communicator.send(msg);
-		    transaction_cache.eraseAndInsertTransaction(seqnum,msg.sequence_number(),transaction);
-		} catch (libsocket::socket_exception e)
-		{
-		    // Message relay is offline, therefore save that message.
-		    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
+		    try
 		    {
-			PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-			transaction.type = OutstandingType::persistenceMSGSVD;
-
-			try
+			communicator.send(msg);
+			transaction_cache.insertTransaction(msg.sequence_number(),new_transaction);
+		    } catch (libsocket::socket_exception e)
+		    {
+			// Message relay is offline, therefore save that message.
+			if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
 			{
-			    communicator.send(cmd);
-			    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-			} catch (libsocket::socket_exception e)
-			{
-			    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
-			    communicator.send(failresp);
+			    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
 
-			    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+			    new_transaction.type = OutstandingType::persistenceMSGSVD;
+
+			    try
+			    {
+				communicator.send(cmd);
+				transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
+			    } catch (libsocket::socket_exception e)
+			    {
+				WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
+				communicator.send(failresp);
+
+				transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+				transaction_cache.eraseTransaction(seqnum);
+
+				// Do not throw in the loop, otherwise no other messages will be delivered.
+// 				throw e;
+			    }
+			} else
+			{
+			    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,string("6,Internal error! (Message relay down)"));
+
+			    communicator.send(resp);
+
+			    transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
 			    transaction_cache.eraseTransaction(seqnum);
-
-			    throw e;
 			}
-		    } else
-		    {
-			WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,string("6,Internal error! (Message relay down)"));
 
-			communicator.send(resp);
-
-			transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-			transaction_cache.eraseTransaction(seqnum);
+			// Do not throw in the loop, otherwise no other messages will be delivered.
+// 			throw e;
 		    }
-
-		    throw e;
-		}
-	    } else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
-	    {
-		MessageForB2B broker_message(original_webapp_request.get_protobuf().mesg(),receiver.channel_id());
-
-		transaction.type = OutstandingType::b2bMSGSNT;
-		transaction_cache.eraseAndInsertTransaction(seqnum,broker_message.sequence_number(),transaction);
-
-		// UDP doesn't fail
-		communicator.send(broker_message,receiver.broker_name());
-	    } else // not on this broker and non-clustered mode.
-	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"5,Internal error! (clustering disabled)");
-		communicator.send(failresp);
-
-		transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
-		transaction_cache.eraseTransaction(seqnum);
-	    }
-	} else // Save message to persistence layer...
-	{
-	    // ...but only if it's no "meta message" (those are useless if not transmitted in real-time)
-	    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
-	    {
-		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-		transaction.type = OutstandingType::persistenceMSGSVD;
-
-		try
+		} else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
 		{
-		    communicator.send(cmd);
-		    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-		} catch (libsocket::socket_exception e)
+		    MessageForB2B broker_message(original_webapp_request.get_protobuf().mesg(),receiver.channel_id());
+
+		    new_transaction.type = OutstandingType::b2bMSGSNT;
+		    transaction_cache.insertTransaction(broker_message.sequence_number(),new_transaction);
+
+		    // UDP doesn't fail
+		    communicator.send(broker_message,receiver.broker_name());
+		} else // not on this broker and non-clustered mode.
 		{
-		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"5,Internal error! (clustering disabled)");
 		    communicator.send(failresp);
 
-		    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
 		    transaction_cache.eraseTransaction(seqnum);
-
-		    throw e;
 		}
-	    } else
+	    } else // Save message to persistence layer...
 	    {
-		WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,string(""));
+		// ...but only if it's no "meta message" (those are useless if not transmitted in real-time)
+		if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
+		{
+		    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
 
-		communicator.send(resp);
+		    new_transaction.type = OutstandingType::persistenceMSGSVD;
 
-		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-		transaction_cache.eraseTransaction(seqnum);
+		    try
+		    {
+			communicator.send(cmd);
+			transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
+		    } catch (libsocket::socket_exception e)
+		    {
+			WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+			communicator.send(failresp);
+
+			transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
+			transaction_cache.eraseTransaction(seqnum);
+
+			// Do not throw in the loop, otherwise no other messages will be delivered.
+// 			throw e;
+		    }
+		} else
+		{
+		    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,string(""));
+
+		    communicator.send(resp);
+
+		    transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
+		    transaction_cache.eraseTransaction(seqnum);
+		}
 	    }
 	}
     } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP )
@@ -1145,81 +882,21 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 			    "15,User probably doesn't exist"
 			);
 
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
-
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
 	transaction_cache.eraseTransaction(seqnum);
 
 	communicator.send(resp);
-    } else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP )
-    {
-	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGOUT )
-	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
-
-	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
-
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
-
-	// May log off (authenticated).
-	if ( loc.online() && loc.channel_id() == original_webapp_request.channel_id() && loc.broker_name() == global_broker_settings.getMessageBrokerName() )
-	{
-	    // User is authorized to log off.
-	    // Now mark user as offline in persistence.
-	    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT,original_webapp_request.user_name());
-
-	    transaction.type = OutstandingType::persistenceLGDOUT;
-
-	    try
-	    {
-		communicator.send(cmd);
-		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
-		communicator.send(failresp);
-
-		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-		transaction_cache.eraseTransaction(seqnum);
-
-		throw e;
-	    }
-	} else
-	{
-	    string error_message;
-
-	    if ( ! loc.online() )
-		error_message = "1,User is already offline";
-	    else if ( loc.channel_id() != original_webapp_request.channel_id() )
-		error_message = "2,User not authorized to do logout";
-	    else if ( loc.broker_name() != global_broker_settings.getMessageBrokerName() )
-		error_message = "10,Wrong broker!";
-
-	    // User is not authorized to do a LOGOUT operation.
-	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,false,error_message);
-
-	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-	    transaction_cache.eraseTransaction(seqnum);
-
-	    communicator.send(resp);
-	}
     } else if ( transaction.type == OutstandingType::persistenceLoginULKDUP )
     {
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGIN )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGIN; however, this is not the case.");
 
-	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
-
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
-
-	if ( loc.online() || !rp.status() ) // must be offline and registered to log-in
+	if ( !rp.status() ) // must be offline and registered to log-in
 	{
 	    string error_message;
 
-	    if ( loc.online() )
-		error_message = "3,Already online";
-	    else if ( !rp.status() )
-		error_message = "15,User doesn't exist/Internal error";
+	    error_message = "15,User doesn't exist/Internal persistence error";
 
 	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,false,string(""),error_message);
 
@@ -1256,8 +933,6 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	// Next: send msggt to persistence.
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
-
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
 
 	if ( !loc.online() || original_webapp_request.channel_id() != loc.channel_id() )
 	{
@@ -1318,8 +993,6 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
-
 	bool auth_status = loc.online()
 			&& loc.broker_name() == global_broker_settings.getMessageBrokerName()
 			&& loc.channel_id() == original_webapp_request.channel_id();
@@ -1333,8 +1006,6 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     } else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP || transaction.type == OutstandingType::persistenceGetSettingsULKDUP )
     {
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
-
-	user_cache.insertUserInCache(original_webapp_request.user_name(),loc.channel_id(),loc.broker_name(),loc.online());
 
 	if ( !loc.online() || loc.channel_id() != original_webapp_request.channel_id() || loc.broker_name() != global_broker_settings.getMessageBrokerName() )
 	{
@@ -1429,16 +1100,19 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
 	return;
     }
 
-    if ( transaction.type == OutstandingType::persistenceMSGSVD )
+    if ( transaction.type == OutstandingType::persistenceMSGSVD || transaction.type == OutstandingType::persistenceB2BMSGSVD )
     {
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	if ( --(*transaction.remaining_count) == 0 )
+	{
+	    const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,rp.status(),"14,Internal error! (Persistence didn't accept message)");
+	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,rp.status(),"14,Internal error! (Persistence didn't accept message)");
 
-	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+
+	    communicator.send(resp);
+	}
 	transaction_cache.eraseTransaction(seqnum);
-
-	communicator.send(resp);
     } else
     {
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
@@ -1466,13 +1140,9 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
     {
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,rp.status(),"11,Unknown error");
+	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,rp.status(),"1,Probably offline (or unauthorized)");
 
 	communicator.send(resp);
-
-	// online predicate is checked before broker_name and channel_id; those may be left empty.
-	if ( rp.status() )
-	    user_cache.insertUserInCache(original_webapp_request.user_name(),string(),string(),false);
 
 	MessageForRelay delchanmsg(original_webapp_request.channel_id(),MessageRelayRequest::DELETECHANNEL);
 
@@ -1581,8 +1251,6 @@ void ProtocolDispatcher::onPersistenceSettingsResponse(const PersistenceLayerRes
 
 void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 {
-    // After onPersistenceULKDUP
-
     const sequence_t seqnum = rp.sequence_number();
 
     OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
@@ -1602,12 +1270,17 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 
 	if ( rp.status() || (original_webapp_request.get_protobuf().mesg().is_typing() || original_webapp_request.get_protobuf().mesg().has_seen()) )
 	{
-	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,"");
+	    if ( --(*transaction.remaining_count) == 0 )
+	    {
+		WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,"");
 
-	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		delete transaction.remaining_count;
+
+		communicator.send(resp);
+	    } else return;
+
 	    transaction_cache.eraseTransaction(seqnum);
-
-	    communicator.send(resp);
 	} else // save message to persistence (only if non-meta, check is in previous condition)
 	{
 	    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
@@ -1689,18 +1362,15 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 
         if ( rp.status() )
 	{
-            user_cache.insertUserInCache(original_webapp_request.user_name(),original_webapp_request.channel_id_,global_broker_settings.getMessageBrokerName(),true);
-
 	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,rp.status(),original_webapp_request.channel_id_,"12,Channel couldn't be created");
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
 	    communicator.send(resp);
-	}
-        else
+	} else
 	{
 	    // Log out in database, send fail code.
-	    PersistenceLayerCommand logout_cmd(PersistenceRequest::LOGOUT,original_webapp_request.user_name());
+	    PersistenceLayerCommand logout_cmd(PersistenceRequest::LOGOUT,original_webapp_request.user_name(),string(""),original_webapp_request.channel_id());
 	    OutstandingTransaction logout_transaction;
 
 	    logout_transaction.original_sequence_number = original_webapp_request.sequence_number();

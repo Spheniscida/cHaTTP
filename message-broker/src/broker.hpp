@@ -82,6 +82,7 @@ enum class OutstandingType {
 
     // for MSGSV
     persistenceMSGSVD,
+    persistenceB2BMSGSVD,
 
     persistenceSAVEDSETTINGS,
     persistenceGOTSETTINGS,
@@ -104,6 +105,7 @@ struct OutstandingTransaction
     OutstandingType type;
     /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;
+    std::atomic<unsigned int>* remaining_count; // for messages to multiple recipients
 };
 
 # endif

@@ -181,9 +181,6 @@ Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
     last_message_size = received_size;
     message_receiver_buffer[received_size] = 0;
 
-    if ( debugging_mode ) // string() is expensive
-	debug_log("tid ", thread_id," Received message (unix): " + string(message_receiver_buffer));
-
     packets_processed++;
     if ( sock == unix_webapp_sock )
 	return (static_cast<Receivable*>(new WebappRequest(message_receiver_buffer,received_size)));
@@ -208,9 +205,6 @@ Receivable* Communicator::receiveFromINET(inet_dgram_server* sock)
 
     last_message_size = received_size;
     last_inet_sender_size = strlen(inet_sender);
-
-    if ( debugging_mode ) // string() is expensive
-	debug_log("tid ", thread_id, " Received message (inet): ", string(message_receiver_buffer));
 
     packets_processed++;
     if ( sock == inet_webapp_sock )
@@ -258,7 +252,7 @@ void Communicator::send(const WebappResponse& cmd)
 void Communicator::send(const MessageForRelay& cmd)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log("Sent to Message relay: ", cmd.toString());
+	debug_log("Sent to Message relay: ", cmd.get_protobuf().DebugString());
 
     if ( unix_msgrelay_sock )
 	unix_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address);
@@ -273,7 +267,7 @@ void Communicator::send(const MessageForRelay& cmd)
 void Communicator::send(const MessageForB2B& cmd, const string& broker)
 {
     if ( debugging_mode ) // toString() is expensive
-	debug_log("Sent to broker ", broker, " command ", cmd.toString());
+	debug_log("Sent to broker ", broker, " command ", cmd.get_protobuf().DebugString());
 
     inet_b2b_sock->sndto(cmd.toString(),broker,message_broker_port);
 

@@ -2,7 +2,7 @@
 
 module Chattp.PersistencePg.Database where
 
-import Data.ByteString.Lazy.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
 
 import Control.Monad (liftM)
 
@@ -50,6 +50,9 @@ userLookupQuery = "SELECT broker_name, channel_id FROM chattp_locations JOIN cha
 
 saveMessageQuery :: Query -- Parameters: timestamp, group_message, body, receiver, sender
 saveMessageQuery = "INSERT INTO chattp_messages (receiver,sender,timestamp,group_message,body) SELECT r.user_id, s.user_id, ?, ?, ? FROM chattp_users AS r, chattp_users AS s WHERE r.user_name = ? AND s.user_name = ?"
+
+messageExistsQuery :: Query -- Parameters: user_name, timestamp, body
+messageExistsQuery = "SELECT count(*) FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND timestamp = ? AND body = ?"
 
 getMessagesQuery :: Query -- Parameter: user_name (receiver)
 getMessagesQuery = "SELECT r.user_name, s.user_name, timestamp, group_message, body FROM chattp_messages JOIN chattp_users AS r ON (receiver = r.user_id) JOIN chattp_users AS s ON (sender = s.user_id) WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
@@ -103,11 +106,14 @@ lookupUser usr conn = getLocList >>= \l -> case l of
                                                                                                                    broker_name = Just $ uFromString broker, 
                                                                                                                    channel_id = Just $ uFromString channel }) : locs )
 saveMessage :: ChattpMessage -> Connection -> IO Bool
-saveMessage msg conn = liftM (>0) $  execute conn saveMessageQuery (uToString (timestamp msg),
+saveMessage msg conn = liftM (>0) $ execute conn saveMessageQuery (uToString (timestamp msg),
                                                       fromMaybe False (group_message msg),
                                                       maybe "" utf8 (body msg),
                                                       uToString (receiver msg),
                                                       uToString (sender msg))
+
+messageExists :: ChattpMessage -> Connection -> IO Bool
+messageExists msg conn = query conn messageExistsQuery (uToString (receiver msg),uToString (timestamp msg),maybe "" uToString (body msg)) >>= \(Only i : _) -> return ((i::Int) > 0)
 
 getMessages :: String -> Connection -> IO [ChattpMessage]
 getMessages usr conn = fold conn getMessagesQuery (Only usr) []
@@ -121,7 +127,7 @@ getMessages usr conn = fold conn getMessagesQuery (Only usr) []
 deleteMessages :: String -> Connection -> IO Bool
 deleteMessages usr conn = execute conn deleteMessagesQuery (Only usr) >> return True
 
-saveSettings :: (String,ByteString) -> Connection -> IO Bool
+saveSettings :: (String,BS.ByteString) -> Connection -> IO Bool
 saveSettings (usr,settngs) conn = liftM (>0) $ execute conn saveSettingsQuery (BS.toStrict settngs,usr)
 
 getSettings :: String -> Connection -> IO (Maybe BS.ByteString)

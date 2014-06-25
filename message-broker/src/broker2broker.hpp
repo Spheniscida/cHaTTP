@@ -26,6 +26,7 @@ public:
     MessageForB2B(sequence_t seq_num, bool status);
 
     string toString(void) const { return message_buffer.SerializeAsString(); }
+    const B2BMessage& get_protobuf(void) const { return message_buffer; }
     sequence_t sequence_number(void) const { return message_buffer.sequence_number(); }
 private:
 

@@ -21,6 +21,7 @@ public:
     MessageForRelay(const string& channel_id, MessageRelayRequest::MessageRelayRequestType action_type);
 
     string toString(void) const { return request_buffer.SerializeAsString(); }
+    const MessageRelayRequest& get_protobuf(void) const { return request_buffer; }
     sequence_t sequence_number(void) const { return request_buffer.sequence_number(); };
 
 private:
