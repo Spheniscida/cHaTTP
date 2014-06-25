@@ -879,8 +879,15 @@ void ProtocolDispatcher::onPersistenceLGDIN(const PersistenceLayerResponse& rp)
 		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"6,Internal error! (Channel registration failed b/c relay is down)");
 		communicator.send(failresp);
 
-		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-		transaction_cache.eraseTransaction(seqnum);
+		PersistenceLayerCommand logout_cmd(PersistenceRequest::LOGOUT,original_webapp_request.user_name());
+
+		transaction.original_sequence_number = original_webapp_request.sequence_number();
+		transaction.type = OutstandingType::persistenceAfterFailedChancreatLogout;
+
+		transaction_cache.eraseAndInsertTransaction(seqnum,logout_cmd.sequence_number(),transaction);
+
+		communicator.send(logout_cmd);
+
 		throw e;
 	    }
 	} else
