@@ -54,29 +54,31 @@ handleRequest :: Connection -> PersistenceRequestType -> PersistenceRequest -> I
 -- REGISTER
 handleRequest conn REGISTER msg = do
     --print msg
-    exists <- userExists (maybe "" uToString $ Rq.user_name msg) conn
-    if exists || null (maybe "" uToString $ Rq.user_name msg) || null (maybe "" uToString $ Rq.password msg)
-        then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = REGISTERED }
-        else do
-            stat <- catch (registerUser ( maybe "" uToString $ Rq.user_name msg,
-                                            maybe "" uToString $ Rq.password msg,
-                                            maybe "" uToString $ Rq.email msg ) conn ) handleSQLError
-            return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = REGISTERED }
+    withTransaction conn $ do
+        exists <- userExists (maybe "" uToString $ Rq.user_name msg) conn
+        if exists || null (maybe "" uToString $ Rq.user_name msg) || null (maybe "" uToString $ Rq.password msg)
+            then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = REGISTERED }
+            else do
+                stat <- catch (registerUser ( maybe "" uToString $ Rq.user_name msg,
+                                                maybe "" uToString $ Rq.password msg,
+                                                maybe "" uToString $ Rq.email msg ) conn ) handleSQLError
+                return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = REGISTERED }
 -- LOGIN
 handleRequest conn LOGIN msg = do
     --print msg
-    exists <- userExists (maybe "" uToString $ Rq.user_name msg) conn
-    if not exists || null (maybe "" uToString $ Rq.user_name msg) || null (maybe "" uToString $ Rq.broker_name msg) || null (maybe "" uToString $ Rq.channel_id msg)
-        then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = LOGGEDIN }
-        else do
-            if not $ null (maybe "" uToString $ Rq.password msg) -- password was sent; check password.
-                then do
-                    pwd_status <- catch (checkPassword (maybe "" uToString $ Rq.user_name msg,
-                                                        maybe "" uToString $ Rq.password msg) conn ) handleSQLError
-                    if not pwd_status
-                        then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = REGISTERED }
-                        else doLogin
-                else doLogin -- no password was sent
+    withTransaction conn $ do
+        exists <- userExists (maybe "" uToString $ Rq.user_name msg) conn
+        if not exists || null (maybe "" uToString $ Rq.user_name msg) || null (maybe "" uToString $ Rq.broker_name msg) || null (maybe "" uToString $ Rq.channel_id msg)
+            then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = LOGGEDIN }
+            else do
+                if not $ null (maybe "" uToString $ Rq.password msg) -- password was sent; check password.
+                    then do
+                        pwd_status <- catch (checkPassword (maybe "" uToString $ Rq.user_name msg,
+                                                            maybe "" uToString $ Rq.password msg) conn ) handleSQLError
+                        if not pwd_status
+                            then return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = REGISTERED }
+                            else doLogin
+                    else doLogin -- no password was sent
     where doLogin = do
             login_status <- catch (loginUser (maybe "" uToString $ Rq.user_name msg,
                                               maybe "" uToString $ Rq.broker_name msg,
@@ -97,12 +99,13 @@ handleRequest conn CHECKPASS msg = do
 -- LOOKUP
 handleRequest conn LOOKUP msg = do
     --print msg
-    exist <- mapM (\u -> userExists (uToString u) conn) (toList (Rq.lookup_users msg)) -- very inefficient, better solution?
-    if and exist
-        then do
-            locs <- liftM concat $ mapM lookupOne (toList (Rq.lookup_users msg))
-            return $ (defaultAnswer msg) { Rp.status = Just True, Rp.user_locations = Seq.fromList locs, Rp.type' = LOOKEDUP }
-        else return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = LOOKEDUP }
+    withTransaction conn $ do
+        exist <- mapM (\u -> userExists (uToString u) conn) (toList (Rq.lookup_users msg)) -- very inefficient, better solution?
+        if and exist
+            then do
+                locs <- liftM concat $ mapM lookupOne (toList (Rq.lookup_users msg))
+                return $ (defaultAnswer msg) { Rp.status = Just True, Rp.user_locations = Seq.fromList locs, Rp.type' = LOOKEDUP }
+            else return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = LOOKEDUP }
     where lookupOne usr = catch (lookupUser (uToString usr) conn) (\e -> [] <$ handleSQLError e)
 -- SAVEMESSAGE
 handleRequest conn SAVEMESSAGE msg = do
@@ -112,9 +115,10 @@ handleRequest conn SAVEMESSAGE msg = do
 -- GETMESSAGES
 handleRequest conn GETMESSAGES msg = do
     --print msg
-    msgs <- catch (getMessages (maybe "" uToString $ Rq.user_name msg) conn) (([]<$) . handleSQLError)
-    _ <- catch (deleteMessages (maybe "" uToString $ Rq.user_name msg) conn) handleSQLError
-    return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = GOTMESSAGES, Rp.mesgs = Seq.fromList msgs }
+    withTransaction conn $ do
+        msgs <- catch (getMessages (maybe "" uToString $ Rq.user_name msg) conn) (([]<$) . handleSQLError)
+        _ <- catch (deleteMessages (maybe "" uToString $ Rq.user_name msg) conn) handleSQLError
+        return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = GOTMESSAGES, Rp.mesgs = Seq.fromList msgs }
 -- SAVESETTINGS
 handleRequest conn SAVESETTINGS msg = do
     --print msg
