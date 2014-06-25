@@ -61,15 +61,15 @@ parseAnswer input = case messageGet input of
 -- JSON responses to web clients
 
 responseToJSON :: WebappResponseMessage -> BS.ByteString
-responseToJSON rp | Rp.type' rp == REGISTERED = encode . object $ makeJSON ("registered",rp)
-                  | Rp.type' rp == LOGGEDIN   = encode . object $ ("channel_id" .= maybe "" uToString (Rp.channel_id rp)) : makeJSON ("logged-in",rp)
-                  | Rp.type' rp == LOGGEDOUT  = encode . object $ makeJSON ("logged-out",rp)
-                  | Rp.type' rp == SENTMESSAGE= encode . object $ makeJSON ("message-accepted",rp)
-                  | Rp.type' rp == USERSTATUS = encode . object $ ("online" .= fromMaybe False (Rp.online rp)) : makeJSON ("isonline",rp)
-                  | Rp.type' rp == GOTMESSAGES= encode . object $ ("messages" .= messagesToJSON (Rp.mesgs rp)) : makeJSON ("saved-messages",rp)
-                  | Rp.type' rp == SAVEDSETTINGS= encode . object $ makeJSON ("saved-settings",rp)
-                  | Rp.type' rp == GOTSETTINGS= encode . object $ ("settings" .= maybe "" uToString (Rp.settings rp)) : makeJSON ("settings",rp)
-                  | otherwise = encode . object $ makeJSON ("unknown",rp)
+responseToJSON rp | Rp.type' rp == REGISTERED = (`BS.snoc`'\n') . encode . object $ makeJSON ("registered",rp)
+                  | Rp.type' rp == LOGGEDIN   = (`BS.snoc`'\n') . encode . object $ ("channel_id" .= maybe "" uToString (Rp.channel_id rp)) : makeJSON ("logged-in",rp)
+                  | Rp.type' rp == LOGGEDOUT  = (`BS.snoc`'\n') . encode . object $ makeJSON ("logged-out",rp)
+                  | Rp.type' rp == SENTMESSAGE= (`BS.snoc`'\n') . encode . object $ makeJSON ("message-accepted",rp)
+                  | Rp.type' rp == USERSTATUS = (`BS.snoc`'\n') . encode . object $ ("online" .= fromMaybe False (Rp.online rp)) : makeJSON ("isonline",rp)
+                  | Rp.type' rp == GOTMESSAGES= (`BS.snoc`'\n') . encode . object $ ("messages" .= messagesToJSON (Rp.mesgs rp)) : makeJSON ("saved-messages",rp)
+                  | Rp.type' rp == SAVEDSETTINGS= (`BS.snoc`'\n') . encode . object $ makeJSON ("saved-settings",rp)
+                  | Rp.type' rp == GOTSETTINGS= (`BS.snoc`'\n') . encode . object $ ("settings" .= maybe "" uToString (Rp.settings rp)) : makeJSON ("settings",rp)
+                  | otherwise = (`BS.snoc`'\n') . encode . object $ makeJSON ("unknown",rp)
 
 makeJSON :: (String,WebappResponseMessage) -> [Pair]
 makeJSON (type_,rp) = ["status" .= fromMaybe True (Rp.status rp),
