@@ -152,9 +152,6 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
     const sequence_t seqnum = msg.sequence_number();
     OutstandingTransaction transaction;
 
-    transaction.type = OutstandingType::messagerelayB2BMSGSNT;
-    transaction.original_sequence_number = seqnum;
-
     if ( ! global_broker_settings.getClusteredMode() ) // Shouldn't happen.
     {
 	MessageForB2B failmsg(seqnum,false);
@@ -164,13 +161,16 @@ void ProtocolDispatcher::onB2BSNDMSG(const B2BIncoming& msg)
 	return;
     }
 
-    transaction_cache.insertB2BOrigin(seqnum,msg.origin_broker);
+    transaction.type = OutstandingType::messagerelayB2BMSGSNT;
+    transaction.original_sequence_number = seqnum;
+
 
     MessageForRelay relaymsg(msg.channel_id(),msg.get_protobuf().mesg());
 
     try
     {
 	communicator.send(relaymsg);
+	transaction_cache.insertB2BOrigin(seqnum,msg.origin_broker);
 	transaction_cache.insertTransaction(relaymsg.sequence_number(),transaction);
     } catch (libsocket::socket_exception e)
     {
@@ -200,6 +200,7 @@ void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
     WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,msg.status(),"9,Couldn't deliver message");
 
     transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+    transaction_cache.eraseB2BOrigin(seqnum);
     transaction_cache.eraseTransaction(seqnum);
 
     communicator.send(resp);
@@ -1076,7 +1077,6 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 			transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 			transaction_cache.eraseTransaction(seqnum);
-
 		    }
 
 		    throw e;
