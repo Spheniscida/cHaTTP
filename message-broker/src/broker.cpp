@@ -326,6 +326,13 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	return;
     }
 
+    if ( rq.user_name() == rq.message_receiver() )
+    {
+	WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"19,You may not send messages to yourself");
+	communicator.send(failresp);
+	return;
+    }
+
     // Sender must remain at first position!
     PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,vector<string>({rq.message_sender(), rq.message_receiver()}));
 
@@ -735,7 +742,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	const PersistenceResponse::UserLocation sender = rp.get_protobuf().user_locations(0);
 
 	// Sender not authorized.
-	if ( ! sender.online() || sender.channel_id() != original_webapp_request.channel_id() || sender.broker_name() != global_broker_settings.getMessageBrokerName() )
+	if ( sender.user_name() != original_webapp_request.user_name()
+	|| ! sender.online()
+	||   sender.channel_id() != original_webapp_request.channel_id()
+	||   sender.broker_name() != global_broker_settings.getMessageBrokerName() )
 	{
 	    string error_message;
 
@@ -757,14 +767,19 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	}
 
 	transaction_cache.eraseTransaction(seqnum);
-	std::atomic<unsigned int>* remaining_counter = new std::atomic<unsigned int>;
-	*remaining_counter = rp.get_protobuf().user_locations_size() - 1;
 
 	OutstandingTransaction new_transaction;
-	new_transaction.remaining_count = remaining_counter;
+	new_transaction.remaining_count = new std::atomic<unsigned int>;
 	new_transaction.original_sequence_number = original_webapp_request.sequence_number();
 
-	for ( int receiver_ix = 1; receiver_ix < rp.get_protobuf().user_locations_size(); receiver_ix++ )
+	unsigned int initial_index = 1;
+
+	while ( rp.get_protobuf().user_locations(initial_index).user_name() == original_webapp_request.user_name() )
+	    initial_index++;
+
+	*new_transaction.remaining_count = rp.get_protobuf().user_locations_size() - initial_index;
+
+	for ( int receiver_ix = initial_index; receiver_ix < rp.get_protobuf().user_locations_size(); receiver_ix++ )
 	{
 	    const PersistenceResponse::UserLocation& receiver = rp.get_protobuf().user_locations(receiver_ix);
 

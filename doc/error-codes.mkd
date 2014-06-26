@@ -26,3 +26,5 @@
 * 16: Webapp error -- the broker couldn't be reached.
 * 17: Unknown error from persistence.
 * 18: Timeout in webapp.
+* 19: Messages to oneself are not allowed.
+
