@@ -24,6 +24,8 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Attoparsec.ByteString.Lazy
 import Data.Attoparsec.ByteString.Char8 as AP8 hiding (parse, Done, Fail)
 
+import Data.UnixTime
+
 import Network.FastCGI
 import Control.Concurrent.Chan
 
@@ -155,9 +157,11 @@ handleSendMessage chans = do
                     answerchan <- liftIO newChan
                     liftIO $ writeChan (requestsAndResponsesToCenterChan chans) (RegisterSequenceNumber (seqn,answerchan))
 
+                    timestamp <- liftIO getCurrentHTTPTimeStamp
+
                     let message = defaultValue { Msg.sender = unsafeToUtf8 usr,
                                                  Msg.receiver = unsafeToUtf8 dst,
-                                                 Msg.timestamp = unsafeToUtf8 "<dummy>",
+                                                 Msg.timestamp = unsafeToUtf8 timestamp,
                                                  Msg.body = Just $ unsafeToUtf8 mesg }
 
                     let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
@@ -326,4 +330,11 @@ opParser = do
             string "setconf" >> return WebConfSaveRequest,
             string "getconf" >> return WebConfGetRequest,
             many1 anyChar >>= \rq -> return (VoidRequest rq)]
+
+-- time functions
+
+getCurrentHTTPTimeStamp :: IO BS.ByteString
+getCurrentHTTPTimeStamp = do
+    t <- getUnixTime
+    return . BS.fromStrict $ formatUnixTimeGMT webDateFormat t
 

@@ -25,7 +25,8 @@ executable webapp
   build-depends:       base >=4.6 && <4.7, network >= 2, directory >= 1.2,
                        unix >= 2.6, bytestring >= 0.10.4, hashtables >= 1.1, fastcgi >= 3000,
                        aeson >= 0.7, attoparsec >= 0.10, text >= 1.0, hedis >= 0.6,
-                       protocol-buffers >= 2, containers >= 0.5, vector >= 0.10
+                       protocol-buffers >= 2, containers >= 0.5, vector >= 0.10,
+                       unix-time >= 0.2
   -- hs-source-dirs:
   default-language:    Haskell2010
 
