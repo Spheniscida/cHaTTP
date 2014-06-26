@@ -15,6 +15,24 @@ like Facebook Chat. For example, it lacks the following features:
 * Detailed online stats; i.e. a user is displayed as online or offline, but not on what sort
 of device that user is online or when the user was last online.
 
+## Dependencies
+
+On a usual Linux system, you will need the following software packages:
+
+* git (I'm speaking of a really untouched system)
+* cmake
+* g++ >= 4.8 or clang++ (probably >= 3.4, 3.5 works in either case)
+* libprotobuf-dev, protoc (usually called protobuf-compiler as package)
+* libsocket ([on github](https://github.com/dermesser/libsocket))
+* If you want to build unit tests (not really useful): The boost testing framework (e.g. libboost-test1.55-dev in Debian)
+* ghc
+* cabal-install
+* Redis (if "persistence-layer" is updated) or PostgreSQL (for use with persistence-pg); you may want to install
+    libpq-dev before trying to install the Haskell module for Postgres.
+* nginx, of course. You may download a pre-packaged nginx version including the push module at http://cdn.spheniscida.de/lbo/chattp/nginx-push-src.txz
+    nginx requires libpcre, openssl and zlib (the -dev/-devel packages!)
+* spawn-fcgi for starting the webapp. Or another similar tool.
+
 ## Components
 
 See doc/architekture.mkd for a full diagram of the components.
@@ -43,6 +61,11 @@ The →message relay is used to send messages to end users.
 The persistence layer is an interface to an underlying Redis database (maybe even a whole Redis cluster).
 The →message broker uses this daemon to save messages for users who are currently offline and save
 user information in general (passwords, online/offline status...)
+
+Currently, there are two persistence layers:
+
+1. The "persistence-layer", founded on Redis but not speaking the new protobuf-based protocol
+2. The "persistence-pg" application, working together with PostgreSQL and therefore being a bit slower.
 
 ### The message relay
 

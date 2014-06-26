@@ -43,7 +43,7 @@ public:
 
     const chattp::B2BMessage& get_protobuf(void) const { return message_buffer; }
 
-    bool type(void) const { return message_buffer.type(); }
+    B2BMessage::B2BMessageType type(void) const { return message_buffer.type(); }
     bool status(void) const { return message_buffer.status(); }
     const string& channel_id(void) const { return message_buffer.channel_id(); }
     sequence_t sequence_number(void) const { return message_buffer.sequence_number(); }
