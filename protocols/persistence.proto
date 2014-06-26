@@ -24,14 +24,17 @@ message PersistenceRequest
     }
     required PersistenceRequestType type = 2;
 
-    optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. Not used for LOOKUPs!
+    optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. May not be be used for LOOKUPs!!!
     optional string password = 4; // REGISTER CHECKPASS
 
-    optional string email = 5; // REGISTER
+    optional string email = 5; // REGISTER -- though not used yet.
 
     optional string channel_id = 6; // LOGIN (LOGOUT, in future for multiple logged-in users)
     optional string broker_name = 7; // LOGIN
 
+    // In this list, multiple user names may be put. The persistence layer software shall look up
+    // all channels for each user name and concatenate that list of lists of locations so the first
+    // user's location(s) are at the first place(s) in the returned list of UserLocations (see PersistenceResponse)
     repeated string lookup_users = 8; // LOOKUP multiple users.
 
     optional ChattpMessage mesg = 9; // SAVEMESSAGE
@@ -69,6 +72,7 @@ message PersistenceResponse
         optional string channel_id = 4;
     }
 
+    // List of user locations as response to a LOOKUP request (see field "lookup_users" in PersistenceRequest message)
     repeated UserLocation user_locations = 4;
 
     repeated ChattpMessage mesgs = 5; // GOTMESSAGES
