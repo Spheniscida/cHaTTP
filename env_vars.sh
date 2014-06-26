@@ -59,12 +59,6 @@ export CHATTP_MSGBROKER_BROKER_NAME="vostro-linux.virt.goebo.site"
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"
 
-# If the broker should run in clustered mode, this means no user cache.
-# A non-clustered single message broker has higher performance (because of
-# better caching), but will not see changes in persistence caused by other nodes.
-# Default (lacking variable, any other string than "Y") is non-clustered.
-export CHATTP_MSGBROKER_RUN_CLUSTERED="N"
-
 export CHATTP_MSGRELAY_PUBLISH_HOST="localhost"
 export CHATTP_MSGRELAY_PUBLISH_PORT="80"
 

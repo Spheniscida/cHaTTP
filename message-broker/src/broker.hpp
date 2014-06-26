@@ -2,6 +2,7 @@
 # define BROKER_HPP
 
 # include <unordered_map>
+# include <list>
 # include <memory>
 
 using std::shared_ptr;

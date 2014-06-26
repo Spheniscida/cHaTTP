@@ -55,6 +55,7 @@ void debug_log(const Ts&... args)
 
 	lock_guard<mutex> output_lock(output_mutex);
 
+	std::cerr.width(6);
 	std::cerr << diff.count() % 1000000 << " - DBG : ";
 	stderrWrite(args...);
     }

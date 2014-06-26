@@ -74,6 +74,7 @@ BrokerSettings::BrokerSettings(void)
 	    n_threads = 1;
 	}
 
+	// Actually not necessary anymore.
 	if ( getenv(broker_clustered_var) )
 	{
 	    if ( getenv(broker_clustered_var) == yes_value )
@@ -82,7 +83,7 @@ BrokerSettings::BrokerSettings(void)
 		clustered_mode = false;
 	} else
 	{
-	    clustered_mode = false;
+	    clustered_mode = true;
 	}
 
     } catch (BrokerError e)

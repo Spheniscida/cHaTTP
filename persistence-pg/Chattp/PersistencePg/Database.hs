@@ -42,9 +42,6 @@ brokerCreateQuery = "INSERT INTO chattp_brokers (broker_name) VALUES (?)"
 userLogoutChanIDQuery :: Query -- Parameters: user_name, channel_id
 userLogoutChanIDQuery = "DELETE FROM chattp_locations WHERE user_id = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND channel_id = ?"
 
-userLogoutQuery :: Query -- Parameters: user_name
-userLogoutQuery = "DELETE FROM chattp_locations WHERE user_id = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
-
 userLookupQuery :: Query -- Parameters: user_name
 userLookupQuery = "SELECT broker_name, channel_id FROM chattp_locations JOIN chattp_users USING (user_id) JOIN chattp_brokers USING (broker_id) WHERE user_name = ?"
 
@@ -90,9 +87,7 @@ createBroker :: String -> Connection -> IO Bool
 createBroker broker conn = liftM (>0) $ execute conn brokerCreateQuery (Only broker)
 
 logoutUser :: (String,String) -> Connection -> IO Bool
-logoutUser (usr,channelid) conn = case channelid of
-                                    [] -> liftM (>0) $ execute conn userLogoutQuery (Only usr)
-                                    _  -> liftM (>0) $ execute conn userLogoutChanIDQuery (usr,channelid)
+logoutUser (usr,channelid) conn = liftM (>0) $ execute conn userLogoutChanIDQuery (usr,channelid)
 
 checkPassword :: (String,String) -> Connection ->  IO Bool
 checkPassword (usr,pwd) conn = query conn checkPasswordQuery (pwd,usr) >>= \(Only p : _) -> return p

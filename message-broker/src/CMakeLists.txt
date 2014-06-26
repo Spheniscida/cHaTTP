@@ -11,7 +11,6 @@ set(libsrc
     message-relay.cpp
     broker.cpp
     synchronization.cpp
-    user_cache.cpp
     broker2broker.cpp
     transaction-maps.cpp
     )
