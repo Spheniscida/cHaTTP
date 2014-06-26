@@ -45,8 +45,8 @@ userLogoutChanIDQuery = "DELETE FROM chattp_locations WHERE user_id = (SELECT us
 userLookupQuery :: Query -- Parameters: user_name
 userLookupQuery = "SELECT broker_name, channel_id FROM chattp_locations JOIN chattp_users USING (user_id) JOIN chattp_brokers USING (broker_id) WHERE user_name = ?"
 
-saveMessageQuery :: Query -- Parameters: timestamp, group_message, body, receiver, sender
-saveMessageQuery = "INSERT INTO chattp_messages (receiver,sender,timestamp,group_message,body) SELECT r.user_id, s.user_id, ?, ?, ? FROM chattp_users AS r, chattp_users AS s WHERE r.user_name = ? AND s.user_name = ?"
+saveMessageQuery :: Query -- Parameters: timestamp, body, receiver, sender
+saveMessageQuery = "INSERT INTO chattp_messages (receiver,sender,timestamp,body) SELECT r.user_id, s.user_id, ?, ? FROM chattp_users AS r, chattp_users AS s WHERE r.user_name = ? AND s.user_name = ?"
 
 messageExistsQuery :: Query -- Parameters: user_name, timestamp, body
 messageExistsQuery = "SELECT count(*) FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND timestamp = ? AND body = ?"
