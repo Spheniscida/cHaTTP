@@ -46,7 +46,6 @@ public:
     const string& message_receiver(void) const { return request_buffer.mesg().receiver(); }
     const string& message_body(void) const { return request_buffer.mesg().body(); }
     const string& settings(void) const { return request_buffer.settings(); }
-    bool is_group_message(void) const { return request_buffer.mesg().group_message(); }
 
 private:
     WebappRequestMessage request_buffer;
