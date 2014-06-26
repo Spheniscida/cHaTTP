@@ -54,6 +54,5 @@ makeJSONMessage ign msg = object [ "ignore" .= ign,
                                    "to" .= uToString (Msg.receiver msg),
                                    "timestamp" .= uToString (Msg.timestamp msg),
                                    "is_typing" .= fromMaybe False (Msg.is_typing msg),
-                                   "group_message" .= fromMaybe False (Msg.group_message msg),
                                    "has_seen" .= fromMaybe False (Msg.has_seen msg)]
 

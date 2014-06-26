@@ -87,7 +87,6 @@ messageToJSON :: ChattpMessage -> Value
 messageToJSON m = object [ "from"   .= uToString (Msg.sender m),
                            "to"     .= uToString (Msg.receiver m),
                            "timestamp".= uToString (Msg.timestamp m),
-                           "group_message".= fromMaybe False (Msg.group_message m),
                            "body"   .= maybe "" (decodeUtf8 . utf8) (Msg.body m)
                            ]
 

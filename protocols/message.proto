@@ -10,7 +10,6 @@ message ChattpMessage
 
     optional string body = 4;
 
-    optional bool group_message = 5 [default = false];
-    optional bool is_typing = 6 [default = false];          // To send the "Typing..." status. The body is not checked.
-    optional bool has_seen = 7 [default = false];           // User has seen last message.
+    optional bool is_typing = 5 [default = false];          // To send the "Typing..." status. The body is not checked.
+    optional bool has_seen = 6 [default = false];           // User has seen last message.
 }

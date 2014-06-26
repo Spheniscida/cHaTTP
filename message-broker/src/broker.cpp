@@ -5,9 +5,6 @@
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
-# include <cassert>
-# include <algorithm>
-
 namespace {
     TransactionMap transaction_cache;
 }
@@ -317,13 +314,6 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 
     transaction.original_sequence_number = seqnum;
     transaction.type = OutstandingType::persistenceSndmsgULKDUP;
-
-    if ( rq.is_group_message() )
-    {
-	WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"8,Group messages are not implemented yet");
-	communicator.send(failresp);
-	return;
-    }
 
     if ( rq.user_name() == rq.message_receiver() )
     {
@@ -748,7 +738,10 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	      && it->online()
 	      && it->channel_id() == original_webapp_request.channel_id()
 	      && it->broker_name() == global_broker_settings.getMessageBrokerName() )
+	    {
 		authorized = true;
+		break;
+	    }
 	}
 
 	// Sender not authorized.

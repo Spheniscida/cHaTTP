@@ -102,7 +102,6 @@ lookupUser usr conn = getLocList >>= \l -> case l of
                                                                                                                    channel_id = Just $ uFromString channel }) : locs )
 saveMessage :: ChattpMessage -> Connection -> IO Bool
 saveMessage msg conn = liftM (>0) $ execute conn saveMessageQuery (uToString (timestamp msg),
-                                                      fromMaybe False (group_message msg),
                                                       maybe "" utf8 (body msg),
                                                       uToString (receiver msg),
                                                       uToString (sender msg))
@@ -116,7 +115,6 @@ getMessages usr conn = fold conn getMessagesQuery (Only usr) []
         return $ (defaultValue { receiver = unsafeToUtf8 rcvr,
                                  sender = unsafeToUtf8 sndr,
                                  timestamp = unsafeToUtf8 tmstmp,
-                                 group_message = Just grp_msg,
                                  body = if bdy == BS.empty then Nothing else Just $ unsafeToUtf8 bdy }) : msgs)
 
 deleteMessages :: String -> Connection -> IO Bool
