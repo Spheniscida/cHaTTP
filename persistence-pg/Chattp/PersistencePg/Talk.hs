@@ -110,13 +110,8 @@ handleRequest conn LOOKUP msg = do
 -- SAVEMESSAGE
 handleRequest conn SAVEMESSAGE msg = do
     --print msg
-    withTransaction conn $ do
-        mesg_exists <- catch (messageExists (fromMaybe defaultValue (Rq.mesg msg)) conn) handleSQLError
-        if not mesg_exists
-            then do
-                stat <- catch (saveMessage (fromMaybe defaultValue $ Rq.mesg msg) conn) handleSQLError
-                return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = SAVEDMESSAGE }
-            else return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = SAVEDMESSAGE }
+    stat <- catch (saveMessage (fromMaybe defaultValue $ Rq.mesg msg) conn) handleSQLError
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = SAVEDMESSAGE }
 -- GETMESSAGES
 handleRequest conn GETMESSAGES msg = do
     --print msg

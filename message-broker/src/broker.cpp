@@ -1119,6 +1119,7 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
 	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,rp.status(),"14,Internal error! (Persistence didn't accept message)");
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    delete transaction.remaining_count;
 
 	    communicator.send(resp);
 	}
