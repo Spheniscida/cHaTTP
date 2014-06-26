@@ -52,7 +52,7 @@ messageExistsQuery :: Query -- Parameters: user_name, timestamp, body
 messageExistsQuery = "SELECT count(*) FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND timestamp = ? AND body = ?"
 
 getMessagesQuery :: Query -- Parameter: user_name (receiver)
-getMessagesQuery = "SELECT r.user_name, s.user_name, timestamp, group_message, body FROM chattp_messages JOIN chattp_users AS r ON (receiver = r.user_id) JOIN chattp_users AS s ON (sender = s.user_id) WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
+getMessagesQuery = "SELECT r.user_name, s.user_name, timestamp, body FROM chattp_messages JOIN chattp_users AS r ON (receiver = r.user_id) JOIN chattp_users AS s ON (sender = s.user_id) WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
 
 deleteMessagesQuery :: Query -- Parameter: user_name
 deleteMessagesQuery = "DELETE FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
@@ -111,7 +111,7 @@ messageExists msg conn = query conn messageExistsQuery (uToString (receiver msg)
 
 getMessages :: String -> Connection -> IO [ChattpMessage]
 getMessages usr conn = fold conn getMessagesQuery (Only usr) []
-    (\msgs (rcvr,sndr,tmstmp,grp_msg,bdy) -> 
+    (\msgs (rcvr,sndr,tmstmp,bdy) -> 
         return $ (defaultValue { receiver = unsafeToUtf8 rcvr,
                                  sender = unsafeToUtf8 sndr,
                                  timestamp = unsafeToUtf8 tmstmp,
