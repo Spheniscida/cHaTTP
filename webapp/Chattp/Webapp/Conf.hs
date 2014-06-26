@@ -1,7 +1,5 @@
 module Chattp.Webapp.Conf where
 
-import Database.Redis as R
-
 import Network.Socket
 import System.Environment
 import Data.Char
@@ -27,8 +25,7 @@ data WebappConfiguration = WAConfig {
                         bindPort :: Int,
                         brokerAddress :: String,
                         brokerPort :: Int,
-                        brokerSockAddr :: SockAddr,
-                        redisConnPool :: Connection }
+                        brokerSockAddr :: SockAddr }
 
 getConfig :: IO WebappConfiguration
 getConfig = do
@@ -56,18 +53,12 @@ getConfig = do
                        then 0
                        else parsePort broker_port_raw
 
-    let redis_conninfo = case redis_family of
-                          WAFamilyUnix -> defaultConnectInfo { connectPort = UnixSocket redis_addr }
-                          WAFamilyInet -> defaultConnectInfo { connectHost = redis_addr, connectPort = Service redis_port }
-    redis_conn <- R.connect redis_conninfo
-
     let config = WAConfig { bindFamily = family,
                             bindAddress = our_address,
                             bindPort = our_port,
                             brokerAddress = broker_address,
                             brokerPort = broker_port,
-                            brokerSockAddr = sockaddr,
-                            redisConnPool = redis_conn }
+                            brokerSockAddr = sockaddr }
     if checkConfig config
      then return config
      else fail "Environment configuration error; aborting (hint: use the original env_vars script)"

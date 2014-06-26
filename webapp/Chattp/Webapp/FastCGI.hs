@@ -4,7 +4,6 @@ module Chattp.Webapp.FastCGI where
 
 import Chattp.Webapp.InternalCommunication
 import Chattp.Webapp.Protocol
-import Chattp.Webapp.Storage
 
 import Text.ProtocolBuffers.Header -- defaultValue
 
@@ -29,14 +28,10 @@ import Data.UnixTime
 import Network.FastCGI
 import Control.Concurrent.Chan
 
-import Database.Redis
-
-import System.Timeout
-
 -- This function will be run by runFastCGIConcurrent
 
-fcgiMain :: Connection -> ChanInfo -> CGI CGIResult
-fcgiMain r_conn channels = do
+fcgiMain :: ChanInfo -> CGI CGIResult
+fcgiMain channels = do
     Just doc_uri <- getVar "DOCUMENT_URI" -- document uri is /always/ there. Kill me if not ;)
     let rq_type = getOpType . BS.pack $ doc_uri
     setHeader "Content-Type" "application/json"
@@ -47,8 +42,8 @@ fcgiMain r_conn channels = do
         WebSendMessage -> handleSendMessage channels
         WebStatusRequest -> handleStatusRequest channels
         WebMessagesRequest -> handleMessagesRequest channels
-        WebConfSaveRequest -> handleConfSaveRequest r_conn channels
-        WebConfGetRequest -> handleConfGetRequest r_conn channels
+        WebConfSaveRequest -> handleConfSaveRequest channels
+        WebConfGetRequest -> handleConfGetRequest channels
         VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
@@ -237,8 +232,8 @@ handleMessagesRequest chans = do
                         _ -> outputError 500 "Sorry, this is an implementation error [handleMessagesRequest,wrongAnswerType]" []
         _ -> outputError 400 "Saved-messages request lacking request parameter" []
 
-handleConfSaveRequest :: Connection -> ChanInfo -> CGI CGIResult
-handleConfSaveRequest conn chans = do
+handleConfSaveRequest :: ChanInfo -> CGI CGIResult
+handleConfSaveRequest chans = do
     usr_raw <- getInputFPS "user_name"
     chan_raw <- getInputFPS "channel_id"
     raw_settings <- getBodyFPS
@@ -269,8 +264,8 @@ handleConfSaveRequest conn chans = do
                         _ -> outputError 500 "Sorry, this is an implementation error [handleConfSaveRequest,wrongAnswerType]" []
         _ -> outputError 400 "Save-settings request lacking request parameter" []
 
-handleConfGetRequest :: Connection -> ChanInfo -> CGI CGIResult
-handleConfGetRequest conn chans = do
+handleConfGetRequest :: ChanInfo -> CGI CGIResult
+handleConfGetRequest chans = do
     usr_raw <- getInputFPS "user_name"
     chan_raw <- getInputFPS "channel_id"
     case (usr_raw,chan_raw) of

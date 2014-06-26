@@ -25,5 +25,5 @@ main = do
     forkOS (sequenceNumberManager seqchan)
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
-    runFastCGIConcurrent 50 (fcgiMain (redisConnPool config) chaninfo)
+    runFastCGIConcurrent 50 (fcgiMain chaninfo)
     return ()
