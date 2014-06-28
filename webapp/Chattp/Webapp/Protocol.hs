@@ -69,6 +69,7 @@ responseToJSON rp | Rp.type' rp == REGISTERED = (`BS.snoc`'\n') . encode . objec
                   | Rp.type' rp == GOTMESSAGES= (`BS.snoc`'\n') . encode . object $ ("messages" .= messagesToJSON (Rp.mesgs rp)) : makeJSON ("saved-messages",rp)
                   | Rp.type' rp == SAVEDSETTINGS= (`BS.snoc`'\n') . encode . object $ makeJSON ("saved-settings",rp)
                   | Rp.type' rp == GOTSETTINGS= (`BS.snoc`'\n') . encode . object $ ("settings" .= maybe "" uToString (Rp.settings rp)) : makeJSON ("settings",rp)
+                  | Rp.type' rp == HEARTBEAT_RECEIVED = (`BS.snoc`'\n') . encode . object $ makeJSON ("heartbeated",rp)
                   | otherwise = (`BS.snoc`'\n') . encode . object $ makeJSON ("unknown",rp)
 
 makeJSON :: (String,WebappResponseMessage) -> [Pair]

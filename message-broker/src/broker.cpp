@@ -5,10 +5,6 @@
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
-namespace {
-    TransactionMap transaction_cache;
-}
-
 /**
  * @brief Receive and process incoming messages.
  *
@@ -80,6 +76,9 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerRes
 	case chattp::PersistenceResponse::GOTSETTINGS:
 	    onPersistenceSettingsResponse(*msg);
 	    break;
+	case chattp::PersistenceResponse::HEARTBEAT_RECEIVED:
+	    onPersistenceHeartbeated(*msg);
+	    break;
     }
 }
 
@@ -112,6 +111,9 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 	case WebappRequestMessage::GETSETTINGS:
 	case WebappRequestMessage::SAVESETTINGS:
 	    onWebAppSettingsRequest(*msg);
+	    break;
+	case WebappRequestMessage::CHANNEL_HEARTBEAT:
+	    onWebappHeartbeat(*msg);
 	    break;
     }
 }
@@ -285,7 +287,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     transaction.type = OutstandingType::persistenceLGDOUT;
     transaction.original_sequence_number = seqnum;
 
-    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name(),"",rq.channel_id());
+    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name(),string(""),rq.channel_id());
 
     try
     {
@@ -429,7 +431,6 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
     OutstandingTransaction transaction;
 
     transaction.original_sequence_number = seqnum;
-
     transaction.type = rq.type() == WebappRequestMessage::SAVESETTINGS ? OutstandingType::persistenceSaveSettingsULKDUP : OutstandingType::persistenceGetSettingsULKDUP;
 
     PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,rq.user_name());
@@ -464,6 +465,30 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 
 }
 
+void ProtocolDispatcher::onWebappHeartbeat(const WebappRequest& rq)
+{
+    const sequence_t seqnum = rq.sequence_number();
+
+    OutstandingTransaction transaction;
+
+    transaction.original_sequence_number = seqnum;
+    transaction.type = OutstandingType::persistenceHeartbeated;
+
+    PersistenceLayerCommand cmd(PersistenceRequest::CHANNEL_HEARTBEAT,rq.user_name(),string(""),rq.channel_id());
+
+    try
+    {
+	communicator.send(cmd);
+
+	transaction_cache.insertWebappRequest(seqnum,rq);
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+    } catch (libsocket::socket_exception e)
+    {
+	WebappResponse failresp(seqnum,WebappResponseMessage::HEARTBEAT_RECEIVED,false,"4,Internal error (Persistence down)");
+
+	communicator.send(failresp);
+    }
+}
 
 void ProtocolDispatcher::onPersistenceUREGD(const PersistenceLayerResponse& rp)
 {
@@ -713,6 +738,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 		communicator.send(failresp);
 	    }
 		break;
+	    default:;
 	}
 
 	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
@@ -1221,7 +1247,7 @@ void ProtocolDispatcher::onPersistenceSettingsResponse(const PersistenceLayerRes
 {
     const sequence_t seqnum = rp.sequence_number();
 
-    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+    const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
 
     if ( ! transaction.original_sequence_number )
     {
@@ -1240,11 +1266,42 @@ void ProtocolDispatcher::onPersistenceSettingsResponse(const PersistenceLayerRes
 
 	communicator.send(resp);
 
-	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-	transaction_cache.eraseTransaction(seqnum);
     } else if ( transaction.type == OutstandingType::persistenceGOTSETTINGS )
     {
 	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::GOTSETTINGS,rp.status(),rp.get_protobuf().settings(),"17,Persistence didn't deliver settings.");
+
+	communicator.send(resp);
+
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGS: Expected type persistenceMSGS, but got other.");
+    }
+
+    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+    transaction_cache.eraseTransaction(seqnum);
+}
+
+void ProtocolDispatcher::onPersistenceHeartbeated(const PersistenceLayerResponse& rp)
+{
+    const sequence_t seqnum = rp.sequence_number();
+
+    const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+
+    if ( ! transaction.original_sequence_number )
+    {
+	error_log("Received dangling transaction reference. (Persistence)");
+
+	transaction_cache.eraseTransaction(seqnum);
+    }
+
+    if ( transaction.type == OutstandingType::persistenceHeartbeated )
+    {
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::HEARTBEAT_RECEIVED,rp.status(),"2,User not-authorized or non-existing.");
 
 	communicator.send(resp);
 
@@ -1255,7 +1312,7 @@ void ProtocolDispatcher::onPersistenceSettingsResponse(const PersistenceLayerRes
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
 
-	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceMSGS: Expected type persistenceMSGS, but got other.");
+	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayMSGSNT: Expected transaction type persistenceHeartbeated, but received other.");
     }
 
 }

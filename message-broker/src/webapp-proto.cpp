@@ -39,9 +39,10 @@ WebappRequest::WebappRequest(const char* buffer, size_t length)
 WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::WebappResponseType type, bool response_status, string error_desc)
 {
     if ( type != WebappResponseMessage::LOGGEDOUT && type != WebappResponseMessage::REGISTERED
-      && type != WebappResponseMessage::SENTMESSAGE && type != WebappResponseMessage::SAVEDSETTINGS )
+      && type != WebappResponseMessage::SENTMESSAGE && type != WebappResponseMessage::SAVEDSETTINGS
+      && type != WebappResponseMessage::HEARTBEAT_RECEIVED )
     {
-	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED/SENTMESSAGE/SAVEDSETTINGS, but got other type.");
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED/SENTMESSAGE/SAVEDSETTINGS/HEARTBEAT_RECEIVED, but got other type.");
     }
 
     response_buffer.set_type(type);

@@ -20,6 +20,8 @@ message WebappRequestMessage
 
         SAVESETTINGS = 7;
         GETSETTINGS = 8;
+
+        CHANNEL_HEARTBEAT = 9;
     }
 
     required WebappRequestType type = 2;
@@ -50,6 +52,8 @@ message WebappResponseMessage
 
         SAVEDSETTINGS = 7;
         GOTSETTINGS = 8;
+
+        HEARTBEAT_RECEIVED = 9;
     }
 
     required WebappResponseType type = 2;

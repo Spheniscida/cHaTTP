@@ -3,8 +3,61 @@
 
 # include <unordered_map>
 
+using std::unordered_map;
+
 # include "synchronization.hpp"
-# include "broker.hpp"
+# include "sequence-number.hpp"
+# include "webapp-proto.hpp"
+
+enum class OutstandingType {
+    // for logins
+    persistenceCHKDPASS,
+    persistenceLGDIN,
+
+    // for logouts
+    persistenceLGDOUT,
+    persistenceAfterFailedChancreatLogout,
+
+    // for ULKDUP
+    persistenceSndmsgULKDUP,
+    persistenceUonlqULKDUP,
+    persistenceLoginULKDUP,
+    persistenceLogoutULKDUP,
+    persistenceMessageGetULKDUP,
+    persistenceIsauthULKDUP,
+    persistenceGetSettingsULKDUP,
+    persistenceSaveSettingsULKDUP,
+    persistenceUREGD,
+    persistenceMSGS,
+    persistenceHeartbeated,
+
+    // for MSGSV
+    persistenceMSGSVD,
+    persistenceB2BMSGSVD,
+
+    persistenceSAVEDSETTINGS,
+    persistenceGOTSETTINGS,
+
+    // for MSGSNT
+    messagerelayMSGSNT,
+    messagerelayB2BMSGSNT,
+    messagerelayDELTDCHAN,
+    messagerelayCHANCREAT,
+
+    // b2b msgsnt
+    b2bMSGSNT,
+};
+
+/**
+ * An awaited request.
+ */
+struct OutstandingTransaction
+{
+    OutstandingType type;
+    /// References another transaction, usually the sequence number of a request from the web application.
+    sequence_t original_sequence_number;
+    std::atomic<unsigned int>* remaining_count; // for messages to multiple recipients
+};
 
 class TransactionMap
 {

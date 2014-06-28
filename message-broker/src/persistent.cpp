@@ -107,14 +107,14 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  */
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
 {
+    if ( code != PersistenceRequest::LOGIN && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::CHANNEL_HEARTBEAT )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOGIN, but got other command type.");
+
     request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
     request_buffer.set_user_name(user);
     request_buffer.set_broker_name(broker); // Actually unnecessary for logout
     request_buffer.set_channel_id(channel);
-
-    if ( code != PersistenceRequest::LOGIN && code != PersistenceRequest::LOGOUT )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOGIN, but got other command type.");
 
 }
 

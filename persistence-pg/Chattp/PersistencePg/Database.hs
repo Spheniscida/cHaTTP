@@ -49,7 +49,7 @@ saveMessageQuery :: Query -- Parameters: timestamp, body, receiver, sender
 saveMessageQuery = "INSERT INTO chattp_messages (receiver,sender,timestamp,body) SELECT r.user_id, s.user_id, ?, ? FROM chattp_users AS r, chattp_users AS s WHERE r.user_name = ? AND s.user_name = ?"
 
 messageExistsQuery :: Query -- Parameters: user_name, timestamp, body
-messageExistsQuery = "SELECT count(*) FROM chattp_messages WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND timestamp = ? AND body = ?"
+messageExistsQuery = "SELECT count(*) FROM chattp_messages JOIN chattp_users ON (receiver = user_id) WHERE user_name = ? AND timestamp = ? AND body = ?"
 
 getMessagesQuery :: Query -- Parameter: user_name (receiver)
 getMessagesQuery = "SELECT r.user_name, s.user_name, timestamp, body FROM chattp_messages JOIN chattp_users AS r ON (receiver = r.user_id) JOIN chattp_users AS s ON (sender = s.user_id) WHERE receiver = (SELECT user_id FROM chattp_users WHERE user_name = ?)"
@@ -62,6 +62,9 @@ saveSettingsQuery = "UPDATE chattp_users SET user_settings = ? WHERE user_name =
 
 getSettingsQuery :: Query -- Parameter: user_name
 getSettingsQuery = "SELECT coalesce(user_settings,'') FROM chattp_users WHERE user_name = ? AND user_settings IS NOT NULL"
+
+updateChannelHeartbeatQuery :: Query -- Parameters: user_name, channel_id
+updateChannelHeartbeatQuery = "UPDATE chattp_locations SET last_heartbeat = CURRENT_TIMESTAMP WHERE user_id = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND channel_id = ?"
 
 -------------------------------------------------------------------------------
 
@@ -127,6 +130,9 @@ getSettings :: String -> Connection -> IO (Maybe BS.ByteString)
 getSettings usr conn = query conn getSettingsQuery (Only usr) >>= \l -> case l of
                                                                             [] -> return Nothing
                                                                             (Only s : _) -> return (Just s)
+
+updateChannelHeartbeat :: (String,String) -> Connection -> IO Bool
+updateChannelHeartbeat (usr,chan) conn = liftM (>0) $ execute conn updateChannelHeartbeatQuery (usr,chan)
 
 -- Helpers
 

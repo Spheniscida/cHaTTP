@@ -21,6 +21,8 @@ message PersistenceRequest
         // Used by webapp
         SAVESETTINGS = 7;
         GETSETTINGS = 8;
+
+        CHANNEL_HEARTBEAT = 9;
     }
     required PersistenceRequestType type = 2;
 
@@ -59,6 +61,8 @@ message PersistenceResponse
         // Used for webapp
         SAVEDSETTINGS = 7;
         GOTSETTINGS = 8;
+
+        HEARTBEAT_RECEIVED = 9;
     }
 
     required PersistenceResponseType type = 2;
