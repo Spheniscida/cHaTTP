@@ -7,6 +7,7 @@ import Chattp.Webapp.InternalCommunication
 import Chattp.Webapp.FastCGI
 
 import Control.Concurrent
+import Control.Concurrent.MVar
 
 import Network.FastCGI
 
@@ -15,14 +16,13 @@ main = do
     putStrLn "configured."
     sock <- createWebappSocket config
     centerchan <- newChan
-    seqchan <- newChan
     outgoingchan <- newChan
+    seqc <- newMVar 1
     let chaninfo = ChanInfo { requestsAndResponsesToCenterChan = centerchan,
                               brokerRequestChan = outgoingchan,
-                              sequenceCounterChan = seqchan }
+                              sequenceCounter = seqc }
     mapM_ forkOS (replicate 2 (socketIncoming sock centerchan))
     mapM_ forkOS (replicate 2 (socketOutgoing config sock chaninfo))
-    forkOS (sequenceNumberManager seqchan)
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
     runFastCGIConcurrent 50 (fcgiMain chaninfo)
