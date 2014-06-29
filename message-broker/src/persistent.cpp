@@ -84,7 +84,7 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
 PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password_or_settings)
 {
     if ( code != PersistenceRequest::REGISTER && code != PersistenceRequest::CHECKPASS && code != PersistenceRequest::SAVESETTINGS )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected UREG or CHKPASS, but got other command type.");
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected UREG, SAVESETTINGS or CHKPASS, but got other command type.");
 
     request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);

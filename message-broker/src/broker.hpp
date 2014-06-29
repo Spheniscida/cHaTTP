@@ -3,6 +3,7 @@
 
 # include <list>
 # include <memory>
+# include <map>
 
 using std::shared_ptr;
 using std::dynamic_pointer_cast;
@@ -49,6 +50,9 @@ public:
     void onMessagerelayDELTDCHAN(const MessageRelayResponse& rp);
     void onB2BSNDMSG(const B2BIncoming& msg);
     void onB2BMSGSNT(const B2BIncoming& msg);
+
+    void runTimeoutFinder(void);
+
 
 private:
     Communicator communicator;

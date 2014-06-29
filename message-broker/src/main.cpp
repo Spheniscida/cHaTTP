@@ -66,6 +66,16 @@ void startThread(ProtocolDispatcher& dispatch, unsigned int tid)
 
 }
 
+void cleanup_transactions(ProtocolDispatcher& dispatcher)
+{
+    while ( true )
+    {
+	std::this_thread::sleep_for(std::chrono::milliseconds(transaction_min_timeout * 1000));
+	dispatcher.runTimeoutFinder();
+    }
+
+}
+
 int main(int argc, char** argv)
 {
     start_time = steady_clock::now();
@@ -83,6 +93,7 @@ int main(int argc, char** argv)
 	    dispatcher_thread.detach();
 	}
 
+	std::thread timeout_cleanup_thread([&dispatcher]() -> void { cleanup_transactions(dispatcher); });
 	// We are thread #0
 	startThread(dispatcher,0);
 

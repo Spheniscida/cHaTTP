@@ -28,4 +28,5 @@
 * 18: Timeout in webapp.
 * 19: Messages to oneself are not allowed.
 * 20: The user is either not authorized or not online.
+* 21: The action timed out in the broker.
 

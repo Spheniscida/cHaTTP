@@ -5,6 +5,11 @@
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
 
+namespace
+{
+
+}
+
 /**
  * @brief Receive and process incoming messages.
  *
@@ -281,12 +286,27 @@ void ProtocolDispatcher::onWebAppLOGIN(const WebappRequest& rq)
 void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 {
     OutstandingTransaction transaction;
-    sequence_t new_seqnum;
     const sequence_t seqnum = rq.sequence_number();
 
-    transaction.type = OutstandingType::persistenceLGDOUT;
+    transaction.type = OutstandingType::persistenceLogoutULKDUP;
     transaction.original_sequence_number = seqnum;
 
+    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP, rq.user_name());
+
+    try
+    {
+	communicator.send(cmd);
+
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	transaction_cache.insertWebappRequest(seqnum,rq);
+    } catch (libsocket::socket_exception e)
+    {
+	WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
+	communicator.send(failresp);
+    }
+
+
+/* OLD LOGOUT PROCESS -- better performance, but worse quality of errors.
     PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name(),string(""),rq.channel_id());
 
     try
@@ -306,6 +326,7 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
     transaction_cache.insertWebappRequest(seqnum,rq);
 
     return;
+*/
 }
 
 void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
@@ -921,22 +942,6 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGIN )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGIN; however, this is not the case.");
 
-	if ( !rp.status() ) // must be offline and registered to log-in
-	{
-	    string error_message;
-
-	    error_message = "15,User doesn't exist/Internal persistence error";
-
-	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,false,string(""),error_message);
-
-	    communicator.send(resp);
-
-	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-	    transaction_cache.eraseTransaction(seqnum);
-
-	    return;
-	}
-
 	transaction.type = OutstandingType::persistenceCHKDPASS;
 	PersistenceLayerCommand cmd(PersistenceRequest::CHECKPASS,original_webapp_request.user_name(),original_webapp_request.password());
 
@@ -953,6 +958,70 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    transaction_cache.eraseTransaction(seqnum);
 
 	    throw e;
+	}
+    } else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP )
+    {
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGOUT )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
+
+	bool online = false, found_user = false, found_channel = false, right_broker = false;
+
+	for ( auto it = rp.get_protobuf().user_locations().begin(); it != rp.get_protobuf().user_locations().end(); it++ )
+	{
+	    if ( ! online && it->online() )
+		online = true;
+	    if ( ! found_user && it->user_name() == original_webapp_request.user_name() )
+		found_user = true;
+	    if ( ! found_channel && it->channel_id() == original_webapp_request.channel_id() )
+	    {
+		found_channel = true;
+		if ( ! right_broker && it->broker_name() == global_broker_settings.getMessageBrokerName() )
+		    right_broker = true;
+	    }
+	}
+
+	if ( online && found_channel && found_user && right_broker )
+	{
+	    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, original_webapp_request.user_name(),string(""),original_webapp_request.channel_id());
+
+	    transaction.type = OutstandingType::persistenceLGDOUT;
+
+	    try
+	    {
+		communicator.send(cmd);
+
+		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+
+	    } catch (libsocket::socket_exception e)
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
+		communicator.send(failresp);
+
+		transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+		transaction_cache.eraseTransaction(seqnum);
+
+		throw e;
+	    }
+	} else
+	{
+	    string error_message;
+
+	    if ( ! found_user )
+		error_message = "15,User doesn't exist"; // Won't happen because this is checked at the beginning
+	    else if ( ! online )
+		error_message = "1,User is offline";
+	    else if ( ! found_channel )
+		error_message = "2,unauthorized to perform logout.";
+	    else if ( ! right_broker )
+		error_message = "10,Wrong broker";
+
+	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDOUT,false,error_message);
+
+	    communicator.send(failresp);
+
+	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+	    transaction_cache.eraseTransaction(seqnum);
+
 	}
 
     } else if ( transaction.type == OutstandingType::persistenceMessageGetULKDUP )
@@ -1203,7 +1272,7 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(seqnum);
 
-	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceLGDOUT: Expected transaction type persistencLGDOUT, but received other.");
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceLGDOUT: Expected transaction type persistenceLGDOUT or persistenceAfterFailedChancreatLogout, but received other.");
     }
 
 }
@@ -1457,5 +1526,99 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 	transaction_cache.eraseTransaction(seqnum);
 
 	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayCHANCREAT: Expected transaction type messagerelayCHANCREAT, but received other.");
+    }
+}
+
+/////////////// Other functions
+
+void ProtocolDispatcher::runTimeoutFinder(void)
+{
+    std::list<sequence_t> timedout;
+
+    transaction_cache.findTimedout(2,timedout);
+
+    if ( timedout.size() < 1 )
+	return;
+
+    for ( sequence_t transaction_id : timedout )
+    {
+	const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(transaction_id);
+	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+
+	if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT || transaction.type == OutstandingType::persistenceB2BMSGSVD )
+	{
+	    const string& origin = transaction_cache.lookupB2BOrigin(transaction_id);
+	    MessageForB2B failmsg(transaction.original_sequence_number,false);
+	    communicator.send(failmsg,origin);
+	    transaction_cache.eraseB2BOrigin(transaction_id);
+	}
+
+	// LOGIN-related
+	if ( transaction.type == OutstandingType::messagerelayCHANCREAT
+	    || transaction.type == OutstandingType::persistenceLoginULKDUP
+	    || transaction.type == OutstandingType::persistenceCHKDPASS
+	    || transaction.type == OutstandingType::persistenceLGDIN
+	    || transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,false,string(""),"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP // LOGOUT-related
+	    || transaction.type == OutstandingType::persistenceLGDOUT )
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDOUT,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceSndmsgULKDUP // SENDMESSAGE-related
+	    || transaction.type == OutstandingType::messagerelayMSGSNT
+	    || transaction.type == OutstandingType::persistenceMSGSVD
+	    || transaction.type == OutstandingType::b2bMSGSNT )
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP // SAVESETTINGS-related
+		 || transaction.type == OutstandingType::persistenceSAVEDSETTINGS )
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SAVEDSETTINGS,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceGetSettingsULKDUP // GETSETTINGS-related
+		 || transaction.type == OutstandingType::persistenceGOTSETTINGS )
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTSETTINGS,false,string(""),"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceUREGD ) // REGISTER-related
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::REGISTERED,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP ) // QUERYSTATUS-related
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,false,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceIsauthULKDUP ) // AUTHORIZED-related
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::AUTHORIZED,false,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceMessageGetULKDUP // GETMESSAGES-related
+		 || transaction.type == OutstandingType::persistenceMSGS )
+	{
+	    google::protobuf::RepeatedPtrField<chattp::ChattpMessage> dummy_field;
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTMESSAGES,false,dummy_field.begin(),dummy_field.end(),"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	} else if ( transaction.type == OutstandingType::persistenceHeartbeated ) // CHANNEL_HEARTBEAT-related
+	{
+	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::HEARTBEAT_RECEIVED,false,"21,Timeout in broker");
+
+	    communicator.send(failresp);
+	}
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(transaction_id);
     }
 }

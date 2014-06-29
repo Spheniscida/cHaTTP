@@ -2,6 +2,7 @@
 # define TRANSACTION_MAPS_HPP
 
 # include <unordered_map>
+# include <list>
 
 using std::unordered_map;
 
@@ -53,10 +54,13 @@ enum class OutstandingType {
  */
 struct OutstandingTransaction
 {
+    OutstandingTransaction(void) : original_sequence_number(0), remaining_count(nullptr), ticks_here(0) {};
+
     OutstandingType type;
     /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;
     std::atomic<unsigned int>* remaining_count; // for messages to multiple recipients
+    unsigned int ticks_here; // for timeout-count
 };
 
 class TransactionMap
@@ -74,6 +78,8 @@ public:
     const string& lookupB2BOrigin(sequence_t seqnum);
     void insertB2BOrigin(sequence_t seqnum, const string& origin);
     void eraseB2BOrigin(sequence_t seqnum);
+
+    void findTimedout(unsigned int max_ticks, std::list< sequence_t >& timedout_transactions);
 private:
     unordered_map<sequence_t,OutstandingTransaction> transactions;
     mutex transactions_mutex;
