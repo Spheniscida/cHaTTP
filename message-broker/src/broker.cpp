@@ -306,29 +306,6 @@ void ProtocolDispatcher::onWebAppLOGOUT(const WebappRequest& rq)
 	WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
 	communicator.send(failresp);
     }
-
-
-/* OLD LOGOUT PROCESS -- better performance, but worse quality of errors.
-    PersistenceLayerCommand cmd(PersistenceRequest::LOGOUT, rq.user_name(),string(""),rq.channel_id());
-
-    try
-    {
-	communicator.send(cmd);
-
-	new_seqnum = cmd.sequence_number();
-    } catch (libsocket::socket_exception e)
-    {
-	WebappResponse failresp(seqnum,WebappResponseMessage::LOGGEDOUT,false,"4,Internal error! (Persistence down)");
-	communicator.send(failresp);
-
-	throw e;
-    }
-
-    transaction_cache.insertTransaction(new_seqnum,transaction);
-    transaction_cache.insertWebappRequest(seqnum,rq);
-
-    return;
-*/
 }
 
 void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
@@ -803,6 +780,7 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	receiver_begin = sender_end; // sender_end is past-the-last-sender
 	receiver_end = rp.get_protobuf().user_locations().end();
 
+	// We use the "set" function because it's authoritative what persistence says.
 	user_cache.setForUser(original_webapp_request.get_protobuf().mesg().sender(),sender_begin,receiver_end); // No worries, setForUser inserts only the entries for that user.
 	user_cache.setForUser(original_webapp_request.get_protobuf().mesg().receiver(),sender_begin,receiver_end);
 
@@ -1175,6 +1153,7 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 	}
     } else if ( transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
     {
+	// No user cache modification because the failed location hadn't been added anyway.
 	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::LOGGEDIN,false,string(""),"7,Channel couldn't be created");
