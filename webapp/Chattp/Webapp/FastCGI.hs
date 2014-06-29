@@ -347,8 +347,8 @@ handleChangepassRequest syncinfo = do
                                 let jsonresponse = responseToJSON brokeranswer
                                 setHeader "Content-length" (show . BS.length $ jsonresponse)
                                 outputFPS jsonresponse
-                _ -> outputError 500 "Sorry, this is an implementation error [handleHeartbeatRequest,wrongAnswerType]" []
-        _ -> outputError 400 "Heartbeat request lacking request parameter" []
+                _ -> outputError 500 "Sorry, this is an implementation error [handleChangepassRequest,wrongAnswerType]" []
+        _ -> outputError 400 "Password change request lacking request parameter" []
 
 -- Obtain operation (login, logout...) from DOCUMENT_URI
 
