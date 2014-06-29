@@ -1415,7 +1415,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 		delete transaction.remaining_count;
 
 		communicator.send(resp);
-	    } else return;
+	    }
 
 	    transaction_cache.eraseTransaction(seqnum);
 	} else // save message to persistence (only if non-meta, check is in previous condition)
