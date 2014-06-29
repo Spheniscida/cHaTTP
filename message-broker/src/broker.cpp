@@ -1612,7 +1612,7 @@ void ProtocolDispatcher::runTimeoutFinder(void)
     for ( sequence_t transaction_id : timedout )
     {
 	const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(transaction_id);
-	const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
+	//const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
 	if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT || transaction.type == OutstandingType::persistenceB2BMSGSVD )
 	{
