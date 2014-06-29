@@ -49,7 +49,7 @@ CREATE TABLE chattp_locations
     user_id INTEGER NOT NULL,
     broker_id INTEGER NOT NULL,
     channel_id CHARACTER(64) NOT NULL,
-    last_heartbeat TIMESTAMP WITH TIMEZONE DEFAULT CURRENT_TIMESTAMP(),
+    last_heartbeat TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (user_id) REFERENCES chattp_users (user_id),
     FOREIGN KEY (broker_id) REFERENCES chattp_brokers (broker_id),
