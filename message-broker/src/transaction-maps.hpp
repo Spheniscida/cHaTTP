@@ -54,12 +54,13 @@ enum class OutstandingType {
  */
 struct OutstandingTransaction
 {
-    OutstandingTransaction(void) : original_sequence_number(0), remaining_count(nullptr), ticks_here(0) {};
+    OutstandingTransaction(void) : original_sequence_number(0), remaining_count(nullptr), original_count(0), ticks_here(0) {};
 
     OutstandingType type;
     /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;
-    std::atomic<unsigned int>* remaining_count; // for messages to multiple recipients
+    std::atomic<unsigned short>* remaining_count; // for messages to multiple recipients
+    unsigned short original_count;
     unsigned int ticks_here; // for timeout-count
 };
 

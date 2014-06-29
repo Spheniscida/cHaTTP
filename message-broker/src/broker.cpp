@@ -813,10 +813,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    it++, n_senders++;
 
 	OutstandingTransaction new_transaction;
-	new_transaction.remaining_count = new std::atomic<unsigned int>;
+	new_transaction.remaining_count = new std::atomic<unsigned short>;
 	new_transaction.original_sequence_number = original_webapp_request.sequence_number();
 
 	*new_transaction.remaining_count = rp.get_protobuf().user_locations_size() - n_senders;
+	new_transaction.original_count = *new_transaction.remaining_count;
 
 	for ( ; it != rp.get_protobuf().user_locations().end(); it++ )
 	{
@@ -1574,9 +1575,19 @@ void ProtocolDispatcher::runTimeoutFinder(void)
 	    || transaction.type == OutstandingType::persistenceMSGSVD
 	    || transaction.type == OutstandingType::b2bMSGSNT )
 	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
+	    // Only send error if the message couldn't be delivered to at least one instance of the receiver.
+	    if ( ! (*transaction.remaining_count < transaction.original_count) )
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
 
-	    communicator.send(failresp);
+		communicator.send(failresp);
+	    } else // send success (to not worry the sender :P)
+	    {
+		WebappResponse partial_resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,true,"");
+
+		communicator.send(partial_resp);
+
+	    }
 	} else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP // SAVESETTINGS-related
 		 || transaction.type == OutstandingType::persistenceSAVEDSETTINGS )
 	{
@@ -1618,7 +1629,11 @@ void ProtocolDispatcher::runTimeoutFinder(void)
 	    communicator.send(failresp);
 	}
 
+	// Free memory
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	transaction_cache.eraseTransaction(transaction_id);
+
+	if ( transaction.remaining_count )
+	    delete transaction.remaining_count;
     }
 }
