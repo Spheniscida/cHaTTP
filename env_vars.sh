@@ -51,6 +51,12 @@ export CHATTP_MSGBROKER_WEBAPP_BIND_PORT=""
 
 ##### General application configuration
 
+# This variable determines whether a (yet experiemntal) user cache should
+# be used to avoid expensive persistence lookups. The cache is only used
+# if this variable is set to "N", meaning that the broker will not talk
+# to other brokers.
+export CHATTP_MSGBROKER_RUN_CLUSTERED="N"
+
 # This is the host on which the broker listens. It should be a FQDN because
 # it's also used in the persistence layer as identification string for a user's location.
 # Other message brokers contacting the one on this host should be able to resolve this name.

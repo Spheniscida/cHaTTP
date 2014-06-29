@@ -74,7 +74,6 @@ BrokerSettings::BrokerSettings(void)
 	    n_threads = 1;
 	}
 
-	// Actually not necessary anymore.
 	if ( getenv(broker_clustered_var) )
 	{
 	    if ( getenv(broker_clustered_var) == yes_value )

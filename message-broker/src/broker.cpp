@@ -4,6 +4,7 @@
 # include "conf.hpp"
 # include "broker2broker.hpp"
 # include "transaction-maps.hpp"
+# include "user-cache.hpp"
 
 namespace
 {
@@ -224,6 +225,7 @@ void ProtocolDispatcher::onB2BMSGSNT(const B2BIncoming& msg)
 	communicator.send(resp);
 
 	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	delete transaction.saved;
 	delete transaction.remaining_count;
     }
 
@@ -345,22 +347,40 @@ void ProtocolDispatcher::onWebAppSNDMSG(const WebappRequest& rq)
 	return;
     }
 
-    // Sender must remain at first position!
-    PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,vector<string>({rq.message_sender(), rq.message_receiver()}));
-
-    try
+    if ( rq.user_name() != rq.get_protobuf().mesg().sender() )
     {
-	communicator.send(cmd);
-
-	messages_processed++;
-	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
-	transaction_cache.insertWebappRequest(seqnum,rq);
-    } catch (libsocket::socket_exception e)
-    {
-	WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+	WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"2,You are not who you pretend to be");
 	communicator.send(failresp);
+	return;
+    }
 
-	throw e;
+    const std::list<chattp::PersistenceResponse::UserLocation>& cached_sender = user_cache.getLocations(rq.user_name()),
+							       &cached_receiver = user_cache.getLocations(rq.message_receiver());
+
+    if ( cached_receiver.empty() || cached_sender.empty() )
+    {
+	// Sender must remain at first position!
+	PersistenceLayerCommand cmd(PersistenceRequest::LOOKUP,vector<string>({rq.message_sender(), rq.message_receiver()}));
+
+	try
+	{
+	    communicator.send(cmd);
+
+	    messages_processed++;
+	    transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+	    transaction_cache.insertWebappRequest(seqnum,rq);
+	} catch (libsocket::socket_exception e)
+	{
+	    WebappResponse failresp(seqnum,WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+	    communicator.send(failresp);
+
+	    throw e;
+	}
+    } else
+    {
+	sendMessage(cached_sender.begin(),cached_sender.end(),cached_receiver.begin(),cached_receiver.end(),rq,seqnum,rq.get_protobuf().mesg());
+
+	transaction_cache.insertWebappRequest(rq.sequence_number(),rq);
     }
 }
 
@@ -774,150 +794,19 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::SENDMESSAGE )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type SENDMESSAGE; however, this is not the case.");
 
-	// The sender's information is at the beginning
-	auto it = rp.get_protobuf().user_locations().begin();
-	bool authorized = false;
+	google::protobuf::RepeatedPtrField<const chattp::PersistenceResponse::UserLocation>::iterator sender_begin, sender_end, receiver_begin, receiver_end;
 
-	// Check if any of the sender locations shows that the sender is authorized to send
-	for ( ; it != rp.get_protobuf().user_locations().end(); it++ )
-	{
-	    if ( it->user_name() == original_webapp_request.user_name()
-	      && it->online()
-	      && it->channel_id() == original_webapp_request.channel_id()
-	      && it->broker_name() == global_broker_settings.getMessageBrokerName() )
-	    {
-		authorized = true;
-		break;
-	    }
-	}
+	sender_end = sender_begin = rp.get_protobuf().user_locations().begin();
 
-	// Sender not authorized.
-	if ( ! authorized )
-	{
-	    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"20,Not authorized or offline");
+	for ( ; sender_end->user_name() == original_webapp_request.message_sender(); sender_end++ );
 
-	    communicator.send(failresp);
+	receiver_begin = sender_end; // sender_end is past-the-last-sender
+	receiver_end = rp.get_protobuf().user_locations().end();
 
-	    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
-	    transaction_cache.eraseTransaction(seqnum);
+	user_cache.setForUser(original_webapp_request.get_protobuf().mesg().sender(),sender_begin,receiver_end); // No worries, setForUser inserts only the entries for that user.
+	user_cache.setForUser(original_webapp_request.get_protobuf().mesg().receiver(),sender_begin,receiver_end);
 
-	    return;
-	}
-
-	transaction_cache.eraseTransaction(seqnum);
-
-	it = rp.get_protobuf().user_locations().begin();
-	unsigned int n_senders = 0;
-	// Fast-forward to receiver information
-	while ( it->user_name() == original_webapp_request.user_name() && it != rp.get_protobuf().user_locations().end() )
-	    it++, n_senders++;
-
-	OutstandingTransaction new_transaction;
-	new_transaction.remaining_count = new std::atomic<unsigned short>;
-	new_transaction.original_sequence_number = original_webapp_request.sequence_number();
-
-	*new_transaction.remaining_count = rp.get_protobuf().user_locations_size() - n_senders;
-	new_transaction.original_count = *new_transaction.remaining_count;
-
-	for ( ; it != rp.get_protobuf().user_locations().end(); it++ )
-	{
-	    const PersistenceResponse::UserLocation& receiver = *it;
-
-	    if ( receiver.online() )
-	    {
-		if ( receiver.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
-		{
-		    MessageForRelay msg(receiver.channel_id(),original_webapp_request.get_protobuf().mesg());
-		    new_transaction.type = OutstandingType::messagerelayMSGSNT;
-
-		    try
-		    {
-			communicator.send(msg);
-			transaction_cache.insertTransaction(msg.sequence_number(),new_transaction);
-		    } catch (libsocket::socket_exception e)
-		    {
-			// Message relay is offline, therefore save that message.
-			if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
-			{
-			    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-			    new_transaction.type = OutstandingType::persistenceMSGSVD;
-
-			    try
-			    {
-				communicator.send(cmd);
-				transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
-			    } catch (libsocket::socket_exception e)
-			    {
-				WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
-				communicator.send(failresp);
-
-				transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
-
-				// Do not throw in the loop, otherwise no other messages will be delivered.
-    // 				throw e;
-			    }
-			} else
-			{
-			    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,string("6,Internal error! (Message relay down)"));
-
-			    communicator.send(resp);
-
-			    transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
-			}
-
-			// Do not throw in the loop, otherwise no other messages will be delivered.
-    // 			throw e;
-		    }
-		} else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
-		{
-		    MessageForB2B broker_message(original_webapp_request.get_protobuf().mesg(),receiver.channel_id());
-
-		    new_transaction.type = OutstandingType::b2bMSGSNT;
-		    transaction_cache.insertTransaction(broker_message.sequence_number(),new_transaction);
-
-		    // UDP doesn't fail
-		    communicator.send(broker_message,receiver.broker_name());
-		} else // not on this broker and non-clustered mode.
-		{
-		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"5,Internal error! (clustering disabled)");
-		    communicator.send(failresp);
-
-		    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
-		}
-	    } else // Save message to persistence layer...
-	    {
-		// ...but only if it's no "meta message" (those are useless if not transmitted in real-time)
-		if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
-		{
-		    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-		    new_transaction.type = OutstandingType::persistenceMSGSVD;
-
-		    try
-		    {
-			communicator.send(cmd);
-			transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
-		    } catch (libsocket::socket_exception e)
-		    {
-			WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
-			communicator.send(failresp);
-
-			transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
-
-			// Do not throw in the loop, otherwise no other messages will be delivered.
-    // 			throw e;
-		    }
-		} else
-		{
-		    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,string(""));
-
-		    communicator.send(resp);
-
-		    transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
-		}
-	    }
-	}
+	sendMessage(sender_begin,sender_end,receiver_begin,receiver_end,original_webapp_request,seqnum,original_webapp_request.get_protobuf().mesg());
 
     } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP )
     {
@@ -926,7 +815,9 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
-	// Respond to the "is user online?" request.
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
+
+	// Respond to the "is user online?" request. It's enough to examine only the first location that has been returned.
 	WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,rp.status(), // is true here!
 			    loc.online() &&
 			    (global_broker_settings.getClusteredMode() || loc.broker_name() == global_broker_settings.getMessageBrokerName()),
@@ -942,6 +833,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGIN )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGIN; however, this is not the case.");
+
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
 
 	transaction.type = OutstandingType::persistenceCHKDPASS;
 	PersistenceLayerCommand cmd(PersistenceRequest::CHECKPASS,original_webapp_request.user_name(),original_webapp_request.password());
@@ -964,6 +857,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
     {
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::LOGOUT )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
+
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
 
 	bool online = false, found_user = false, found_channel = false, right_broker = false;
 
@@ -1031,6 +926,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type GETMESSAGES; however, this is not the case.");
 	// Next: send msggt to persistence.
 
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
+
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	if ( !loc.online() || original_webapp_request.channel_id() != loc.channel_id() )
@@ -1090,6 +987,8 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 	if ( original_webapp_request.type() != chattp::WebappRequestMessage::AUTHORIZED )
 	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type LOGOUT; however, this is not the case.");
 
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
+
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	bool auth_status = loc.online()
@@ -1104,6 +1003,11 @@ void ProtocolDispatcher::onPersistenceULKDUP(const PersistenceLayerResponse& rp)
 
     } else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP || transaction.type == OutstandingType::persistenceGetSettingsULKDUP )
     {
+	if ( original_webapp_request.type() != chattp::WebappRequestMessage::SAVESETTINGS && original_webapp_request.type() != chattp::WebappRequestMessage::GETSETTINGS )
+	    throw BrokerError(ErrorType::genericImplementationError,"Expected original webapp request to be of type SAVESETTINGS or GETSETTINGS; however, this is not the case.");
+
+	user_cache.setForUser(original_webapp_request.user_name(),rp.get_protobuf().user_locations().begin(),rp.get_protobuf().user_locations().end());
+
 	PersistenceResponse::UserLocation loc = rp.get_protobuf().user_locations(0);
 
 	if ( !loc.online() || loc.channel_id() != original_webapp_request.channel_id() || loc.broker_name() != global_broker_settings.getMessageBrokerName() )
@@ -1208,6 +1112,7 @@ void ProtocolDispatcher::onPersistenceMSGSVD(const PersistenceLayerResponse& rp)
 	    WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,rp.status(),"14,Internal error! (Persistence didn't accept message)");
 
 	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    delete transaction.saved;
 	    delete transaction.remaining_count;
 
 	    communicator.send(resp);
@@ -1250,6 +1155,17 @@ void ProtocolDispatcher::onPersistenceLGDOUT(const PersistenceLayerResponse& rp)
 
 	    transaction.type = OutstandingType::messagerelayDELTDCHAN;
 	    transaction_cache.eraseAndInsertTransaction(seqnum,delchanmsg.sequence_number(),transaction);
+
+	    // Cache ops
+	    user_cache.removeForUser(original_webapp_request.user_name(),original_webapp_request.channel_id());
+	    if ( user_cache.getLocations(original_webapp_request.user_name()).empty() )
+	    {
+		chattp::PersistenceResponse::UserLocation loc;
+
+		loc.set_user_name(original_webapp_request.user_name());
+		loc.set_online(false);
+		user_cache.addForUser(original_webapp_request.user_name(),loc);
+	    }
 
 	    communicator.send(delchanmsg);
 	} else
@@ -1413,6 +1329,7 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 		WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,"");
 
 		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		delete transaction.saved;
 		delete transaction.remaining_count;
 
 		communicator.send(resp);
@@ -1421,23 +1338,28 @@ void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)
 	    transaction_cache.eraseTransaction(seqnum);
 	} else // save message to persistence (only if non-meta, check is in previous condition)
 	{
-	    PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
-
-	    transaction.type = OutstandingType::persistenceMSGSVD;
-
-	    try
+	    if ( ! *transaction.saved )
 	    {
-		communicator.send(cmd);
-		transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
-	    } catch (libsocket::socket_exception e)
-	    {
-		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
-		communicator.send(failresp);
+		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
 
-		transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-		transaction_cache.eraseTransaction(seqnum);
+		transaction.type = OutstandingType::persistenceMSGSVD;
 
-		throw e;
+		try
+		{
+		    communicator.send(cmd);
+		    transaction_cache.eraseAndInsertTransaction(seqnum,cmd.sequence_number(),transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+		    communicator.send(failresp);
+
+		    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+		    transaction_cache.eraseTransaction(seqnum);
+
+		    throw e;
+		}
+
+		*transaction.saved = true;
 	    }
 	}
     } else if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT )
@@ -1502,9 +1424,19 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
 	{
 	    WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,rp.status(),original_webapp_request.channel_id_,"12,Channel couldn't be created");
 
-	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 
+	    chattp::PersistenceResponse::UserLocation loc;
+
+	    loc.set_broker_name(global_broker_settings.getMessageBrokerName());
+	    loc.set_user_name(original_webapp_request.user_name());
+	    loc.set_channel_id(original_webapp_request.channel_id_);
+	    loc.set_online(true);
+
+	    user_cache.addForUser(original_webapp_request.user_name(),loc);
+
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
 	    communicator.send(resp);
+
 	} else
 	{
 	    // Log out in database, send fail code.
@@ -1530,7 +1462,164 @@ void ProtocolDispatcher::onMessagerelayCHANCREAT(const MessageRelayResponse& rp)
     }
 }
 
-/////////////// Other functions
+/********************************** OUT-SOURCED FUNCTIONALITY ****************************/
+
+template<typename SenderIteratorT, typename ReceiverIteratorT>
+void ProtocolDispatcher::sendMessage(SenderIteratorT sender_begin, SenderIteratorT sender_end,
+				     ReceiverIteratorT recv_begin, ReceiverIteratorT recv_end,
+				     const WebappRequest& original_webapp_request, sequence_t seqnum, const ChattpMessage& mesg)
+{
+    bool authorized = false;
+
+    // Check if any of the sender locations shows that the sender is authorized to send
+    for ( auto it = sender_begin; it != sender_end; it++ )
+    {
+	if ( it->user_name() == original_webapp_request.user_name()
+	    && it->online()
+	    && it->channel_id() == original_webapp_request.channel_id()
+	    && it->broker_name() == global_broker_settings.getMessageBrokerName() )
+	{
+	    authorized = true;
+	    break;
+	}
+    }
+
+    // Sender not authorized.
+    if ( ! authorized )
+    {
+	WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"20,Not authorized or offline");
+
+	communicator.send(failresp);
+
+	transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+
+    transaction_cache.eraseTransaction(seqnum);
+
+    unsigned int n_receivers = 0;
+
+    for ( auto it = recv_begin; it != recv_end; it++, n_receivers++ );
+
+    // Fast-forward to receiver information
+
+    OutstandingTransaction new_transaction;
+
+    new_transaction.original_sequence_number = original_webapp_request.sequence_number();
+
+    new_transaction.remaining_count = new std::atomic<unsigned short>;
+    new_transaction.saved = new bool;
+
+    *new_transaction.remaining_count = n_receivers;
+    new_transaction.original_count = *new_transaction.remaining_count;
+
+    *new_transaction.saved = false;
+
+    for ( auto it = recv_begin; it != recv_end; it++ )
+    {
+	const PersistenceResponse::UserLocation& receiver = *it;
+
+	if ( receiver.online() )
+	{
+	    if ( receiver.broker_name() == global_broker_settings.getMessageBrokerName() ) // User is on this broker?
+	    {
+		MessageForRelay msg(receiver.channel_id(),original_webapp_request.get_protobuf().mesg());
+		new_transaction.type = OutstandingType::messagerelayMSGSNT;
+
+		try
+		{
+		    communicator.send(msg);
+		    transaction_cache.insertTransaction(msg.sequence_number(),new_transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    // Message relay is offline, therefore save that message.
+		    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
+		    {
+			PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
+
+			new_transaction.type = OutstandingType::persistenceMSGSVD;
+
+			try
+			{
+			    communicator.send(cmd);
+			    transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
+			} catch (libsocket::socket_exception e)
+			{
+			    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"6,Internal error! (Message relay down, Persistence too)");
+			    communicator.send(failresp);
+
+			    transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+
+			    // Do not throw in the loop, otherwise no other messages will be delivered.
+// 				throw e;
+			}
+		    } else
+		    {
+			WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,string("6,Internal error! (Message relay down)"));
+
+			communicator.send(resp);
+
+			transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
+		    }
+
+		    // Do not throw in the loop, otherwise no other messages will be delivered.
+// 			throw e;
+		}
+	    } else if ( global_broker_settings.getClusteredMode() ) // B2B communication!
+	    {
+		MessageForB2B broker_message(original_webapp_request.get_protobuf().mesg(),receiver.channel_id());
+
+		new_transaction.type = OutstandingType::b2bMSGSNT;
+		transaction_cache.insertTransaction(broker_message.sequence_number(),new_transaction);
+
+		// UDP doesn't fail
+		communicator.send(broker_message,receiver.broker_name());
+	    } else // not on this broker and non-clustered mode.
+	    {
+		WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"5,Internal error! (clustering disabled)");
+		communicator.send(failresp);
+
+		transaction_cache.eraseWebappRequest(original_webapp_request.sequence_number());
+	    }
+	} else // Save message to persistence layer...
+	{
+	    // ...but only if it's no "meta message" (those are useless if not transmitted in real-time)
+	    if ( ! original_webapp_request.get_protobuf().mesg().is_typing() && ! original_webapp_request.get_protobuf().mesg().has_seen() )
+	    {
+		PersistenceLayerCommand cmd(PersistenceRequest::SAVEMESSAGE, original_webapp_request.get_protobuf().mesg());
+
+		new_transaction.type = OutstandingType::persistenceMSGSVD;
+
+		try
+		{
+		    communicator.send(cmd);
+		    transaction_cache.insertTransaction(cmd.sequence_number(),new_transaction);
+		} catch (libsocket::socket_exception e)
+		{
+		    WebappResponse failresp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,false,"4,Internal error! (Persistence down)");
+		    communicator.send(failresp);
+
+		    transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
+
+		    // Do not throw in the loop, otherwise no other messages will be delivered.
+// 			throw e;
+		}
+	    } else
+	    {
+		WebappResponse resp(original_webapp_request.sequence_number(),WebappResponseMessage::SENTMESSAGE,true,string(""));
+
+		communicator.send(resp);
+
+		transaction_cache.eraseWebappRequest(new_transaction.original_sequence_number);
+	    }
+	}
+    }
+
+}
+
+/********************************** TIMEOUT FUNCTIONS ************************************/
 
 void ProtocolDispatcher::runTimeoutFinder(void)
 {
@@ -1635,5 +1724,7 @@ void ProtocolDispatcher::runTimeoutFinder(void)
 
 	if ( transaction.remaining_count )
 	    delete transaction.remaining_count;
+	if ( transaction.saved )
+	    delete transaction.saved;
     }
 }

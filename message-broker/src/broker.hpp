@@ -14,6 +14,7 @@ using std::dynamic_pointer_cast;
 # include "ipc.hpp"
 # include "error.hpp"
 # include "transaction-maps.hpp"
+# include "user-cache.hpp"
 
 /**
  * @brief Broker "main" class
@@ -57,11 +58,17 @@ public:
 private:
     Communicator communicator;
     TransactionMap transaction_cache;
+    UserCache user_cache;
 
     void handlePersistenceMessage(shared_ptr<PersistenceLayerResponse> msg);
     void handleWebappMessage(shared_ptr<WebappRequest> msg);
     void handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg);
     void handleBrokerMessage(shared_ptr<B2BIncoming> msg);
+
+    template<typename SenderIteratorT, typename ReceiverIteratorT>
+    void sendMessage(SenderIteratorT sender_begin, SenderIteratorT sender_end,
+					 ReceiverIteratorT recv_begin, ReceiverIteratorT recv_end,
+					 const WebappRequest& original_webapp_request, sequence_t seqnum, const ChattpMessage& mesg);
 };
 
 # endif

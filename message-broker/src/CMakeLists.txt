@@ -13,6 +13,7 @@ set(libsrc
     synchronization.cpp
     broker2broker.cpp
     transaction-maps.cpp
+    user-cache.cpp
     )
 
 set(execsrc
