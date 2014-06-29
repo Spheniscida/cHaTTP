@@ -6,7 +6,6 @@ import Chattp.WebappRequestMessage as Rq
 import Chattp.Webapp.Protocol
 
 import Control.Concurrent
-import Control.Concurrent.MVar
 
 import qualified Data.HashTable.IO as HT
 

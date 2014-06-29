@@ -198,7 +198,7 @@ handleStatusRequest syncinfo = do
                             let jsonresponse = responseToJSON brokeranswer
                             setHeader "Content-length" (show . BS.length $ jsonresponse)
                             outputFPS jsonresponse
-                        _ -> outputError 500 "Sorry, this is an implementation error. [handleStatusRequest,wrongAnswerType]" []
+                        _s -> outputError 500 ("Sorry, this is an implementation error. [handleStatusRequest,wrongAnswerType] type " ++ show _s) []
         _ -> outputError 400 "Status request lacking request parameter" []
 
 handleMessagesRequest :: ChanInfo -> CGI CGIResult

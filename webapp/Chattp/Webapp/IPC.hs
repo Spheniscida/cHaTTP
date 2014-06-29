@@ -12,6 +12,7 @@ import Chattp.WebappRequestMessage as Rq
 import Chattp.WebappResponseMessage as Rp
 
 import Control.Concurrent
+
 import qualified Data.ByteString.Lazy.Char8 as BS
 import System.Directory
 import System.IO.Error
@@ -39,7 +40,8 @@ socketOutgoing conf sock chans = do
 
     where errHandler :: Chan CenterRequestOrResponse -> WebappRequestMessage -> IOError -> IO Int -- if there is an error, an error message is sent back.
           errHandler bc msg _ = writeChan bc
-            (BrokerCenterResponse $ defaultValue { Rp.sequence_number = Rq.sequence_number msg,
+            (BrokerCenterResponse $ defaultValue { Rp.type' = rqToRpType (Rq.type' msg),
+                                                   Rp.sequence_number = Rq.sequence_number msg,
                                                    Rp.status = Just False,
                                                    Rp.error_message = Just $ uFromString "Couldn't reach broker",
                                                    Rp.error_code = Just $ fromIntegral 16 } ) >> return 0

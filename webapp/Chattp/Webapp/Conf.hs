@@ -36,13 +36,9 @@ getConfig = do
     broker_address <- getEnv brokerAddressVar
     broker_port_raw <- getEnv brokerPortVar
 
-    redis_family_raw <- getEnv redisFamilyVar
-    redis_addr <- getEnv redisAddressVar
-    redis_port <- getEnv redisPortVar
-
-    (family,redis_family) <- case (parseFamily family_raw,parseFamily redis_family_raw) of
-                    (Just fam, Just rfam) -> return (fam,rfam)
-                    x -> fail $ "Unknown address family: " ++ show x
+    family <- case parseFamily family_raw of
+                    Just fam -> return fam
+                    _ -> fail $ "Unknown address family: " ++ family_raw
 
     sockaddr <- getSockAddr family broker_address broker_port_raw
 

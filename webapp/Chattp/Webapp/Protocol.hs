@@ -20,8 +20,8 @@ import Text.ProtocolBuffers.WireMessage
 
 import qualified Chattp.WebappResponseMessage as Rp
 import Chattp.WebappResponseMessage(WebappResponseMessage)
-import Chattp.WebappResponseMessage.WebappResponseType
-
+import Chattp.WebappResponseMessage.WebappResponseType as Rp
+import Chattp.WebappRequestMessage.WebappRequestType as Rq
 import qualified Chattp.ChattpMessage as Msg
 import Chattp.ChattpMessage(ChattpMessage)
 
@@ -49,6 +49,17 @@ data ChattpMessage = ChattpMessage{sender :: !P'.Utf8, receiver :: !P'.Utf8, tim
                    deriving (Prelude'.Show, Prelude'.Eq, Prelude'.Ord, Prelude'.Typeable, Prelude'.Data)
 -}
 
+rqToRpType :: WebappRequestType -> WebappResponseType
+rqToRpType t = fromMaybe REGISTERED $ lookup t [(REGISTER,REGISTERED),
+                                                (LOGIN,LOGGEDIN),
+                                                (LOGOUT,LOGGEDOUT),
+                                                (SENDMESSAGE,SENTMESSAGE),
+                                                (QUERYSTATUS,USERSTATUS),
+                                                (GETMESSAGES,GOTMESSAGES),
+                                                (Rq.AUTHORIZED,Rp.AUTHORIZED),
+                                                (SAVESETTINGS,SAVEDSETTINGS),
+                                                (GETSETTINGS,GOTSETTINGS),
+                                                (CHANNEL_HEARTBEAT,HEARTBEAT_RECEIVED)]
 
 ------------- Parse answers ---------------
 
