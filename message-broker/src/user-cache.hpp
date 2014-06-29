@@ -11,6 +11,20 @@
 
 # include <persistence.pb.h>
 
+/**
+ * @brief Cache for user information.
+ *
+ * For information on users that is frequently used (channel_id, online/offline), this class may be used
+ * to avoid expensive lookup requests to the persistence layer. The cache should be updated on LOOKUPs
+ * (that are necessary), LOGINs and LOGOUTs. It can only be used if the broker is operating in the non-
+ * clustered mode (`! global_broker_settings.getClusteredMode()`) because only in that case the broker
+ * has full control over the user information and it may be guaranteed that the cache is always up-to-date.
+ *
+ * The cache isn't used for all possible operations (e.g. not for LOGINs/LOGOUTs) but rather for operations
+ * that happen very frequently, for example USERSTATUS queries and SNDMSG requests. They become quite cheap
+ * by using this cache.
+ *
+ */
 class UserCache
 {
 public:
