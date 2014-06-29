@@ -37,6 +37,7 @@ public:
     void onWebAppISAUTH(const WebappRequest& rq);
     void onWebAppSettingsRequest(const WebappRequest& rq);
     void onWebappHeartbeat(const WebappRequest& rq);
+    void onWebappChangepass(const WebappRequest& rq);
     void onPersistenceUREGD(const PersistenceLayerResponse& rp);
     void onPersistenceCHKDPASS(const PersistenceLayerResponse& rp);
     void onPersistenceLGDIN(const PersistenceLayerResponse& rp);
@@ -46,6 +47,7 @@ public:
     void onPersistenceMSGS(const PersistenceLayerResponse& rp);
     void onPersistenceSettingsResponse(const PersistenceLayerResponse& rp);
     void onPersistenceHeartbeated(const PersistenceLayerResponse& rp);
+    void onPersistenceChangedpass(const PersistenceLayerResponse& rp);
     void onMessagerelayMSGSNT(const MessageRelayResponse& rp);
     void onMessagerelayCHANCREAT(const MessageRelayResponse& rp);
     void onMessagerelayDELTDCHAN(const MessageRelayResponse& rp);

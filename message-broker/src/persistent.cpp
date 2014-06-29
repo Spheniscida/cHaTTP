@@ -105,17 +105,27 @@ PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::Persistence
  *
  * @throws BrokerError If a command type has been supplied which has the wrong number of parameters.
  */
-PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel)
+PersistenceLayerCommand::PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker_or_oldpw, const string& channel_or_newpw)
 {
-    if ( code != PersistenceRequest::LOGIN && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::CHANNEL_HEARTBEAT )
-	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOGIN, but got other command type.");
+    if ( code != PersistenceRequest::LOGIN && code != PersistenceRequest::LOGOUT && code != PersistenceRequest::CHANNEL_HEARTBEAT
+      && code != PersistenceRequest::CHANGEPASS )
+	throw BrokerError(ErrorType::argumentError,"PersistenceLayerCommand: Expected LOGIN/LOGOUT/CHANNEL_HEARTBEAT or CHANGEPASS, but got other command type.");
 
     request_buffer.set_sequence_number(persistence_counter.get());
     request_buffer.set_type(code);
     request_buffer.set_user_name(user);
-    request_buffer.set_broker_name(broker); // Actually unnecessary for logout
-    request_buffer.set_channel_id(channel);
 
+    if ( code == PersistenceRequest::LOGIN )
+	request_buffer.set_broker_name(broker_or_oldpw); // Actually unnecessary for logout
+
+    if ( code == PersistenceRequest::LOGIN || code == PersistenceRequest::LOGOUT || code == PersistenceRequest::CHANNEL_HEARTBEAT )
+	request_buffer.set_channel_id(channel_or_newpw);
+
+    if ( code == PersistenceRequest::CHANGEPASS )
+    {
+	request_buffer.set_password(broker_or_oldpw);
+	request_buffer.set_new_password(channel_or_newpw);
+    }
 }
 
 /**

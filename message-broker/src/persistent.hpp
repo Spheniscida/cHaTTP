@@ -57,8 +57,8 @@ public:
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user_name);
     /// For ULKUP
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const vector<string>& user_name);
-    /// For UREG, CHKPASS
-    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker, const string& channel);
+    /// For UREG, CHKPASS and CHANGEPASS
+    PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& broker_or_oldpw, const string& channel_or_newpw);
     /// For LOGIN
     PersistenceLayerCommand(PersistenceRequest::PersistenceRequestType code, const string& user, const string& password_or_settings);
     /// For MSGSV

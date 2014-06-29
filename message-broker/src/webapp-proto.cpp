@@ -40,9 +40,9 @@ WebappResponse::WebappResponse(sequence_t seq_num, WebappResponseMessage::Webapp
 {
     if ( type != WebappResponseMessage::LOGGEDOUT && type != WebappResponseMessage::REGISTERED
       && type != WebappResponseMessage::SENTMESSAGE && type != WebappResponseMessage::SAVEDSETTINGS
-      && type != WebappResponseMessage::HEARTBEAT_RECEIVED )
+      && type != WebappResponseMessage::HEARTBEAT_RECEIVED && type != WebappResponseMessage::CHANGEDPASS )
     {
-	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED/SENTMESSAGE/SAVEDSETTINGS/HEARTBEAT_RECEIVED, but got other type.");
+	throw BrokerError(ErrorType::argumentError,"WebappResponse: Expected LOGGEDOUT/REGISTERED/SENTMESSAGE/SAVEDSETTINGS/HEARTBEAT_RECEIVED/CHANGEDPASS, but got other type.");
     }
 
     response_buffer.set_type(type);

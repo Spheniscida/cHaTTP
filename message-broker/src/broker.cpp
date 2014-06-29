@@ -85,6 +85,9 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerRes
 	case chattp::PersistenceResponse::HEARTBEAT_RECEIVED:
 	    onPersistenceHeartbeated(*msg);
 	    break;
+	case chattp::PersistenceResponse::CHANGEDPASS:
+	    onPersistenceChangedpass(*msg);
+	    break;
     }
 }
 
@@ -120,6 +123,9 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 	    break;
 	case WebappRequestMessage::CHANNEL_HEARTBEAT:
 	    onWebappHeartbeat(*msg);
+	    break;
+	case WebappRequestMessage::CHANGEPASS:
+	    onWebappChangepass(*msg);
 	    break;
     }
 }
@@ -559,7 +565,8 @@ void ProtocolDispatcher::onWebAppSettingsRequest(const WebappRequest& rq)
 
 	    communicator.send(failresp);
 	}
-	return;
+
+	throw e;
     }
 
 }
@@ -586,6 +593,35 @@ void ProtocolDispatcher::onWebappHeartbeat(const WebappRequest& rq)
 	WebappResponse failresp(seqnum,WebappResponseMessage::HEARTBEAT_RECEIVED,false,"4,Internal error (Persistence down)");
 
 	communicator.send(failresp);
+
+	throw e;
+    }
+}
+
+void ProtocolDispatcher::onWebappChangepass(const WebappRequest& rq)
+{
+    const sequence_t seqnum = rq.sequence_number();
+
+    OutstandingTransaction transaction;
+
+    transaction.original_sequence_number = seqnum;
+    transaction.type = OutstandingType::persistenceChangedpass;
+
+    PersistenceLayerCommand cmd(PersistenceRequest::CHANGEPASS,rq.user_name(),rq.password(),rq.get_protobuf().new_password());
+
+    try
+    {
+	communicator.send(cmd);
+
+	transaction_cache.insertWebappRequest(seqnum,rq);
+	transaction_cache.insertTransaction(cmd.sequence_number(),transaction);
+    } catch (libsocket::socket_exception e)
+    {
+	WebappResponse failresp(seqnum,WebappResponseMessage::CHANGEDPASS,false,"4,Internal error (Persistence down)");
+
+	communicator.send(failresp);
+
+	throw e;
     }
 }
 
@@ -1361,6 +1397,39 @@ void ProtocolDispatcher::onPersistenceHeartbeated(const PersistenceLayerResponse
 	throw BrokerError(ErrorType::genericImplementationError,"onMessagerelayMSGSNT: Expected transaction type persistenceHeartbeated, but received other.");
     }
 
+}
+
+void ProtocolDispatcher::onPersistenceChangedpass(const PersistenceLayerResponse& rp)
+{
+    const sequence_t seqnum = rp.sequence_number();
+
+    OutstandingTransaction& transaction = transaction_cache.lookupTransaction(seqnum);
+
+    if ( ! transaction.original_sequence_number )
+    {
+	error_log("Received dangling transaction reference (Persistence)");
+
+	transaction_cache.eraseTransaction(seqnum);
+
+	return;
+    }
+
+    if ( transaction.type == OutstandingType::persistenceChangedpass )
+    {
+	WebappResponse resp(transaction.original_sequence_number,WebappResponseMessage::CHANGEDPASS,rp.status(),"2,You are probably not authorized.");
+
+	communicator.send(resp);
+
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+    } else
+    {
+	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	transaction_cache.eraseTransaction(seqnum);
+
+	throw BrokerError(ErrorType::genericImplementationError,"onPersistenceChangedpass: Expected transaction type persistenceChangedpass, but received other.");
+    }
 }
 
 void ProtocolDispatcher::onMessagerelayMSGSNT(const MessageRelayResponse& rp)

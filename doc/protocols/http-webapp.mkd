@@ -146,3 +146,19 @@ b) The settings that were uploaded were not valid JSON.
 → A JSON object similar to that one above is returned, but the `settings` field does not contain a JSON object but a string.
 This string contains the uploaded settings in whatever format you uploaded them (I hope for you that it wasn't XML).
 
+### Sending Heartbeats
+
+In future, channels not "heartbeated" for a while (e.g. one hour) might be deleted and no longer served.
+
+    POST $base/chattp_request/heartbeat?user_name=<usr>&channel_id=<channel>
+
+A standard response is sent without extra fields.
+
+### Changing passwords
+
+To change a user's password, a `change_password` request may be issued.
+
+    POST $base/chattp_request/change_password?user_name=<usr>&password=<old password>&new_password=<new password>
+
+A standard response is sent back.
+

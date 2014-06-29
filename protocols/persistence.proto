@@ -23,11 +23,12 @@ message PersistenceRequest
         GETSETTINGS = 8;
 
         CHANNEL_HEARTBEAT = 9;
+        CHANGEPASS = 10;
     }
     required PersistenceRequestType type = 2;
 
-    optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES. May not be be used for LOOKUPs!!!
-    optional string password = 4; // REGISTER CHECKPASS
+    optional string user_name = 3; // REGISTER LOGIN LOGOUT CHECKPASS SAVEMESSAGE GETMESSAGES CHANGEPASS. May not be be used for LOOKUPs!!!
+    optional string password = 4; // REGISTER CHECKPASS CHANGEPASS
 
     optional string email = 5; // REGISTER -- though not used yet.
 
@@ -42,6 +43,7 @@ message PersistenceRequest
     optional ChattpMessage mesg = 9; // SAVEMESSAGE
 
     optional string settings = 10; // SAVESETTINGS
+    optional string new_password = 11; // CHANGEPASS
 }
 
 message PersistenceResponse
@@ -63,6 +65,7 @@ message PersistenceResponse
         GOTSETTINGS = 8;
 
         HEARTBEAT_RECEIVED = 9;
+        CHANGEDPASS = 10;
     }
 
     required PersistenceResponseType type = 2;

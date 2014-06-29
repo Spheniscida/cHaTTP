@@ -131,10 +131,16 @@ handleRequest conn GETSETTINGS msg = do
     case sets of
         Nothing -> return $ (defaultAnswer msg) { Rp.status = Just False, Rp.type' = GOTSETTINGS }
         Just set -> return $ (defaultAnswer msg) { Rp.status = Just True, Rp.type' = GOTSETTINGS, Rp.settings = Just $ unsafeToUtf8 set }
+-- CHANNEL_HEARTBEAT
 handleRequest conn CHANNEL_HEARTBEAT msg = do
     --print msg
     stat <- catch (updateChannelHeartbeat (maybe "" uToString $ Rq.user_name msg,maybe "" uToString $ Rq.channel_id msg) conn) handleSQLError
     return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = HEARTBEAT_RECEIVED }
+-- CHANGEPASS
+handleRequest conn CHANGEPASS msg = do
+    --print msg
+    stat <- catch (changePassword (maybe "" uToString $ Rq.user_name msg, maybe "" uToString $ Rq.password msg, maybe "" uToString $ Rq.new_password msg) conn) handleSQLError
+    return $ (defaultAnswer msg) { Rp.status = Just stat, Rp.type' = CHANGEDPASS }
 
 defaultAnswer :: PersistenceRequest -> PersistenceResponse
 defaultAnswer msg = defaultValue { Rp.sequence_number = Rq.sequence_number msg }

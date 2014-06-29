@@ -22,6 +22,7 @@ message WebappRequestMessage
         GETSETTINGS = 8;
 
         CHANNEL_HEARTBEAT = 9;
+        CHANGEPASS = 10;
     }
 
     required WebappRequestType type = 2;
@@ -34,6 +35,7 @@ message WebappRequestMessage
 
     optional string settings = 7;
     optional string email = 8;                              // REGISTER
+    optional string new_password = 9;                       // CHANGEPASS
 }
 
 message WebappResponseMessage
@@ -54,6 +56,7 @@ message WebappResponseMessage
         GOTSETTINGS = 8;
 
         HEARTBEAT_RECEIVED = 9;
+        CHANGEDPASS = 10;
     }
 
     required WebappResponseType type = 2;

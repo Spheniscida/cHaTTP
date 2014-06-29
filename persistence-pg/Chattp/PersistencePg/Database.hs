@@ -27,6 +27,9 @@ userExistsQuery = "SELECT count(*) FROM chattp_users WHERE user_name = ?"
 userRegisterQuery :: Query -- Parameters: user_name, user_password (clear text), user_email
 userRegisterQuery = "INSERT INTO chattp_users (user_name,user_password,user_email) VALUES (?,crypt(?,gen_salt('bf')),?)"
 
+changePasswordQuery :: Query -- Parameters: new_password, user_name, old_password
+changePasswordQuery = "UPDATE chattp_users SET user_password = crypt(?,gen_salt('bf')) WHERE user_id = (SELECT user_id FROM chattp_users WHERE user_name = ?) AND user_password = crypt(?,user_password)"
+
 checkPasswordQuery :: Query -- Parameters: user_password, user_name
 checkPasswordQuery = "SELECT user_password = crypt(?,user_password) FROM chattp_users WHERE user_name = ?"
 
@@ -73,6 +76,11 @@ userExists usr conn = (query conn userExistsQuery (Only usr) :: IO [Only Int]) >
 
 registerUser :: (String,String,String) -> Connection -> IO Bool
 registerUser credentials@(_usr,_pwd,_email) conn = liftM (>0) $ execute conn userRegisterQuery credentials
+
+changePassword :: (String,String,String) -> Connection -> IO Bool
+changePassword (usr,oldpass,newpass) conn = case newpass of
+                                                []-> return False
+                                                _ -> liftM (>0) $ execute conn changePasswordQuery (newpass,usr,oldpass)
 
 -- Returns True if user is logged in, False if user doesn't exist
 loginUser :: (String,String,String) -> Connection -> IO Bool

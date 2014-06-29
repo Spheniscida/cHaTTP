@@ -59,7 +59,8 @@ rqToRpType t = fromMaybe REGISTERED $ lookup t [(REGISTER,REGISTERED),
                                                 (Rq.AUTHORIZED,Rp.AUTHORIZED),
                                                 (SAVESETTINGS,SAVEDSETTINGS),
                                                 (GETSETTINGS,GOTSETTINGS),
-                                                (CHANNEL_HEARTBEAT,HEARTBEAT_RECEIVED)]
+                                                (CHANNEL_HEARTBEAT,HEARTBEAT_RECEIVED),
+                                                (CHANGEPASS,CHANGEDPASS)]
 
 ------------- Parse answers ---------------
 
@@ -81,6 +82,7 @@ responseToJSON rp | Rp.type' rp == REGISTERED = (`BS.snoc`'\n') . encode . objec
                   | Rp.type' rp == SAVEDSETTINGS= (`BS.snoc`'\n') . encode . object $ makeJSON ("saved-settings",rp)
                   | Rp.type' rp == GOTSETTINGS= (`BS.snoc`'\n') . encode . object $ ("settings" .= maybe "" uToString (Rp.settings rp)) : makeJSON ("settings",rp)
                   | Rp.type' rp == HEARTBEAT_RECEIVED = (`BS.snoc`'\n') . encode . object $ makeJSON ("heartbeated",rp)
+                  | Rp.type' rp == CHANGEDPASS = (`BS.snoc`'\n') . encode . object $ makeJSON ("changed-password",rp)
                   | otherwise = (`BS.snoc`'\n') . encode . object $ makeJSON ("unknown",rp)
 
 makeJSON :: (String,WebappResponseMessage) -> [Pair]

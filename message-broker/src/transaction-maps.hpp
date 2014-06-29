@@ -31,6 +31,7 @@ enum class OutstandingType {
     persistenceUREGD,
     persistenceMSGS,
     persistenceHeartbeated,
+    persistenceChangedpass,
 
     // for MSGSV
     persistenceMSGSVD,

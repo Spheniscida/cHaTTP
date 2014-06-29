@@ -47,6 +47,7 @@ fcgiMain channels = do
         WebConfSaveRequest -> handleConfSaveRequest channels
         WebConfGetRequest -> handleConfGetRequest channels
         WebHeartbeatRequest -> handleHeartbeatRequest channels
+        WebChangepassRequest -> handleChangepassRequest channels
         VoidRequest s -> outputError 404 ("Malformed request: Unknown request type or parse failure: " ++ s) []
 
 -- Op handlers
@@ -318,6 +319,37 @@ handleHeartbeatRequest syncinfo = do
                 _ -> outputError 500 "Sorry, this is an implementation error [handleHeartbeatRequest,wrongAnswerType]" []
         _ -> outputError 400 "Heartbeat request lacking request parameter" []
 
+handleChangepassRequest :: ChanInfo -> CGI CGIResult
+handleChangepassRequest syncinfo = do
+    usr_raw <- getInputFPS "user_name"
+    oldpass_raw <- getInputFPS "password"
+    newpass_raw <- getInputFPS "new_password"
+    case (usr_raw,oldpass_raw,newpass_raw) of
+        (Just usr, Just oldpass, Just newpass) -> do
+            seqn <- liftIO $ takeMVar (sequenceCounter syncinfo)
+            liftIO $ putMVar (sequenceCounter syncinfo) (seqn+1)
+
+            answer_mvar <- liftIO newEmptyMVar
+            liftIO $ writeChan (requestsAndResponsesToCenterChan syncinfo) (RegisterSequenceNumber (seqn,answer_mvar))
+
+            let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
+                                         Rq.type' = Rq.CHANGEPASS,
+                                         Rq.user_name = Just $ unsafeToUtf8 usr,
+                                         Rq.password = Just $ unsafeToUtf8 oldpass,
+                                         Rq.new_password = Just $ unsafeToUtf8 newpass }
+
+            liftIO $ writeChan (brokerRequestChan syncinfo) request
+
+            brokeranswer <- liftIO $ takeMVar answer_mvar
+
+            case Rp.type' brokeranswer of
+                Rp.CHANGEDPASS -> do
+                                let jsonresponse = responseToJSON brokeranswer
+                                setHeader "Content-length" (show . BS.length $ jsonresponse)
+                                outputFPS jsonresponse
+                _ -> outputError 500 "Sorry, this is an implementation error [handleHeartbeatRequest,wrongAnswerType]" []
+        _ -> outputError 400 "Heartbeat request lacking request parameter" []
+
 -- Obtain operation (login, logout...) from DOCUMENT_URI
 
 data UrlOp = WebLogin
@@ -329,6 +361,7 @@ data UrlOp = WebLogin
            | WebConfSaveRequest
            | WebConfGetRequest
            | WebHeartbeatRequest
+           | WebChangepassRequest
            | VoidRequest String -- malformed request URL
            deriving Show
 
@@ -350,6 +383,7 @@ opParser = do
             string "setconf" >> return WebConfSaveRequest,
             string "getconf" >> return WebConfGetRequest,
             string "heartbeat" >> return WebHeartbeatRequest,
+            string "change_password" >> return WebChangepassRequest,
             many1 anyChar >>= \rq -> return (VoidRequest rq)]
 
 -- time functions
