@@ -4,7 +4,7 @@
 # include <memory>
 
 # include <libsocket/exception.hpp>
-# include <libsocket/unixclientdgram.hpp>
+# include <libsocket/unixserverdgram.hpp>
 # include <libsocket/inetserverdgram.hpp>
 # include "epoll.hpp"
 
@@ -16,7 +16,7 @@
 # include "broker2broker.hpp"
 
 using libsocket::inet_dgram_server;
-using libsocket::unix_dgram_client;
+using libsocket::unix_dgram_server;
 using libsocket::epollset;
 
 using std::unique_ptr;
@@ -47,10 +47,10 @@ private:
     epollset<libsocket::socket> e_set;
 
     inet_dgram_server *inet_persistence_sock, *inet_webapp_sock, *inet_msgrelay_sock, *inet_b2b_sock;
-    unix_dgram_client *unix_persistence_sock, *unix_webapp_sock, *unix_msgrelay_sock;
+    unix_dgram_server *unix_persistence_sock, *unix_webapp_sock, *unix_msgrelay_sock;
 
     connectionType getSocketType(libsocket::socket* sock);
-    Receivable* receiveFromUNIX(unix_dgram_client* sock);
+    Receivable* receiveFromUNIX(unix_dgram_server* sock);
     Receivable* receiveFromINET(inet_dgram_server* sock);
 };
 

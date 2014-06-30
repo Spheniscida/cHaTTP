@@ -40,8 +40,7 @@ Communicator::Communicator (void)
 	if ( persistence_connection_info.type == connectionType::UNIX )
 	{
 	    inet_persistence_sock = nullptr;
-	    unix_persistence_sock = new unix_dgram_client(global_broker_settings.getPersistenceLayerBindAddress().address,SOCK_NONBLOCK);
-	    unix_persistence_sock->connect(persistence_connection_info.address);
+	    unix_persistence_sock = new unix_dgram_server(global_broker_settings.getPersistenceLayerBindAddress().address,SOCK_NONBLOCK);
 
 	    e_set.add_fd(unix_persistence_sock,LIBSOCKET_READ);
 	} else if ( persistence_connection_info.type == connectionType::INET )
@@ -56,9 +55,7 @@ Communicator::Communicator (void)
 	if ( msgrelay_connection_info.type == connectionType::UNIX )
 	{
 	    inet_msgrelay_sock = nullptr;
-	    unix_msgrelay_sock = new unix_dgram_client(global_broker_settings.getMessageRelayBindAddress().address,SOCK_NONBLOCK);
-	    unix_msgrelay_sock->connect(msgrelay_connection_info.address);
-
+	    unix_msgrelay_sock = new unix_dgram_server(global_broker_settings.getMessageRelayBindAddress().address,SOCK_NONBLOCK);
 	    e_set.add_fd(unix_msgrelay_sock,LIBSOCKET_READ);
 	} else if ( msgrelay_connection_info.type == connectionType::INET )
 	{
@@ -72,8 +69,8 @@ Communicator::Communicator (void)
 	if ( webapp_connection_info.type == connectionType::UNIX )
 	{
 	    inet_webapp_sock = nullptr;
-	    unix_webapp_sock = new unix_dgram_client(global_broker_settings.getWebappBindAddress().address,SOCK_NONBLOCK);
-	    unix_webapp_sock->connect(webapp_connection_info.address);
+	    unix_webapp_sock = new unix_dgram_server(global_broker_settings.getWebappBindAddress().address,SOCK_NONBLOCK);
+
 	    e_set.add_fd(unix_webapp_sock,LIBSOCKET_READ);
 
 	} else if ( webapp_connection_info.type == connectionType::INET )
@@ -138,7 +135,7 @@ unsigned int Communicator::receiveMessages(std::vector<Receivable*>& return_vec)
 	{
 	    // Returns nullptr if there are no messages anymore.
 	    // This "algorithm" has to be used because we use edge-triggered epoll.
-	    while ( (return_value = receiveFromUNIX(dynamic_cast<unix_dgram_client*>(ready_for_recv[i]))) )
+	    while ( (return_value = receiveFromUNIX(dynamic_cast<unix_dgram_server*>(ready_for_recv[i]))) )
 	    {
 		// Only resize if the vector is already full -- this is quite unlikely, so we save us some memory operations.
 		if ( received_messages >= return_vec.size() )
@@ -171,7 +168,7 @@ connectionType Communicator::getSocketType(libsocket::socket* sock)
     else return connectionType::INET;
 }
 
-Receivable* Communicator::receiveFromUNIX(unix_dgram_client* sock)
+Receivable* Communicator::receiveFromUNIX(unix_dgram_server* sock)
 {
     int received_size;
     memset(message_receiver_buffer,0,last_message_size);
@@ -230,10 +227,7 @@ void Communicator::send(const PersistenceLayerCommand& cmd)
     if ( inet_persistence_sock )
 	inet_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address, persistence_connection_info.port);
     else if ( unix_persistence_sock )
-    {
-	const string& serialized = cmd.toString();
-	unix_persistence_sock->snd(serialized.c_str(),serialized.size());
-    }
+	unix_persistence_sock->sndto(cmd.toString(),persistence_connection_info.address);
     else
 	throw BrokerError(ErrorType::genericImplementationError,"Communicator::send(const PersistenceLayerCommand&): No working socket for persistence.");
 
@@ -246,10 +240,7 @@ void Communicator::send(const WebappResponse& cmd)
 	debug_log("Sent to WebApp (response): ", cmd.get_protobuf().DebugString());
 
     if ( unix_webapp_sock )
-    {
-	const string& serialized = cmd.toString();
-	unix_webapp_sock->snd(serialized.c_str(),serialized.size());
-    }
+	unix_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address);
     else if ( inet_webapp_sock )
 	inet_webapp_sock->sndto(cmd.toString(),webapp_connection_info.address, webapp_connection_info.port);
     else
@@ -264,10 +255,7 @@ void Communicator::send(const MessageForRelay& cmd)
 	debug_log("Sent to Message relay: ", cmd.get_protobuf().DebugString());
 
     if ( unix_msgrelay_sock )
-    {
-	const string& serialized = cmd.toString();
-	unix_msgrelay_sock->snd(serialized.c_str(),serialized.size());
-    }
+	unix_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address);
     else if ( inet_msgrelay_sock )
 	inet_msgrelay_sock->sndto(cmd.toString(),msgrelay_connection_info.address,msgrelay_connection_info.port);
     else
