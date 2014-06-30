@@ -1785,101 +1785,107 @@ void ProtocolDispatcher::runTimeoutFinder(void)
     if ( timedout.size() < 1 )
 	return;
 
-    for ( sequence_t transaction_id : timedout )
+    try
     {
-	const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(transaction_id);
-	//const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
-
-	if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT || transaction.type == OutstandingType::persistenceB2BMSGSVD )
+	for ( sequence_t transaction_id : timedout )
 	{
-	    const string& origin = transaction_cache.lookupB2BOrigin(transaction_id);
-	    MessageForB2B failmsg(transaction.original_sequence_number,false);
-	    communicator.send(failmsg,origin);
-	    transaction_cache.eraseB2BOrigin(transaction_id);
-	}
+	    const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(transaction_id);
+	    //const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
 
-	// LOGIN-related
-	if ( transaction.type == OutstandingType::messagerelayCHANCREAT
-	    || transaction.type == OutstandingType::persistenceLoginULKDUP
-	    || transaction.type == OutstandingType::persistenceCHKDPASS
-	    || transaction.type == OutstandingType::persistenceLGDIN
-	    || transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,false,string(""),"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP // LOGOUT-related
-	    || transaction.type == OutstandingType::persistenceLGDOUT )
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDOUT,false,"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceSndmsgULKDUP // SENDMESSAGE-related
-	    || transaction.type == OutstandingType::messagerelayMSGSNT
-	    || transaction.type == OutstandingType::persistenceMSGSVD
-	    || transaction.type == OutstandingType::b2bMSGSNT )
-	{
-	    // Only send error if the message couldn't be delivered to at least one instance of the receiver.
-	    if ( ! (*transaction.remaining_count < transaction.original_count) )
+	    if ( transaction.type == OutstandingType::messagerelayB2BMSGSNT || transaction.type == OutstandingType::persistenceB2BMSGSVD )
 	    {
-		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
+		const string& origin = transaction_cache.lookupB2BOrigin(transaction_id);
+		MessageForB2B failmsg(transaction.original_sequence_number,false);
+		communicator.send(failmsg,origin);
+		transaction_cache.eraseB2BOrigin(transaction_id);
+	    }
+
+	    // LOGIN-related
+	    if ( transaction.type == OutstandingType::messagerelayCHANCREAT
+		|| transaction.type == OutstandingType::persistenceLoginULKDUP
+		|| transaction.type == OutstandingType::persistenceCHKDPASS
+		|| transaction.type == OutstandingType::persistenceLGDIN
+		|| transaction.type == OutstandingType::persistenceAfterFailedChancreatLogout )
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDIN,false,string(""),"21,Timeout in broker");
 
 		communicator.send(failresp);
-	    } else // send success (to not worry the sender :P)
+	    } else if ( transaction.type == OutstandingType::persistenceLogoutULKDUP // LOGOUT-related
+		|| transaction.type == OutstandingType::persistenceLGDOUT )
 	    {
-		WebappResponse partial_resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,true,"");
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::LOGGEDOUT,false,"21,Timeout in broker");
 
-		communicator.send(partial_resp);
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceSndmsgULKDUP // SENDMESSAGE-related
+		|| transaction.type == OutstandingType::messagerelayMSGSNT
+		|| transaction.type == OutstandingType::persistenceMSGSVD
+		|| transaction.type == OutstandingType::b2bMSGSNT )
+	    {
+		// Only send error if the message couldn't be delivered to at least one instance of the receiver.
+		if ( ! (*transaction.remaining_count < transaction.original_count) )
+		{
+		    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
 
+		    communicator.send(failresp);
+		} else // send success (to not worry the sender :P)
+		{
+		    WebappResponse partial_resp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,true,"");
+
+		    communicator.send(partial_resp);
+
+		}
+	    } else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP // SAVESETTINGS-related
+		    || transaction.type == OutstandingType::persistenceSAVEDSETTINGS )
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SAVEDSETTINGS,false,"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceGetSettingsULKDUP // GETSETTINGS-related
+		    || transaction.type == OutstandingType::persistenceGOTSETTINGS )
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTSETTINGS,false,string(""),"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceUREGD ) // REGISTER-related
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::REGISTERED,false,"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP ) // QUERYSTATUS-related
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,false,false,"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceIsauthULKDUP ) // AUTHORIZED-related
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::AUTHORIZED,false,false,"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceMessageGetULKDUP // GETMESSAGES-related
+		    || transaction.type == OutstandingType::persistenceMSGS )
+	    {
+		google::protobuf::RepeatedPtrField<chattp::ChattpMessage> dummy_field;
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTMESSAGES,false,dummy_field.begin(),dummy_field.end(),"21,Timeout in broker");
+
+		communicator.send(failresp);
+	    } else if ( transaction.type == OutstandingType::persistenceHeartbeated ) // CHANNEL_HEARTBEAT-related
+	    {
+		WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::HEARTBEAT_RECEIVED,false,"21,Timeout in broker");
+
+		communicator.send(failresp);
 	    }
-	} else if ( transaction.type == OutstandingType::persistenceSaveSettingsULKDUP // SAVESETTINGS-related
-		 || transaction.type == OutstandingType::persistenceSAVEDSETTINGS )
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SAVEDSETTINGS,false,"21,Timeout in broker");
 
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceGetSettingsULKDUP // GETSETTINGS-related
-		 || transaction.type == OutstandingType::persistenceGOTSETTINGS )
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTSETTINGS,false,string(""),"21,Timeout in broker");
+	    // Free memory
+	    transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
+	    transaction_cache.eraseTransaction(transaction_id);
 
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceUREGD ) // REGISTER-related
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::REGISTERED,false,"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceUonlqULKDUP ) // QUERYSTATUS-related
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::USERSTATUS,false,false,"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceIsauthULKDUP ) // AUTHORIZED-related
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::AUTHORIZED,false,false,"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceMessageGetULKDUP // GETMESSAGES-related
-		 || transaction.type == OutstandingType::persistenceMSGS )
-	{
-	    google::protobuf::RepeatedPtrField<chattp::ChattpMessage> dummy_field;
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::GOTMESSAGES,false,dummy_field.begin(),dummy_field.end(),"21,Timeout in broker");
-
-	    communicator.send(failresp);
-	} else if ( transaction.type == OutstandingType::persistenceHeartbeated ) // CHANNEL_HEARTBEAT-related
-	{
-	    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::HEARTBEAT_RECEIVED,false,"21,Timeout in broker");
-
-	    communicator.send(failresp);
+	    if ( transaction.remaining_count )
+		delete transaction.remaining_count;
+	    if ( transaction.saved )
+		delete transaction.saved;
 	}
-
-	// Free memory
-	transaction_cache.eraseWebappRequest(transaction.original_sequence_number);
-	transaction_cache.eraseTransaction(transaction_id);
-
-	if ( transaction.remaining_count )
-	    delete transaction.remaining_count;
-	if ( transaction.saved )
-	    delete transaction.saved;
+    } catch (libsocket::socket_exception e)
+    {
+	// Ignore.
     }
 }

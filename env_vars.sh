@@ -60,7 +60,7 @@ export CHATTP_MSGBROKER_RUN_CLUSTERED="N"
 # This is the host on which the broker listens. It should be a FQDN because
 # it's also used in the persistence layer as identification string for a user's location.
 # Other message brokers contacting the one on this host should be able to resolve this name.
-export CHATTP_MSGBROKER_BROKER_NAME="localhost"
+export CHATTP_MSGBROKER_BROKER_NAME="10.0.2.1"
 
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"

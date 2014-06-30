@@ -4,6 +4,7 @@ set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
 
 add_subdirectory(ManualTest)
+add_subdirectory(benchmark)
 
 include_directories("../src/")
 
@@ -23,16 +24,17 @@ set(manualsrc
     manual-protocol-tester.cpp
     )
 
+
 find_library(boost_test_lib "boost_unit_test_framework")
 
 add_executable(persistence-protocol ${persistsrc})
-target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
+target_link_libraries(persistence-protocol msg_broker_lib ${boost_test_lib} ${protobuf_libraries} protolib)
 
 add_executable(misc-test ${miscsrc})
-target_link_libraries(misc-test msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
+target_link_libraries(misc-test msg_broker_lib ${boost_test_lib} ${protobuf_libraries} protolib)
 
 add_executable(webapp-test ${wasrc})
-target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib} ${PROTOBUF_LIBRARIES} protolib)
+target_link_libraries(webapp-test msg_broker_lib ${boost_test_lib} ${protobuf_libraries} protolib)
 
 add_executable(manual-test ${manualsrc})
 target_link_libraries(manual-test msg_broker_lib socket++)
