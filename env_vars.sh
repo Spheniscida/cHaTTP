@@ -65,6 +65,7 @@ export CHATTP_MSGBROKER_BROKER_NAME="10.0.2.1"
 # Not more than the number of processors/cores in your machine.
 export CHATTP_MSGBROKER_NUMBER_THREADS="3"
 
+export CHATTP_MSGRELAY_NUMBER_THREADS="10"
 export CHATTP_MSGRELAY_PUBLISH_HOST="localhost"
 export CHATTP_MSGRELAY_PUBLISH_PORT="80"
 

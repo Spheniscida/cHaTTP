@@ -12,6 +12,6 @@ main = do
     conf <- makeConfig
     print conf
     rconf <- makeRouterConfig conf
-    replicateM_ (if (nThreads conf - 1) < 0 then 0 else (nThreads conf - 1)) (forkOS (router Nothing rconf))
+    replicateM_ (if (nThreads conf - 1) < 0 then 0 else (nThreads conf - 1)) (forkIO (router Nothing rconf))
     router Nothing rconf
 
