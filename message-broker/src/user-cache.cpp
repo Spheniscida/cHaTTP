@@ -8,7 +8,9 @@ void UserCache::addForUser(const std::string& user_name, const chattp::Persisten
 
     lock_guard<mutex> lock(map_mutex);
 
-    debug_log("Added user location: ",loc.DebugString());
+    if ( debugging_mode )
+	debug_log("Added user location: ",loc.DebugString());
+
     (cache[user_name]).push_back(loc);
 }
 
@@ -21,7 +23,9 @@ void UserCache::removeForUser(const std::string& user_name, const std::string& c
 
     std::list<chattp::PersistenceResponse::UserLocation>& locs = cache[user_name];
 
-    debug_log("Removed user_location: ", channel_id);
+    if ( debugging_mode )
+	debug_log("Removed user_location: ", channel_id);
+
     locs.remove_if([&channel_id](const chattp::PersistenceResponse::UserLocation& loc) -> bool { return loc.channel_id() == channel_id; });
 }
 

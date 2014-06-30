@@ -54,7 +54,9 @@ void ProtocolDispatcher::dispatch(void)
 void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerResponse> msg)
 {
 
-    debug_log("tid ", thread_id, " received from Persistence: ", msg->get_protobuf().DebugString());
+    if ( debugging_mode )
+	debug_log("tid ", thread_id, " received from Persistence: ", msg->get_protobuf().DebugString());
+
     switch ( msg->type() )
     {
 	case chattp::PersistenceResponse::LOOKEDUP:
@@ -93,7 +95,9 @@ void ProtocolDispatcher::handlePersistenceMessage(shared_ptr<PersistenceLayerRes
 
 void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 {
-    debug_log("tid ", thread_id, " received from Webapp: ", msg->get_protobuf().DebugString());
+    if ( debugging_mode )
+	debug_log("tid ", thread_id, " received from Webapp: ", msg->get_protobuf().DebugString());
+
     switch ( msg->type() )
     {
 	case WebappRequestMessage::QUERYSTATUS:
@@ -132,7 +136,9 @@ void ProtocolDispatcher::handleWebappMessage(shared_ptr<WebappRequest> msg)
 
 void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg)
 {
-    debug_log("tid ", thread_id, " received from Message Relay: ", msg->get_protobuf().DebugString());
+    if ( debugging_mode )
+	debug_log("tid ", thread_id, " received from Message Relay: ", msg->get_protobuf().DebugString());
+
     switch ( msg->type() )
     {
 	case chattp::MessageRelayResponse::SENTMESSAGE:
@@ -149,7 +155,9 @@ void ProtocolDispatcher::handleMessagerelayMessage(shared_ptr<MessageRelayRespon
 
 void ProtocolDispatcher::handleBrokerMessage(shared_ptr<B2BIncoming> msg)
 {
-    debug_log("tid ", thread_id, " received from other Broker: ", msg->get_protobuf().DebugString());
+    if ( debugging_mode )
+	debug_log("tid ", thread_id, " received from other Broker: ", msg->get_protobuf().DebugString());
+
     switch ( msg->type() )
     {
 	case B2BMessage::SENDMESSAGE:
