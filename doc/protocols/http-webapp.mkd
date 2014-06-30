@@ -99,6 +99,8 @@ This command is a little different in what HTTP methods are allowed to be used. 
 parameters are sent in the request string, the message is sent in the body. This avoids having the message encoded which
 in turn allows any characters to be used in the message content. You may want to set the encoding in the HTTP headers appropriately.
 
+An alternative way to transmit the message body is in URL-encoded form in the `message` parameter of the POST request.
+
 #### Query status of user
 
     GET $base/chattp_request/isonline?user_name=<user>

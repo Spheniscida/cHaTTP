@@ -30,6 +30,8 @@ import Network.FastCGI
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
 
+import Control.Applicative ((<|>))
+
 -- This function will be run by runFastCGIConcurrent
 
 fcgiMain :: ChanInfo -> CGI CGIResult
@@ -142,10 +144,11 @@ handleSendMessage syncinfo = do
     channel_raw <- getInputFPS "channel_id"
     dest_raw <- getInputFPS "dest_user"
     mesg <- getBodyFPS
-    if mesg == BS.empty
+    mesg_url <- getInputFPS "message"
+    if mesg == BS.empty && (mesg_url == Nothing || mesg_url == Just BS.empty)
      then outputError 400 "Empty message; not sent." []
-     else case (usr_raw,dest_raw,channel_raw) of
-        (Just usr, Just dst, Just channel) -> do
+     else case (usr_raw,dest_raw,channel_raw,if mesg == BS.empty then mesg_url else Just mesg) of
+        (Just usr, Just dst, Just channel, Just mesg') -> do
                     seqn <- liftIO $ takeMVar (sequenceCounter syncinfo)
                     liftIO $ putMVar (sequenceCounter syncinfo) (seqn+1)
 
@@ -157,7 +160,7 @@ handleSendMessage syncinfo = do
                     let message = defaultValue { Msg.sender = unsafeToUtf8 usr,
                                                  Msg.receiver = unsafeToUtf8 dst,
                                                  Msg.timestamp = unsafeToUtf8 timestamp,
-                                                 Msg.body = Just $ unsafeToUtf8 mesg }
+                                                 Msg.body = Just $ unsafeToUtf8 mesg' }
 
                     let request = defaultValue { Rq.sequence_number = fromIntegral seqn,
                                                  Rq.type' = SENDMESSAGE,
