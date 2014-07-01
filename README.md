@@ -73,3 +73,27 @@ The message relay is a gateway used by the →message broker to send messages to
 to HTTP and uses a publisher path of nginx (in combination with the excellent nginx\_http\_push\_module
 written by @slact) to send them to the actual clients.
 
+## Real-time performance
+
+There are major differences in the performance of cHaTTP between clustered and non-clustered (stand-alone)
+mode.
+
+These numbers are not representative; they were measured using the excellent HTTP benchmarking tool `wrk` over a 1 GBit Ethernet
+connection on a 2010 Core i5 CPU having 4 cores in an amd64 machine using 4 GB of RAM running Linux 3.15.
+The CPU load during the tests went no higher than 50% utilization (on every core).
+
+It's important to note that the message broker is no bottleneck in any case; the critical components are
+the message relay and the FastCGI webapp. Nginx isn't suspicious as well.
+
+### Stand-alone (user cache active)
+
+* Sending messages: This is probably the slowest operation. The peak value was 590 messages/second, but
+    it could go down as low as 300 msgs/sec.
+* User lookups (stand-alone: cached): Around 1000 ops/second.
+
+### Clustered (no user cache)
+
+* In clustered mode, the rate of sending messages may be reduced to less than half the rate reached with
+    user cache. This measurement has however been done using persistence-pg, and PostgreSQL is not that fast.
+* The same goes for user lookups.
+

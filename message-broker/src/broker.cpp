@@ -1822,7 +1822,7 @@ void ProtocolDispatcher::runTimeoutFinder(void)
 		|| transaction.type == OutstandingType::b2bMSGSNT )
 	    {
 		// Only send error if the message couldn't be delivered to at least one instance of the receiver.
-		if ( ! (*transaction.remaining_count < transaction.original_count) )
+		if ( transaction.remaining_count && ! (*transaction.remaining_count < transaction.original_count) )
 		{
 		    WebappResponse failresp(transaction.original_sequence_number,WebappResponseMessage::SENTMESSAGE,false,"21,Timeout in broker");
 
