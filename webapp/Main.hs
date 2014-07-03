@@ -21,9 +21,10 @@ main = do
     let chaninfo = ChanInfo { requestsAndResponsesToCenterChan = centerchan,
                               brokerRequestChan = outgoingchan,
                               sequenceCounter = seqc }
-    mapM_ forkOS (replicate 2 (socketIncoming sock centerchan))
-    mapM_ forkOS (replicate 2 (socketOutgoing config sock chaninfo))
+    mapM_ forkIO (replicate 4 (socketIncoming sock centerchan))
+    mapM_ forkIO (replicate 4 (socketOutgoing config sock chaninfo))
     forkOS (centerThread centerchan)
     -- run FCGI threads from here
-    runFastCGIConcurrent 50 (fcgiMain chaninfo)
+    runFastCGIConcurrent' forkIO 256 (fcgiMain chaninfo)
     return ()
+
