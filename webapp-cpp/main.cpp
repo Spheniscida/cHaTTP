@@ -2,6 +2,7 @@
 
 # include "src/conf.hpp"
 # include "src/error.hpp"
+# include "src/json.hpp"
 
 # include <fcgiapp.h>
 
@@ -9,7 +10,6 @@ int main(void)
 {
     try
     {
-	FCGX_Init();
 	int fd = createFastCGISocket();
     } catch (WebappError e)
     {
