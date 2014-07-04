@@ -4,6 +4,8 @@
 # include "src/error.hpp"
 # include "src/json.hpp"
 
+# include "src/url.hpp"
+
 # include <fcgiapp.h>
 
 int main(void)
