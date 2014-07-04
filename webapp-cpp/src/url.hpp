@@ -17,12 +17,14 @@ public:
 
     RequestType type;
 
+    std::map<string,string> url_parameters;
 private:
 
     void setType(const string& typestring);
     void parseParameters(const string& parameter_string);
 
-    std::map<string,string> url_parameters;
+    static string decodePercent(const string& url);
+
 
 };
 

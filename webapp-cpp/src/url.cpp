@@ -1,6 +1,6 @@
 # include "url.hpp"
 # include <iostream>
-# include <curl/curl.h>
+# include <memory>
 
 /**
  * @brief A very bad but working URL parser.
@@ -19,9 +19,11 @@ void Url::parseUrl(const string& encoded_url)
 
     unsigned int index = 0, curpp_index = 0;
 
-    std::string url(curl_unescape(encoded_url.c_str(),encoded_url.size()));
+    std::string url(std::move(decodePercent(encoded_url)));
 
     std::string current_path_part, type_string, parameter_string;
+
+    //std::cout << url << std::endl;
 
     current_path_part.resize(128);
 
@@ -120,4 +122,44 @@ void Url::parseParameters(const string& parameter_string)
 	std::cout << x.first << " : " << x.second << std::endl;
     }
     */
+}
+
+string Url::decodePercent(const string& url)
+{
+    if ( string::npos == url.find('%') )
+	return url;
+
+    string new_url;
+
+    string tmp_hex;
+    tmp_hex = "0x";
+    tmp_hex.resize(4);
+
+    new_url.reserve(url.size()); // This is probably longer than needed
+
+    for ( unsigned int index = 0; index < url.size(); )
+    {
+	unsigned long long next_pct = url.find('%',index);
+
+	if ( string::npos == next_pct ) // No more encoded characters
+	{
+            new_url.append(url.substr(index,url.size()));
+            index = url.size();
+	} else if ( next_pct > index )
+	{
+	    new_url.append(url.substr(index,next_pct - index));
+	    index += next_pct - index;
+	} else if ( next_pct == index )
+	{
+	    index++;
+	    tmp_hex[2] = url[index];
+	    index++;
+	    tmp_hex[3] = url[index];
+	    index++;
+
+	    new_url.push_back(static_cast<char>(std::stoi(tmp_hex,0,16)));
+	}
+    }
+
+    return new_url;
 }
