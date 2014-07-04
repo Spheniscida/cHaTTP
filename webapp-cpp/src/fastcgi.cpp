@@ -1,6 +1,7 @@
 
 # include "fastcgi.hpp"
 # include "url.hpp"
+# include "error.hpp"
 
 # include <iostream>
 
@@ -15,10 +16,19 @@ void fastCGIWorker(FCGInfo info)
 
 	FCGX_Accept_r(request);
 
-	//std::cout << FCGX_GetParam("REQUEST_URI",request->envp) << std::endl;
+	FCGX_PutS("Content-type: text/plain\r\n\r\n",request->out);
+
+// 	std::cout << FCGX_GetParam("REQUEST_URI",request->envp) << std::endl;
 
 	Url u;
-        u.parseUrl(string(FCGX_GetParam("REQUEST_URI",request->envp)));
+
+	try
+	{
+	    u.parseUrl(string(FCGX_GetParam("REQUEST_URI",request->envp)));
+	} catch (WebappError e)
+	{
+	    FCGX_PutS(e.error_message.c_str(),request->out);
+	}
 
         /*
 	for ( auto e : u.url_parameters )
@@ -27,7 +37,6 @@ void fastCGIWorker(FCGInfo info)
 	}
         */
 
-	FCGX_PutS("Content-type: text/plain\r\n\r\n",request->out);
 	FCGX_PutS("xyz :))",request->out);
 
         FCGX_Finish_r(request);

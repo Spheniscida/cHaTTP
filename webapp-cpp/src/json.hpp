@@ -86,7 +86,7 @@ public:
     JSONString(const string& k,const string& v) : JSONPair(k), value(v) {}
 
 private:
-    string valueToString(void) const { return value; }
+    string valueToString(void) const { std::ostringstream out; out << "\"" << value << "\""; return out.str(); }
     string value;
 };
 

@@ -22,12 +22,12 @@ int main(void)
 	std::thread t1(fastCGIWorker,info);
 	std::thread t2(fastCGIWorker,info);
 	std::thread t3(fastCGIWorker,info);
-	std::thread t4(fastCGIWorker,info);
 
-	t1.join();
-	t2.join();
-	t3.join();
-	t4.join();
+	t1.detach();
+	t2.detach();
+	t3.detach();
+
+	fastCGIWorker(info);
 
     } catch (WebappError e)
     {

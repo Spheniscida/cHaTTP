@@ -21,3 +21,8 @@ add_subdirectory(src)
 add_executable(webapp-cpp main.cpp)
 target_link_libraries(webapp-cpp socket++ pthread protobuf fcgi protolib webapplib)
 
+if(unit_test)
+    enable_testing()
+    add_subdirectory("tests/")
+endif()
+

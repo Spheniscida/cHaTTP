@@ -1,6 +1,12 @@
 # include "url.hpp"
+# include "error.hpp"
 # include <iostream>
 # include <memory>
+
+const string& Url::getParameter(const string& k)
+{
+    return url_parameters[k];
+}
 
 /**
  * @brief A very bad but working URL parser.
@@ -17,38 +23,43 @@ void Url::parseUrl(const string& encoded_url)
 {
     // Gaah, I wanna have attoparsec here!
 
-    unsigned int index = 0, curpp_index = 0;
+    unsigned long long index = 1, next_index = 0;
 
     std::string url(std::move(decodePercent(encoded_url)));
 
     std::string current_path_part, type_string, parameter_string;
 
-    //std::cout << url << std::endl;
+//     std::cout << url << std::endl;
 
     current_path_part.resize(128);
 
     // Compute the index at which the type string starts (isonline, send etc)
-    while ( current_path_part != "chattp_request" )
+    while ( current_path_part != "chattp_request" && index < url.size() )
     {
-	curpp_index = 0;
 	current_path_part.clear();
 
-	while ( url[index] != '/' && curpp_index < 128 && index < url.size() )
+	if ( string::npos != (next_index = url.find('/', index)) )
 	{
-	    current_path_part.push_back(url[index]);
-	    curpp_index++, index++;
+	    current_path_part = url.substr(index,next_index - index);
+	    index = next_index+1;
+	} else
+	{
+	    throw WebappError("Malformed URL: Expected path part \"chattp_request\"");
 	}
-	index++;
     }
 
     const unsigned int type_index = index;
 
-    while ( url[index] != '?' )
+    while ( url[index] != '?' && index < url.size() )
 	index++;
-    index++;
 
     type_string = url.substr(type_index,index-type_index);
     setType(type_string);
+
+    if ( index < url.size() )
+	index++;
+
+    url_parameters.clear();
 
     parameter_string = url.substr(index,url.size()-index);
     parseParameters(parameter_string);
@@ -57,6 +68,8 @@ void Url::parseUrl(const string& encoded_url)
 
 void Url::setType(const string& typestring)
 {
+    //std::cout << typestring;
+
     if ( typestring == "isonline" )
 	type = ISONLINE;
     else if ( typestring == "send" )
