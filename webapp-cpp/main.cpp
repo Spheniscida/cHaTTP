@@ -14,7 +14,6 @@ int main(void)
 {
     try
     {
-
 	int fd = createFastCGISocket();
 
 	FCGInfo info { .fastcgi_sock = fd };

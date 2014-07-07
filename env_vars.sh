@@ -11,10 +11,12 @@ export CHATTP_WEBAPP_ADDR="/tmp/webapp"
 export CHATTP_WEBAPP_FAMILY="UNIX"
 export CHATTP_WEBAPP_PORT=""
 
-# This one is only required and used when using webapp-cpp.
+# Those are only required and used when using webapp-cpp.
+
 # Theoretically, you could also put a string like ":5000" in there, meaning to
 # listen on TCP port 5000.
 export CHATTP_WEBAPP_FASTCGI_PATH="/tmp/chattp_webapp.sock"
+export CHATTP_WEBAPP_N_THREADS="4"
 
 # The bind address of the message relay application.
 export CHATTP_MESG_RELAY_ADDR="/tmp/message-relay"

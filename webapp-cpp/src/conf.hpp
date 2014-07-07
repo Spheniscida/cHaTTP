@@ -6,6 +6,11 @@
 
 # include <string>
 
+/// Maximum message size accepted by this program (message: text sent from a user).
+const unsigned int max_message_size = 16384;
+/// Maximum size of incoming requests/responses (message: protocol message)
+const unsigned int max_raw_message_size = 12288;
+
 struct ConnInfo
 {
     std::string address;

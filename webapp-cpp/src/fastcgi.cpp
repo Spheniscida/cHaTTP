@@ -2,6 +2,7 @@
 # include "fastcgi.hpp"
 # include "url.hpp"
 # include "error.hpp"
+# include "transactions.hpp"
 
 # include <iostream>
 

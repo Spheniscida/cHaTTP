@@ -5,6 +5,8 @@ conf.cpp
 fastcgi.cpp
 json.cpp
 url.cpp
+ipc.cpp
+transactions.cpp
   )
 
 add_library(webapplib STATIC ${libsrc})
