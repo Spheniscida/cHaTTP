@@ -22,6 +22,6 @@ extern int createFastCGISocket(void);
 
 extern ConnInfo getBindAddress(void);
 extern ConnInfo getBrokerAddress(void);
-
+extern unsigned int getNThreads(void);
 
 # endif

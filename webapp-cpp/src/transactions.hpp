@@ -1,6 +1,8 @@
 # ifndef TRANSACTIONS_HPP
 # define TRANSACTIONS_HPP
 
+# include "protocol.hpp"
+
 # include <unordered_map>
 # include <mutex>
 
@@ -11,7 +13,6 @@ struct SavedTransaction
     FCGX_Request request;
 };
 
-typedef unsigned long long sequence_t;
 
 class TransactionMap
 {

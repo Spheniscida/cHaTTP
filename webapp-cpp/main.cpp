@@ -4,6 +4,7 @@
 # include "src/conf.hpp"
 # include "src/error.hpp"
 # include "src/fastcgi.hpp"
+# include "src/protocol.hpp"
 
 # include "src/url.hpp"
 
@@ -12,19 +13,21 @@
 
 int main(void)
 {
+    sequence_number = 1;
+
     try
     {
 	int fd = createFastCGISocket();
 
 	FCGInfo info { .fastcgi_sock = fd };
 
-	std::thread t1(fastCGIWorker,info);
-	std::thread t2(fastCGIWorker,info);
-	std::thread t3(fastCGIWorker,info);
+	unsigned int threads = getNThreads();
 
-	t1.detach();
-	t2.detach();
-	t3.detach();
+	for ( unsigned int i = 0; i < threads - 1; i++ )
+	{
+	    std::thread t(fastCGIWorker,info);
+	    t.detach();
+	}
 
 	fastCGIWorker(info);
 

@@ -78,3 +78,12 @@ ConnInfo getBindAddress(void)
     } else
 	throw WebappError("CHATTP_WEBAPP_FAMILY is set to an invalid value (expecting UNIX/INET)");
 }
+
+unsigned int getNThreads(void)
+{
+    if ( ! getenv("CHATTP_WEBAPP_N_THREADS") )
+	return 1;
+    else
+	return std::stoi(string(getenv("CHATTP_WEBAPP_N_THREADS")));
+
+}

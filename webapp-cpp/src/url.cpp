@@ -3,9 +3,15 @@
 # include <iostream>
 # include <memory>
 
-const string& Url::getParameter(const string& k)
+const string& Url::getParameter(const string& k) const
 {
-    return url_parameters[k];
+    try
+    {
+	return url_parameters.at(k);
+    } catch (std::out_of_range e)
+    {
+	return string();
+    }
 }
 
 /**
@@ -88,6 +94,8 @@ void Url::setType(const string& typestring)
 	type = GETMESSAGES;
     else if ( typestring == "heartbeat" )
 	type = HEARTBEAT;
+    else
+	throw WebappError("Unknown request type.");
 }
 
 void Url::parseParameters(const string& parameter_string)

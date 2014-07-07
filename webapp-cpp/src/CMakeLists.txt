@@ -7,6 +7,7 @@ json.cpp
 url.cpp
 ipc.cpp
 transactions.cpp
+protocol.cpp
   )
 
 add_library(webapplib STATIC ${libsrc})
