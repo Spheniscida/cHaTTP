@@ -10,7 +10,7 @@ const string& Url::getParameter(const string& k) const
 	return url_parameters.at(k);
     } catch (std::out_of_range e)
     {
-	return string();
+	return empty_dummy;
     }
 }
 

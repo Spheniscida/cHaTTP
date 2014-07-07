@@ -16,6 +16,7 @@ struct SavedTransaction
 
 class TransactionMap
 {
+public:
     void insert(sequence_t seq, const SavedTransaction& ta);
     SavedTransaction& get(sequence_t seq);
     void erase(sequence_t seq);

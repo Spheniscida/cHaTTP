@@ -1,16 +1,13 @@
 # include "conf.hpp"
 # include "error.hpp"
 
+# include <stdlib.h>
 # include <sys/stat.h>
+
 # include <fcgiapp.h>
 
-namespace {
-    const std::string UNIX = "UNIX";
-    const std::string INET = "INET";
-}
-
-bool broker_socket_unix;
-std::string broker_inet_addr, broker_inet_port;
+const std::string UNIX_value = "UNIX";
+const std::string INET_value = "INET";
 
 int createFastCGISocket(void)
 {
@@ -26,17 +23,18 @@ int createFastCGISocket(void)
 
 ConnInfo getBrokerAddress(void)
 {
+
     if ( ! getenv("CHATTP_MSGBROKER_WEBAPP_BIND_ADDR") || ! getenv("CHATTP_WEBAPP_FAMILY") )
 	throw WebappError("Missing CHATTP_MSGBROKER_WEBAPP_BIND_ADDR or CHATTP_WEBAPP_FAMILY variable");
 
-    if ( UNIX == getenv("CHATTP_WEBAPP_FAMILY") )
+    if ( UNIX_value == getenv("CHATTP_WEBAPP_FAMILY") )
     {
 	ConnInfo info;
 	info.isInet = false;
 	info.address = string(getenv("CHATTP_MSGBROKER_WEBAPP_BIND_ADDR"));
 
 	return info;
-    } else if ( INET == getenv("CHATTP_WEBAPP_FAMILY") )
+    } else if ( INET_value == getenv("CHATTP_WEBAPP_FAMILY") )
     {
 	if ( ! getenv("CHATTP_MSGBROKER_WEBAPP_BIND_PORT") )
 	    throw WebappError("Missing CHATTP_MSGBROKER_WEBAPP_BIND_PORT variable.");
@@ -48,7 +46,7 @@ ConnInfo getBrokerAddress(void)
 
 	return info;
     } else
-	throw WebappError("CHATTP_WEBAPP_FAMILY is set to an invalid value (expecting UNIX/INET)");
+	throw WebappError("CHATTP_WEBAPP_FAMILY is set to an invalid value (expecting UNIX/INET");
 }
 
 ConnInfo getBindAddress(void)
@@ -56,14 +54,14 @@ ConnInfo getBindAddress(void)
     if ( ! getenv("CHATTP_WEBAPP_FAMILY") || ! getenv("CHATTP_WEBAPP_ADDR") )
 	throw WebappError("Missing CHATTP_WEBAPP_FAMILY or CHATTP_WEBAPP_ADDR variable.");
 
-    if ( UNIX == getenv("CHATTP_WEBAPP_FAMILY") )
+    if ( UNIX_value == getenv("CHATTP_WEBAPP_FAMILY") )
     {
 	ConnInfo info;
 	info.isInet = false;
 	info.address = string(getenv("CHATTP_WEBAPP_ADDR"));
 
 	return info;
-    } else if ( INET == getenv("CHATTP_WEBAPP_FAMILY") )
+    } else if ( INET_value == getenv("CHATTP_WEBAPP_FAMILY") )
     {
 	if ( ! getenv("CHATTP_WEBAPP_PORT") )
 	    throw WebappError("Missing CHATTP_WEBAPP_PORT variable.");

@@ -24,7 +24,7 @@ private:
     void parseParameters(const string& parameter_string);
 
     static string decodePercent(const string& url);
-
+    const string empty_dummy;
 
 };
 

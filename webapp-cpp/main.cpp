@@ -7,6 +7,7 @@
 # include "src/protocol.hpp"
 
 # include "src/url.hpp"
+# include "src/ipc.hpp"
 
 # include <stdlib.h>
 # include <fcgiapp.h>
@@ -14,6 +15,8 @@
 int main(void)
 {
     sequence_number = 1;
+
+    main_ipc = new IPC;
 
     try
     {
@@ -23,11 +26,11 @@ int main(void)
 
 	unsigned int threads = getNThreads();
 
-	for ( unsigned int i = 0; i < threads - 1; i++ )
+	/*for ( unsigned int i = 0; i < threads - 1; i++ )
 	{
 	    std::thread t(fastCGIWorker,info);
 	    t.detach();
-	}
+	}*/
 
 	fastCGIWorker(info);
 

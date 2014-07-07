@@ -4,6 +4,7 @@
 # include "error.hpp"
 # include "transactions.hpp"
 
+IPC* main_ipc;
 
 void fastCGIWorker(FCGInfo info)
 {
@@ -11,8 +12,8 @@ void fastCGIWorker(FCGInfo info)
 
     while ( 1 )
     {
-        FCGX_Request* request = new FCGX_Request;
-        FCGX_InitRequest(request,info.fastcgi_sock,0);
+	FCGX_Request* request = new FCGX_Request;
+	FCGX_InitRequest(request,info.fastcgi_sock,0);
 
 	FCGX_Accept_r(request);
 
@@ -23,11 +24,16 @@ void fastCGIWorker(FCGInfo info)
 	try
 	{
 	    u.parseUrl(string(FCGX_GetParam("REQUEST_URI",request->envp)));
-	    WebappRequestMessage msg = createRequest(u);
-	    std::cout << msg.DebugString() << std::endl;
+	    WebappRequestMessage msg(createRequest(u));
+	    main_ipc->sendRequest(msg);
+
+	    SavedTransaction ta;
+	    ta.request = *request;
+
+	    transaction_map.insert(msg.sequence_number(),ta);
 	} catch (WebappError e)
 	{
-	    FCGX_PutS((string("Status: 404 ") + e.error_message).c_str(),request->out);
+	    FCGX_PutS((string("Status: 400 ") + e.error_message).c_str(),request->out);
 	    FCGX_PutS("Content-type: text/plain\r\n\r\n",request->out);
 	    FCGX_PutS(e.error_message.c_str(),request->out);
 
@@ -36,18 +42,9 @@ void fastCGIWorker(FCGInfo info)
 	    continue;
 	}
 
-
-        /*
-	for ( auto e : u.url_parameters )
-	{
-	    std::cout << e.first << " <> " << e.second << std::endl;
-	}
-        */
-
 	FCGX_PutS("Content-type: text/plain\r\n\r\n",request->out);
-	FCGX_PutS("xyz :))",request->out);
+	FCGX_PutS("",request->out);
 
-        FCGX_Finish_r(request);
         delete request;
     }
 

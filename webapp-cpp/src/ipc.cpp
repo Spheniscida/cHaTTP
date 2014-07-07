@@ -32,12 +32,18 @@ void IPC::sendRequest(const WebappRequestMessage& msg)
 {
     string serialized(std::move(msg.SerializeAsString()));
 
-    if ( ! isInet )
+    try
     {
-	webapp_socket->snd(serialized.data(),serialized.length());
-    } else
+	if ( ! isInet )
+	{
+	    webapp_socket->sndto(serialized.data(),serialized.length(),remote_info.address.c_str());
+	} else
+	{
+	    webapp_inet_socket->sndto(serialized,remote_info.address,remote_info.port);
+	}
+    } catch (libsocket::socket_exception e)
     {
-	webapp_inet_socket->sndto(serialized,remote_info.address,remote_info.port);
+	std::cerr << e.mesg;
     }
 }
 

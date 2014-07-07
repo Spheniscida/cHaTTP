@@ -15,6 +15,7 @@ using namespace chattp;
 
 class IPC
 {
+public:
     IPC(void);
 
     WebappResponseMessage receiveResponse(void);

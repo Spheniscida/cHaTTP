@@ -2,11 +2,14 @@
 # define FASTCGI_HPP
 
 # include <string>
-
 // C-linkage is declared in the header file itself.
 # include <fcgiapp.h>
 
 # include <webapp.pb.h>
+
+# include "ipc.hpp"
+
+extern IPC* main_ipc;
 
 struct FCGInfo
 {
