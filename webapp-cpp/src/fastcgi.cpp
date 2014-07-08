@@ -24,7 +24,8 @@ void fastCGIWorker(FCGInfo info)
 	try
 	{
 	    u.parseUrl(string(FCGX_GetParam("REQUEST_URI",request->envp)));
-	    WebappRequestMessage msg(createRequest(u));
+
+	    WebappRequestMessage msg(createRequest(u,request));
 	    main_ipc->sendRequest(msg);
 
 	    SavedTransaction ta;

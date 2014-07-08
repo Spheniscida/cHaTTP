@@ -16,10 +16,9 @@ int main(void)
 {
     sequence_number = 1;
 
-    main_ipc = new IPC;
-
     try
     {
+	main_ipc = new IPC;
 	int fd = createFastCGISocket();
 
 	FCGInfo info { .fastcgi_sock = fd };
@@ -37,6 +36,9 @@ int main(void)
     } catch (WebappError e)
     {
 	std::cerr << "Error was thrown: " << e.error_message << std::endl;
+    } catch (libsocket::socket_exception e)
+    {
+	std::cerr << "Socket error: " << e.mesg;
     }
 
     return 0;

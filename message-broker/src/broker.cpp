@@ -398,7 +398,7 @@ void ProtocolDispatcher::onWebAppUONLQ(const WebappRequest& rq)
 	    transaction_cache.insertWebappRequest(seqnum,rq);
 	} catch (libsocket::socket_exception e)
 	{
-	    WebappResponse failresp(seqnum,WebappResponseMessage::USERSTATUS,false,"4,Internal error! (Persistence down)");
+	    WebappResponse failresp(seqnum,WebappResponseMessage::USERSTATUS,false,false,"4,Internal error! (Persistence down)");
 	    communicator.send(failresp);
 
 	    throw e;
@@ -1785,9 +1785,9 @@ void ProtocolDispatcher::runTimeoutFinder(void)
     if ( timedout.size() < 1 )
 	return;
 
-    try
+    for ( sequence_t transaction_id : timedout )
     {
-	for ( sequence_t transaction_id : timedout )
+	try
 	{
 	    const OutstandingTransaction& transaction = transaction_cache.lookupTransaction(transaction_id);
 	    //const WebappRequest& original_webapp_request = transaction_cache.lookupWebappRequest(transaction.original_sequence_number);
@@ -1883,9 +1883,9 @@ void ProtocolDispatcher::runTimeoutFinder(void)
 		delete transaction.remaining_count;
 	    if ( transaction.saved )
 		delete transaction.saved;
+	} catch (libsocket::socket_exception e)
+	{
+	    // Ignore.
 	}
-    } catch (libsocket::socket_exception e)
-    {
-	// Ignore.
     }
 }
