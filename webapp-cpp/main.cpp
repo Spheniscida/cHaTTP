@@ -6,7 +6,6 @@
 # include "src/fastcgi.hpp"
 # include "src/protocol.hpp"
 
-# include "src/url.hpp"
 # include "src/ipc.hpp"
 
 # include <stdlib.h>
@@ -14,8 +13,6 @@
 
 int main(void)
 {
-    sequence_number = 1;
-
     try
     {
 	main_ipc = new IPC;
@@ -25,6 +22,7 @@ int main(void)
 
 	unsigned int threads = getNThreads();
 
+	// /FIXME/ For debugging purposes only!
 	/*for ( unsigned int i = 0; i < threads - 1; i++ )
 	{
 	    std::thread t(fastCGIWorker,info);

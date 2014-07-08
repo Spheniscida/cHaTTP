@@ -6,16 +6,18 @@
 
 using std::string;
 
-class Url
+class RequestURI
 {
 public:
     void parseUrl(const string& url);
 
     const string& getParameter(const string& key) const;
 
-    enum RequestType { REGISTER, LOGIN, LOGOUT, SENDMESSAGE, GETMESSAGES, GETCONF, SETCONF, HEARTBEAT, ISONLINE };
+    enum RequestType { REGISTER, LOGIN, LOGOUT, SENDMESSAGE, GETMESSAGES, GETCONF, SETCONF, HEARTBEAT, ISONLINE, CHANGEPASS };
 
     RequestType type;
+
+    unsigned int _mapSize(void) { return url_parameters.size(); }
 
 private:
 

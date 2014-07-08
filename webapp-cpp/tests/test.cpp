@@ -1,12 +1,20 @@
 # define BOOST_ALL_DYN_LINK
-# define BOOST_TEST_MODULE MiscellaneousBrokerTests
+# define BOOST_TEST_MODULE MiscWebappPPTests
 
 # include <boost/test/unit_test.hpp>
 # include <iostream>
 
 # include <json.hpp>
-# include <url.hpp>
+# include <requesturi.hpp>
 # include <error.hpp>
+# include <protocol.hpp>
+
+# include <webapp.pb.h>
+
+using chattp::WebappRequestMessage;
+using chattp::ChattpMessage;
+
+# include <fcgiapp.h>
 
 using std::string;
 
@@ -17,42 +25,43 @@ using std::string;
 
 BOOST_AUTO_TEST_SUITE(webappTests)
 
-BOOST_AUTO_TEST_CASE(parseUrlType)
+BOOST_AUTO_TEST_CASE(parseRequestURIType)
 {
-    Url u;
+    RequestURI u;
 
     u.parseUrl("/test/chattp_request/isonline");
 
-    BOOST_CHECK(u.type == Url::ISONLINE);
-    BOOST_CHECK_EQUAL(u.url_parameters.size(),0);
+    BOOST_CHECK(u.type == RequestURI::ISONLINE);
+    BOOST_CHECK_EQUAL(u._mapSize(),0);
 }
 
-BOOST_AUTO_TEST_CASE(parseUrlParameter1)
+BOOST_AUTO_TEST_CASE(parseRequestURIParameter1)
 {
-    Url u;
+    RequestURI u;
 
     u.parseUrl("/test/chattp_request/register?user_name=usr&password=pwd");
 
-    BOOST_CHECK(u.type == Url::REGISTER);
+    BOOST_CHECK(u.type == RequestURI::REGISTER);
     BOOST_CHECK_EQUAL(u.getParameter("user_name"),"usr");
     BOOST_CHECK_EQUAL(u.getParameter("password"),"pwd");
-    BOOST_CHECK_EQUAL(u.url_parameters.size(),2);
+    BOOST_CHECK_EQUAL(u._mapSize(),2);
 }
 
-BOOST_AUTO_TEST_CASE(parseUrlParameter2WithPercent)
+BOOST_AUTO_TEST_CASE(parseRequestURIParameter2WithPercent)
 {
-    Url u;
+    RequestURI u;
 
     u.parseUrl("/test/chattp_request/login?user_name=%C3%BC%C3%A4x&password=pwd");
 
-    BOOST_CHECK(u.type == Url::LOGIN);
+    BOOST_CHECK(u.type == RequestURI::LOGIN);
     BOOST_CHECK_EQUAL(u.getParameter("user_name"),"üäx");
     BOOST_CHECK_EQUAL(u.getParameter("password"),"pwd");
+    BOOST_CHECK_EQUAL(u._mapSize(),2);
 }
 
-BOOST_AUTO_TEST_CASE(parseUrlThrowOnFail)
+BOOST_AUTO_TEST_CASE(parseRequestURIThrowOnFail)
 {
-    Url u;
+    RequestURI u;
 
     BOOST_CHECK_THROW(u.parseUrl("/test/xyz/abc"),WebappError);
 }
@@ -96,6 +105,50 @@ BOOST_AUTO_TEST_CASE(buildJSON2)
 
     BOOST_CHECK_EQUAL(q.toString(),"{\"key4\":{\"key1\":true},\"list1\":[{\"key1\":true},{\"key2\":23,\"key3\":\"value3\"}]}");
 }
+
+BOOST_AUTO_TEST_CASE(makeRegisterRequest)
+{
+    RequestURI u;
+    u.parseUrl("/test/chattp_request/register?user_name=usr&password=pwd");
+
+    chattp::WebappRequestMessage msg(createRequest(u,nullptr));
+
+    BOOST_CHECK(msg.has_user_name());
+    BOOST_CHECK_EQUAL(msg.user_name(),"usr");
+    BOOST_CHECK(msg.has_password());
+    BOOST_CHECK_EQUAL(msg.password(),"pwd");
+    BOOST_CHECK(msg.type() == WebappRequestMessage::REGISTER);
+}
+
+BOOST_AUTO_TEST_CASE(makeLoginRequest)
+{
+    RequestURI u;
+    u.parseUrl("/test/chattp_request/login?user_name=usr&password=pwd");
+
+    chattp::WebappRequestMessage msg(createRequest(u,nullptr));
+
+    BOOST_CHECK(msg.has_user_name());
+    BOOST_CHECK_EQUAL(msg.user_name(),"usr");
+    BOOST_CHECK(msg.has_password());
+    BOOST_CHECK_EQUAL(msg.password(),"pwd");
+    BOOST_CHECK(msg.type() == WebappRequestMessage::LOGIN);
+}
+
+BOOST_AUTO_TEST_CASE(makeLogoutRequest)
+{
+    RequestURI u;
+    u.parseUrl("/test/chattp_request/logout?user_name=usr&channel_id=chan");
+
+    chattp::WebappRequestMessage msg(createRequest(u,nullptr));
+
+    BOOST_CHECK(msg.has_user_name());
+    BOOST_CHECK_EQUAL(msg.user_name(),"usr");
+    BOOST_CHECK(msg.has_channel_id());
+    BOOST_CHECK_EQUAL(msg.channel_id(),"chan");
+    BOOST_CHECK(msg.type() == WebappRequestMessage::LOGOUT);
+}
+
+// Todo: Other unit tests.
 
 BOOST_AUTO_TEST_SUITE_END()
 

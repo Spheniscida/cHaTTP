@@ -4,7 +4,7 @@ set(libsrc
 conf.cpp
 fastcgi.cpp
 json.cpp
-url.cpp
+requesturi.cpp
 ipc.cpp
 transactions.cpp
 protocol.cpp

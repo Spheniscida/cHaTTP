@@ -7,65 +7,63 @@
 
 # include "utils.hpp"
 
-std::atomic<sequence_t> sequence_number;
-
 namespace
 {
     const unsigned int body_buffer_length = 256;
     thread_local char body_buffer[body_buffer_length];
 }
 
-WebappRequestMessage makeREGISTERRequest(const Url& u)
+WebappRequestMessageFactory request_factory;
+
+WebappRequestMessage makeREGISTERRequest(const RequestURI& u)
 {
     if ( u.getParameter("user_name").empty() || u.getParameter("password").empty() )
 	throw WebappError("Missing parameter in register request");
 
-    WebappRequestMessage msg;
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
     msg.set_type(WebappRequestMessage::REGISTER);
-    msg.set_sequence_number(sequence_number++);
     msg.set_user_name(u.getParameter("user_name"));
     msg.set_password(u.getParameter("password"));
 
     return msg;
 }
 
-WebappRequestMessage makeLOGINRequest(const Url& u)
+WebappRequestMessage makeLOGINRequest(const RequestURI& u)
 {
     if ( u.getParameter("user_name").empty() || u.getParameter("password").empty() )
 	throw WebappError("Missing parameter in login request");
 
-    WebappRequestMessage msg;
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
 
     msg.set_type(WebappRequestMessage::LOGIN);
-    msg.set_sequence_number(sequence_number++);
     msg.set_user_name(u.getParameter("user_name"));
     msg.set_password(u.getParameter("password"));
 
     return msg;
 }
 
-WebappRequestMessage makeLOGOUTRequest(const Url& u)
+WebappRequestMessage makeLOGOUTRequest(const RequestURI& u)
 {
     if ( u.getParameter("user_name").empty() || u.getParameter("channel_id").empty() )
 	throw WebappError("Missing parameter in login request");
 
-    WebappRequestMessage msg;
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
     msg.set_type(WebappRequestMessage::LOGOUT);
-    msg.set_sequence_number(sequence_number++);
     msg.set_user_name(u.getParameter("user_name"));
     msg.set_channel_id(u.getParameter("channel_id"));
 
     return msg;
 }
 
-WebappRequestMessage makeSENDMESSAGERequest(const Url& u, FCGX_Request* request)
+WebappRequestMessage makeSENDMESSAGERequest(const RequestURI& u, FCGX_Request* request)
 {
     if ( u.getParameter("user_name").empty()
       || u.getParameter("channel_id").empty()
       || u.getParameter("dest_user").empty() )
 	throw WebappError("Missing parameter in send request");
 
-    WebappRequestMessage request_message;
+    WebappRequestMessage request_message = request_factory.getWebappRequestMessage();
     string message;
     int read = 0;
 
@@ -77,7 +75,6 @@ WebappRequestMessage makeSENDMESSAGERequest(const Url& u, FCGX_Request* request)
 	    message.append(body_buffer,read);
     }
 
-    request_message.set_sequence_number(sequence_number++);
     request_message.set_type(WebappRequestMessage::SENDMESSAGE);
     request_message.set_user_name(u.getParameter("user_name"));
     request_message.set_channel_id(u.getParameter("channel_id"));
@@ -93,34 +90,129 @@ WebappRequestMessage makeSENDMESSAGERequest(const Url& u, FCGX_Request* request)
     return request_message;
 }
 
-WebappRequestMessage makeISONLINERequest(const Url& u)
+WebappRequestMessage makeISONLINERequest(const RequestURI& u)
 {
     if ( u.getParameter("user_name").empty() )
 	throw WebappError("Missing parameter in isonline request");
 
-    WebappRequestMessage msg;
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
     msg.set_type(WebappRequestMessage::QUERYSTATUS);
     msg.set_user_name(u.getParameter("user_name"));
-    msg.set_sequence_number(sequence_number++);
 
     return msg;
 }
 
-WebappRequestMessage createRequest(const Url& u, FCGX_Request* request)
+WebappRequestMessage makeSETCONFRequest(const RequestURI& u, FCGX_Request* request)
+{
+    if ( u.getParameter("user_name").empty() || u.getParameter("channel_id").empty() )
+	throw WebappError("Missing parameter in setconf request");
+
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
+    msg.set_type(WebappRequestMessage::SAVESETTINGS);
+    msg.set_user_name(u.getParameter("user_name"));
+    msg.set_channel_id(u.getParameter("channel_id"));
+
+    string settings;
+    unsigned int read = 0;
+
+    if ( ! u.getParameter("settings").empty() )
+	settings = u.getParameter("settings");
+    else
+    {
+	while ( 0 < (read = FCGX_GetStr(body_buffer,body_buffer_length,request->in)) )
+	    settings.append(body_buffer,read);
+    }
+
+    msg.set_settings(settings);
+
+    return msg;
+}
+
+WebappRequestMessage makeGETCONFRequest(const RequestURI& u)
+{
+    if ( u.getParameter("user_name").empty() || u.getParameter("channel_id").empty() )
+	throw WebappError("Missing parameter in getconf request");
+
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
+    msg.set_type(WebappRequestMessage::GETSETTINGS);
+    msg.set_user_name(u.getParameter("user_name"));
+    msg.set_channel_id(u.getParameter("channel_id"));
+
+    return msg;
+}
+
+WebappRequestMessage makeCHANGEPASSRequest(const RequestURI& u)
+{
+    if ( u.getParameter("user_name").empty()
+      || u.getParameter("password").empty()
+      || u.getParameter("new_password").empty() )
+	throw WebappError("Missing parameter in change_password request");
+
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
+    msg.set_type(WebappRequestMessage::CHANGEPASS);
+    msg.set_user_name(u.getParameter("user_name"));
+    msg.set_password(u.getParameter("password"));
+    msg.set_new_password(u.getParameter("new_password"));
+
+    return msg;
+}
+
+WebappRequestMessage makeGETMESSAGESRequest(const RequestURI& u)
+{
+    if ( u.getParameter("user_name").empty() || u.getParameter("channel_id").empty() )
+	throw WebappError("Missing parameter in savedmessages request");
+
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
+    msg.set_type(WebappRequestMessage::GETMESSAGES);
+    msg.set_user_name(u.getParameter("user_name"));
+    msg.set_channel_id(u.getParameter("channel_id"));
+
+    return msg;
+}
+
+WebappRequestMessage makeHEARTBEATRequest(const RequestURI& u)
+{
+    if ( u.getParameter("user_name").empty() || u.getParameter("channel_id").empty() )
+	throw WebappError("Missing parameter in heartbeat request");
+
+    WebappRequestMessage msg = request_factory.getWebappRequestMessage();
+
+    msg.set_type(WebappRequestMessage::CHANNEL_HEARTBEAT);
+    msg.set_user_name(u.getParameter("user_name"));
+    msg.set_channel_id(u.getParameter("channel_id"));
+
+    return msg;
+}
+
+WebappRequestMessage createRequest(const RequestURI& u, FCGX_Request* request)
 {
     switch ( u.type )
     {
-	case Url::REGISTER:
+	case RequestURI::REGISTER:
 	    return makeREGISTERRequest(u);
-	case Url::LOGIN:
+	case RequestURI::LOGIN:
 	    return makeLOGINRequest(u);
-	case Url::LOGOUT:
+	case RequestURI::LOGOUT:
 	    return makeLOGOUTRequest(u);
-	case Url::SENDMESSAGE:
+	case RequestURI::SENDMESSAGE:
 	    return makeSENDMESSAGERequest(u,request);
-	case Url::ISONLINE:
+	case RequestURI::ISONLINE:
 	    return makeISONLINERequest(u);
+	case RequestURI::SETCONF:
+	    return makeSETCONFRequest(u,request);
+	case RequestURI::GETCONF:
+	    return makeGETCONFRequest(u);
+	case RequestURI::CHANGEPASS:
+	    return makeCHANGEPASSRequest(u);
+	case RequestURI::GETMESSAGES:
+	    return makeGETMESSAGESRequest(u);
+	case RequestURI::HEARTBEAT:
+	    return makeHEARTBEATRequest(u);
     }
 
-    throw WebappError("Sorry, but you called an unimplemented request");
+    throw WebappError("Sorry, but you called an unimplemented request",true);
 }

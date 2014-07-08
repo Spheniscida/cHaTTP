@@ -2,7 +2,7 @@
 # define PROTOCOL_HPP
 # include <fcgiapp.h>
 
-# include "url.hpp"
+# include "requesturi.hpp"
 
 # include <webapp.pb.h>
 
@@ -13,9 +13,19 @@ using namespace chattp;
 
 typedef unsigned long long sequence_t;
 
-extern std::atomic<sequence_t> sequence_number;
 
-extern WebappRequestMessage makeREGISTERRequest(const Url& u);
-extern WebappRequestMessage createRequest(const Url& u, FCGX_Request* request);
+extern WebappRequestMessage createRequest(const RequestURI& u, FCGX_Request* request);
+
+// :P
+// Ensures that the sequence number is handled appropriately.
+class WebappRequestMessageFactory
+{
+public:
+    WebappRequestMessageFactory(void) : sequence_number(1) {}
+    WebappRequestMessage getWebappRequestMessage(void) { WebappRequestMessage msg; msg.set_sequence_number(sequence_number++); return msg; }
+
+private:
+    std::atomic<sequence_t> sequence_number;
+};
 
 # endif

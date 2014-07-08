@@ -1,6 +1,6 @@
 
 # include "fastcgi.hpp"
-# include "url.hpp"
+# include "requesturi.hpp"
 # include "error.hpp"
 # include "transactions.hpp"
 
@@ -19,7 +19,7 @@ void fastCGIWorker(FCGInfo info)
 
 	std::cout << FCGX_GetParam("REQUEST_URI",request->envp) << std::endl;
 
-	Url u;
+	RequestURI u;
 
 	try
 	{
@@ -34,9 +34,14 @@ void fastCGIWorker(FCGInfo info)
 	    transaction_map.insert(msg.sequence_number(),ta);
 	} catch (WebappError e)
 	{
-	    FCGX_PutS((string("Status: 400 ") + e.error_message).c_str(),request->out);
+	    if ( ! e.server_error )
+		FCGX_PutS((string("Status: 400 ") + e.error_message).c_str(),request->out);
+	    else
+		FCGX_PutS((string("Status: 500 ") + e.error_message).c_str(),request->out);
+
 	    FCGX_PutS("Content-type: text/plain\r\n\r\n",request->out);
 	    FCGX_PutS(e.error_message.c_str(),request->out);
+	    FCGX_PutChar('\n',request->out);
 
 	    FCGX_Finish_r(request);
 	    delete request;

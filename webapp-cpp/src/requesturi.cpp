@@ -1,9 +1,9 @@
-# include "url.hpp"
+# include "requesturi.hpp"
 # include "error.hpp"
 # include <iostream>
 # include <memory>
 
-const string& Url::getParameter(const string& k) const
+const string& RequestURI::getParameter(const string& k) const
 {
     try
     {
@@ -25,7 +25,7 @@ const string& Url::getParameter(const string& k) const
  * 	* Parsing parameters with and without values.
  *
  */
-void Url::parseUrl(const string& encoded_url)
+void RequestURI::parseUrl(const string& encoded_url)
 {
     // Gaah, I wanna have attoparsec here!
 
@@ -72,7 +72,7 @@ void Url::parseUrl(const string& encoded_url)
 
 }
 
-void Url::setType(const string& typestring)
+void RequestURI::setType(const string& typestring)
 {
     //std::cout << typestring;
 
@@ -94,11 +94,13 @@ void Url::setType(const string& typestring)
 	type = GETMESSAGES;
     else if ( typestring == "heartbeat" )
 	type = HEARTBEAT;
+    else if ( typestring == "change_password" )
+	type = CHANGEPASS;
     else
 	throw WebappError("Unknown request type.");
 }
 
-void Url::parseParameters(const string& parameter_string)
+void RequestURI::parseParameters(const string& parameter_string)
 {
     std::size_t length = parameter_string.size();
 
@@ -145,7 +147,7 @@ void Url::parseParameters(const string& parameter_string)
     */
 }
 
-string Url::decodePercent(const string& url)
+string RequestURI::decodePercent(const string& url)
 {
     if ( string::npos == url.find('%') )
 	return url;
