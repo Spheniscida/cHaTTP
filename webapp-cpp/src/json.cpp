@@ -42,14 +42,14 @@ string JSONObjectList::valueToString(void) const
 
     out << "[";
 
-    for ( const JSONObject* o: objs )
+    for ( const JSONObject& o: objs )
     {
 	if ( ! first )
 	    out << ",";
 
 	first = false;
 
-	out << o->toString();
+	out << o.toString();
     }
 
     out << "]";

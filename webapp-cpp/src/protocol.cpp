@@ -286,7 +286,19 @@ string responseToJSON(const WebappResponseMessage& response)
 	    JSONObjectList messages("messages");
 
 	    for ( auto it = response.mesgs().begin(); it != response.mesgs().end(); it++ )
-		messages.addValue(messageToJSONObject(*it));
+	    {
+		JSONObject message;
+
+		JSONString sender("sender",it->sender()), receiver("receiver",it->receiver()),
+		    body("body",it->body()), timestamp("timestamp",it->timestamp());
+
+		message.addPair(sender);
+		message.addPair(receiver);
+		message.addPair(body);
+		message.addPair(timestamp);
+
+		messages.addValue(message);
+	    }
 
 	    response_object.addPair(messages);
 

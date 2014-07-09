@@ -121,11 +121,11 @@ class JSONObjectList : public JSONPair
 public:
     JSONObjectList(const string& k) : JSONPair(k) {}
 
-    void addValue(const JSONObject& obj) { objs.push_back(&obj); };
+    void addValue(const JSONObject& obj) { objs.push_back(obj); };
 
 private:
     string valueToString(void) const;
-    std::list<const JSONObject*> objs;
+    std::list<JSONObject> objs;
 
 };
 
