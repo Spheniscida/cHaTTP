@@ -39,7 +39,8 @@ The answers from the web server MUST be in JSON format. Fields that are always a
 * "status" (boolean) -- success or fail
 * "error" (string) -- reason for fail, empty on success
 * "error-code" (integer) -- a message-broker error code (cf. message-broker/error-codes.mkd). Its value is 0 if there was no error or the broker didn't provide an explicit code.
-* "type" (string) -- type of transaction; this may be `logged-in`, `registered`, `logged-out`, `message-accepted`, `saved-messages` and `isonline`.
+* "type" (string) -- type of transaction; this may be `logged-in`, `registered`, `logged-out`, `message-accepted`, `saved-messages`, `heartbeated`, `changed-password`,
+    `settings` (on getconf), `saved-settings` (on setconf) and `isonline`.
 The names stay the same on errors; `message-accepted` with `status == false` means that the message hasn't been accepted.
 
 Additional fields are described for each command.
@@ -67,9 +68,9 @@ did succeed or not) and, if it did succeed, the channel id:
     Transfer-Encoding: chunked
     Connection: keep-alive
 
-    {"type":"logged-in","status":true,"channel_id":"rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa"}
+    {"type":"logged-in","status":true,"channel_id":"rtwmrsswunivdbhdybvaoswaaitrtdgyhldghevlttuyvykahkodmmxzyglkzneaa","error":"","error-code":0}
     # or, if it failed:
-    {"type":"logged-in","status":false,"channel_id":""}
+    {"type":"logged-in","status":false,"channel_id":"","error":"User doesn't exist","error-code":15}
 
 #### Log-out
 
@@ -120,7 +121,7 @@ Messages that have been saved may be retrieved using the following GET request:
 
 As result, a JSON object is returned. The "type" field is set to "saved-messages", the "status" and "error" fields indicate errors.
 The "messages" field consists of an array of JSON records. In this array, message objects are stored, of which each has the fields "from",
-"timestamp" and "message". The timestamp is an RFC2822 timestamp.
+"timestamp" and "message". The timestamp is an RFC2822 timestamp with the timezone set to ±0000 (GMT).
 
 ### Setting user settings/configuration
 
