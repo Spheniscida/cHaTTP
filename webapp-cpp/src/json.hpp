@@ -4,7 +4,8 @@
 # include <string>
 # include <list>
 # include <sstream>
-
+# include <memory>
+using std::shared_ptr;
 using std::string;
 using std::list;
 
@@ -14,10 +15,6 @@ class JSONPair;
  * @brief This is a very spartan JSON implementation.
  *
  * It doesn't have any features for comfort, e.g. construction with direct constructors (addPair(JSONNumber("a",2)))
- *
- * Caveats:
- * 	* This class stores pointers to the pairs, i.e. you shouldn't use a JSONObject
- * 	after one or more of the added pairs have been destroyed.
  *
  * Example:
  *
@@ -43,19 +40,21 @@ class JSONPair;
 class JSONObject
 {
 public:
-    void addPair(const JSONPair& p);
-
-    template<typename T, typename ... Ts>
-    void addPairs(const T& pair, const Ts& ... pairs) { addPair(pair); addPairs(pairs...); }
-
-    template<typename T>
-    void addPairs(const T& pair) { addPair(pair); }
+    template<typename PairT>
+    void addPair(const PairT& p);
 
     string toString(void) const;
 
 private:
-    std::list<const JSONPair*> pairs;
+    std::list<shared_ptr<JSONPair>> pairs;
 };
+
+template<typename PairT>
+void JSONObject::addPair(const PairT& p)
+{
+    shared_ptr<JSONPair> p_(static_cast<JSONPair*>(new PairT(p)));
+    pairs.push_back(p_);
+}
 
 class JSONPair
 {
@@ -63,6 +62,8 @@ public:
     virtual string toString(void) const;
 
     JSONPair(const string& k) : key(k) {}
+
+    virtual ~JSONPair(void) = default;
 protected:
     virtual string valueToString(void) const = 0;
     string key;

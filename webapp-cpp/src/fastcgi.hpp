@@ -9,7 +9,6 @@
 
 # include "ipc.hpp"
 
-extern IPC* main_ipc;
 
 struct FCGInfo
 {

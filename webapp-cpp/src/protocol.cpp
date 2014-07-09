@@ -6,6 +6,7 @@
 # include <message.pb.h>
 
 # include "utils.hpp"
+# include "json.hpp"
 
 namespace
 {
@@ -215,4 +216,112 @@ WebappRequestMessage createRequest(const RequestURI& u, FCGX_Request* request)
     }
 
     throw WebappError("Sorry, but you called an unimplemented request",true);
+}
+
+// RESPONSE HANDLING
+
+JSONObject messageToJSONObject(const ChattpMessage& msg)
+{
+    JSONObject message;
+
+    JSONString sender("sender",msg.sender()), receiver("receiver",msg.receiver()),
+	body("body",msg.body()), timestamp("timestamp",msg.timestamp());
+
+    message.addPair(sender);
+    message.addPair(receiver);
+    message.addPair(body);
+    message.addPair(timestamp);
+
+    return message;
+}
+
+string responseToJSON(const WebappResponseMessage& response)
+{
+    JSONObject response_object;
+
+    JSONBoolean status("status",response.status());
+    JSONString error("error",response.error_message());
+    JSONNumber error_code("error-code",response.error_code());
+
+    response_object.addPair(status);
+    response_object.addPair(error);
+    response_object.addPair(error_code);
+
+    string type_string;
+
+    switch ( response.type() )
+    {
+	case WebappResponseMessage::LOGGEDIN:
+	{
+	    type_string = "logged-in";
+
+	    JSONString channel_id("channel_id",response.channel_id());
+	    response_object.addPair(channel_id);
+	    break;
+	}
+	case WebappResponseMessage::LOGGEDOUT:
+	{
+	    type_string = "logged-out";
+	    break;
+	}
+	case WebappResponseMessage::SENTMESSAGE:
+	{
+	    type_string = "message-accepted";
+	    break;
+	}
+	case WebappResponseMessage::REGISTERED:
+	{
+	    type_string = "registered";
+	    break;
+	}
+	case WebappResponseMessage::USERSTATUS:
+	{
+	    type_string = "online";
+	    break;
+	}
+	case WebappResponseMessage::GOTMESSAGES:
+	{
+	    type_string = "saved-messages";
+
+	    JSONObjectList messages("messages");
+
+	    for ( auto it = response.mesgs().begin(); it != response.mesgs().end(); it++ )
+		messages.addValue(messageToJSONObject(*it));
+
+	    response_object.addPair(messages);
+
+	    break;
+	}
+	case WebappResponseMessage::GOTSETTINGS:
+	{
+	    type_string = "settings";
+
+	    JSONString settings("settings",response.settings());
+	    response_object.addPair(settings);
+	    break;
+	}
+	case WebappResponseMessage::SAVEDSETTINGS:
+	{
+	    type_string = "saved-settings";
+	    break;
+	}
+	case WebappResponseMessage::HEARTBEAT_RECEIVED:
+	{
+	    type_string = "heartbeated";
+	    break;
+	}
+	case WebappResponseMessage::CHANGEDPASS:
+	{
+	    type_string = "changed-password";
+	    break;
+	}
+	default:
+	    type_string = "UNIMPLEMENTED";
+    }
+
+    JSONString type("type",type_string);
+
+    response_object.addPair(type);
+
+    return response_object.toString();
 }

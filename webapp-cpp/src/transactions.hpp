@@ -11,7 +11,11 @@
 
 struct SavedTransaction
 {
-    FCGX_Request request;
+    SavedTransaction(void) : lookup_success(false) {}
+
+    FCGX_Request* request;
+    bool lookup_success; // default is false. If retrieved from a map using operator[] and the record doesn't exist, it's false.
+			 // However, explicitly inserted entries have set this member to true.
 };
 
 

@@ -1,6 +1,8 @@
 # ifndef IPC_HPP
 # define IPC_HPP
 
+# include <mutex>
+
 # include <libsocket/unixclientdgram.hpp>
 # include <libsocket/inetserverdgram.hpp>
 
@@ -18,7 +20,7 @@ class IPC
 public:
     IPC(void);
 
-    WebappResponseMessage receiveResponse(void);
+    void receiveResponse(WebappResponseMessage& msg);
     void sendRequest(const WebappRequestMessage& msg);
 
 private:
@@ -26,9 +28,12 @@ private:
     unix_dgram_client* webapp_socket;
     inet_dgram_server* webapp_inet_socket;
 
-    bool isInet;
+    std::mutex socket_write_mutex;
     ConnInfo bind_info;
     ConnInfo remote_info;
+    bool isInet;
 };
+
+extern IPC* main_ipc;
 
 # endif

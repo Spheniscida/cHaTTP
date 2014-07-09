@@ -6,6 +6,7 @@ void TransactionMap::insert(sequence_t seq, const SavedTransaction& ta)
 {
     std::lock_guard<std::mutex> lck(mx);
     map[seq] = ta;
+    (map[seq]).lookup_success = true;
 }
 
 SavedTransaction& TransactionMap::get(sequence_t seq)

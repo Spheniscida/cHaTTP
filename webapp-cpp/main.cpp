@@ -4,8 +4,8 @@
 # include "src/conf.hpp"
 # include "src/error.hpp"
 # include "src/fastcgi.hpp"
+# include "src/fcgi-reply.hpp"
 # include "src/protocol.hpp"
-
 # include "src/ipc.hpp"
 
 # include <stdlib.h>
@@ -22,14 +22,17 @@ int main(void)
 
 	unsigned int threads = getNThreads();
 
-	// /FIXME/ For debugging purposes only!
-	/*for ( unsigned int i = 0; i < threads - 1; i++ )
+	for ( unsigned int i = 0; i < threads - 1; i++ )
 	{
 	    std::thread t(fastCGIWorker,info);
+	    std::thread r(handleResponses);
 	    t.detach();
-	}*/
+	    r.detach();
+	}
 
+	std::thread response_handler(handleResponses);
 	fastCGIWorker(info);
+
 
     } catch (WebappError e)
     {

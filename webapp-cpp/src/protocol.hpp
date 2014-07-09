@@ -1,5 +1,11 @@
 # ifndef PROTOCOL_HPP
 # define PROTOCOL_HPP
+
+/*
+ * The protocol module handles generation of requests and responses, that is
+ * conversion between Request URI → Protobuf object and Protobuf object → JSON.
+ */
+
 # include <fcgiapp.h>
 
 # include "requesturi.hpp"
@@ -10,11 +16,12 @@ using namespace chattp;
 
 # include <iostream>
 # include <atomic>
+# include <string>
 
 typedef unsigned long long sequence_t;
 
-
 extern WebappRequestMessage createRequest(const RequestURI& u, FCGX_Request* request);
+extern std::string responseToJSON(const WebappResponseMessage& response);
 
 // :P
 // Ensures that the sequence number is handled appropriately.

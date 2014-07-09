@@ -2,6 +2,8 @@
 
 # include <memory>
 
+IPC* main_ipc;
+
 namespace
 {
     thread_local char receiver_buffer[max_raw_message_size];
@@ -34,6 +36,7 @@ void IPC::sendRequest(const WebappRequestMessage& msg)
 
     try
     {
+	std::lock_guard<std::mutex> guard(socket_write_mutex);
 	if ( ! isInet )
 	{
 	    webapp_socket->sndto(serialized.data(),serialized.length(),remote_info.address.c_str());
@@ -47,10 +50,8 @@ void IPC::sendRequest(const WebappRequestMessage& msg)
     }
 }
 
-WebappResponseMessage IPC::receiveResponse(void)
+void IPC::receiveResponse(WebappResponseMessage& msg)
 {
-    WebappResponseMessage msg;
-
     if ( ! isInet )
     {
 	ssize_t n = webapp_socket->rcv(receiver_buffer,max_raw_message_size);
@@ -60,6 +61,4 @@ WebappResponseMessage IPC::receiveResponse(void)
 	ssize_t n = webapp_inet_socket->rcvfrom(receiver_buffer,max_raw_message_size,nullptr,0,nullptr,0,0,true);
 	msg.ParseFromArray(receiver_buffer,n);
     }
-
-    return msg;
 }

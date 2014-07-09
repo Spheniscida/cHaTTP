@@ -8,6 +8,7 @@ requesturi.cpp
 ipc.cpp
 transactions.cpp
 protocol.cpp
+fcgi-reply.cpp
   )
 
 add_library(webapplib STATIC ${libsrc})
