@@ -1,6 +1,5 @@
 # include "json.hpp"
 
-
 string JSONPair::toString(void) const
 {
     std::ostringstream out;
@@ -10,6 +9,10 @@ string JSONPair::toString(void) const
     return out.str();
 }
 
+void JSONObject::addPair(const JSONPair& p)
+{
+    pairs.push_back(p.toString());
+}
 
 string JSONObject::toString(void) const
 {
@@ -18,7 +21,7 @@ string JSONObject::toString(void) const
 
     out << "{";
 
-    for ( shared_ptr<JSONPair> p : pairs )
+    for ( const string& p : pairs )
     {
 	if ( ! first )
 	{
@@ -26,7 +29,7 @@ string JSONObject::toString(void) const
 	}
 
 	first = false;
-	out << p->toString();
+	out << p;
     }
 
     out << "}";

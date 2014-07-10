@@ -40,21 +40,13 @@ class JSONPair;
 class JSONObject
 {
 public:
-    template<typename PairT>
-    void addPair(const PairT& p);
+    void addPair(const JSONPair& p);
 
     string toString(void) const;
 
 private:
-    std::list<shared_ptr<JSONPair>> pairs;
+    std::list<string> pairs;
 };
-
-template<typename PairT>
-void JSONObject::addPair(const PairT& p)
-{
-    shared_ptr<JSONPair> p_(static_cast<JSONPair*>(new PairT(p)));
-    pairs.push_back(p_);
-}
 
 class JSONPair
 {
