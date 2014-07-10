@@ -17,7 +17,6 @@ IPC::IPC(void)
     if ( ! remote_info.isInet )
     {
 	webapp_socket = new unix_dgram_client(bind_info.address);
-	webapp_socket->connect(remote_info.address);
 
 	webapp_inet_socket = nullptr;
 	isInet = false;
