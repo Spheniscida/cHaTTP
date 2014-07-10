@@ -16,7 +16,7 @@ export CHATTP_WEBAPP_PORT=""
 # Theoretically, you could also put a string like ":5000" in there, meaning to
 # listen on TCP port 5000.
 export CHATTP_WEBAPP_FASTCGI_PATH="/tmp/chattp_webapp.sock"
-export CHATTP_WEBAPP_N_THREADS="4"
+export CHATTP_WEBAPP_N_THREADS="8"
 
 # The bind address of the message relay application.
 export CHATTP_MESG_RELAY_ADDR="/tmp/message-relay"

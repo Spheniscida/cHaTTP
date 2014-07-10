@@ -277,6 +277,9 @@ string responseToJSON(const WebappResponseMessage& response)
 	case WebappResponseMessage::USERSTATUS:
 	{
 	    type_string = "online";
+
+	    JSONBoolean online("online",response.online());
+	    response_object.addPair(online);
 	    break;
 	}
 	case WebappResponseMessage::GOTMESSAGES:
