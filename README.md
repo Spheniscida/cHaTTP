@@ -88,8 +88,9 @@ the message relay and the FastCGI webapp. Nginx isn't suspicious as well.
 ### Stand-alone (user cache active)
 
 * Sending messages: This is probably the slowest operation. The peak value was 590 messages/second, but
-    it could go down as low as 300 msgs/sec.
-* User lookups (stand-alone: cached): Around 1000 ops/second.
+    it could go down as low as 300 msgs/sec. Webapp-CPP has reached 1300 messages per second, but appears
+    to be slower when operating with the database layer.
+* User lookups (stand-alone: cached): Around 1000 ops/second. Webapp-CPP: < 13000 ops/second.
 
 ### Clustered (no user cache)
 
