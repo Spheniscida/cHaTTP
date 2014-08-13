@@ -17,14 +17,15 @@ The message broker requires its host operating system to provide:
 
 * The `pthread` library.
 * The `epoll` API.
-* A C++11-compliant compiler (recent GCC/clang versions); only for building message-broker.
+* A C++11-compliant compiler (recent GCC/clang versions).
 
-This limits the possible platforms to modern Linux systems.
+This (unfortunately) limits the possible platforms to modern Linux systems.
 
 #### Libsocket
 
-You will need the `libsocket` library. The former should already exist on your
-system, the latter may be obtained from [github](https://github.com/dermesser/libsocket)
+You will need the `libsocket` library. Its source code
+may be obtained from [github](https://github.com/dermesser/libsocket). RPM and DEB
+packages are available from [http://cdn.spheniscida.de/lbo/libsocket/](http://cdn.spheniscida.de/lbo/libsocket/).
 
 #### Boost unit testing framework
 
@@ -32,11 +33,12 @@ This sub-project uses unit testing to avoid implementation errors. For the tests
 have to install the Boost test framework and its headers (e.g. libboost-test1.55-dev in Debian).
 
 To build the unit tests (`tests/test-main.cpp`), pass the following switch to CMake: `-Dunit_test=1`
-If you don't need the unit tests, the boost unit testing library will not be required.
+If you don't need the unit tests, the boost unit testing library will not be required. The unit
+tests are not built by default.
 
 ## Documentation
 
-Build the documentation (if you have graphviz available) using doxygen and the `doxyconf`
+Build the documentation (if you have graphviz available) using doxygen on the `doxyconf`
 configuration file.
 
 Otherwise, there should be a current version available online [here](http://lbo.spheniscida.de/doc/cHaTTP/message-broker/).
