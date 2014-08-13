@@ -34,6 +34,5 @@ private:
     bool isInet;
 };
 
-extern IPC* main_ipc;
 
 # endif

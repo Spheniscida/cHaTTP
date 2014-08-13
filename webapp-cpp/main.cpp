@@ -4,7 +4,6 @@
 # include "src/conf.hpp"
 # include "src/error.hpp"
 # include "src/fastcgi.hpp"
-# include "src/fcgi-reply.hpp"
 # include "src/protocol.hpp"
 # include "src/ipc.hpp"
 
@@ -15,24 +14,27 @@ int main(void)
 {
     try
     {
-	main_ipc = new IPC;
 	int fd = createFastCGISocket();
 
 	FCGInfo info { .fastcgi_sock = fd };
 
 	unsigned int threads = getNThreads();
 
+	MessageEventHandler msg_handler(info);
+
+	auto fastcgi_handler = [&msg_handler]() -> void { msg_handler.fastCGIWorker(); };
+	auto broker_handler = [&msg_handler]() -> void { msg_handler.handleResponses(); };
+
 	for ( unsigned int i = 0; i < threads - 1; i++ )
 	{
-	    std::thread t(fastCGIWorker,info);
-	    std::thread r(handleResponses);
+	    std::thread t(fastcgi_handler);
+	    std::thread r(broker_handler);
 	    t.detach();
 	    r.detach();
 	}
 
-	std::thread response_handler(handleResponses);
-	fastCGIWorker(info);
-
+	std::thread t(fastcgi_handler);
+	broker_handler();
 
     } catch (WebappError e)
     {

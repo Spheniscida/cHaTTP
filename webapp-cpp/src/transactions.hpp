@@ -30,6 +30,5 @@ private:
     std::unordered_map<sequence_t,SavedTransaction> map;
 };
 
-extern TransactionMap transaction_map;
 
 # endif

@@ -1,7 +1,5 @@
 # include "transactions.hpp"
 
-TransactionMap transaction_map;
-
 void TransactionMap::insert(sequence_t seq, const SavedTransaction& ta)
 {
     std::lock_guard<std::mutex> lck(mx);

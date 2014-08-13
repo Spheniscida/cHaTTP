@@ -2,7 +2,6 @@
 
 # include <memory>
 
-IPC* main_ipc;
 
 namespace
 {
