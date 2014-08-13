@@ -3,8 +3,9 @@
 
 # include <string>
 # include <list>
-# include <sstream>
 # include <memory>
+# include <sstream>
+
 using std::shared_ptr;
 using std::string;
 using std::list;
@@ -48,6 +49,10 @@ private:
     std::list<string> pairs;
 };
 
+/**
+ * @brief Abstract base class for any JSON key-value pairs.
+ *
+ */
 class JSONPair
 {
 public:
@@ -79,7 +84,7 @@ public:
     JSONString(const string& k,const string& v) : JSONPair(k), value(v) {}
 
 private:
-    string valueToString(void) const { std::ostringstream out; out << "\"" << value << "\""; return out.str(); }
+    string valueToString(void) const { std::string out; out = string("\"") + value + "\""; return out; }
     string value;
 };
 
@@ -90,7 +95,7 @@ public:
     JSONBoolean(const string& k,bool v) : JSONPair(k), value(v) {}
 
 private:
-    string valueToString(void) const { return value ? "true" : "false"; }
+    string valueToString(void) const { return string(value ? "true" : "false"); }
     bool value;
 };
 

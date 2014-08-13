@@ -1,14 +1,5 @@
 # include "json.hpp"
 
-string JSONPair::toString(void) const
-{
-    std::ostringstream out;
-
-    out << "\"" << key << "\":" << valueToString();
-
-    return out.str();
-}
-
 void JSONObject::addPair(const JSONPair& p)
 {
     pairs.push_back(p.toString());
@@ -35,6 +26,16 @@ string JSONObject::toString(void) const
     out << "}";
 
     return out.str();
+}
+
+string JSONPair::toString(void) const
+{
+    std::string out;
+
+    // Slightly faster than ostringstream
+    out = string("\"") + key + "\":" + valueToString();
+
+    return out;
 }
 
 string JSONObjectList::valueToString(void) const
