@@ -8,7 +8,6 @@
 using chattp::B2BMessage;
 
 # include "error.hpp"
-# include "conf.hpp"
 # include "sequence-number.hpp"
 # include "receivable.hpp"
 

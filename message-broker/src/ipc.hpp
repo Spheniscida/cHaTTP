@@ -1,15 +1,12 @@
 # ifndef IPC_HPP
 # define IPC_HPP
 
-# include <memory>
-
-# include <libsocket/exception.hpp>
 # include <libsocket/unixserverdgram.hpp>
 # include <libsocket/inetserverdgram.hpp>
 # include "epoll.hpp"
 
-# include "conf.hpp"
 # include "error.hpp"
+
 # include "persistent.hpp"
 # include "webapp-proto.hpp"
 # include "message-relay.hpp"

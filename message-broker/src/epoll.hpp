@@ -37,7 +37,6 @@
  */
 
 # include <vector>
-# include <memory>
 # include <cstring>
 
 # include <sys/epoll.h>

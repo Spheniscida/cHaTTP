@@ -59,17 +59,17 @@ struct OutstandingTransaction
     : original_sequence_number(0),
       remaining_count(nullptr),
       saved(nullptr),
-      original_count(0),
-      ticks_here(0)
+      ticks_here(0),
+      original_count(0)
       {};
 
-    OutstandingType type;
     /// References another transaction, usually the sequence number of a request from the web application.
     sequence_t original_sequence_number;
     std::atomic<unsigned short>* remaining_count; // for messages to multiple recipients
     bool* saved;
-    unsigned short original_count;
+    OutstandingType type;
     unsigned int ticks_here; // for timeout-count
+    unsigned short original_count;
 };
 
 class TransactionMap
@@ -88,7 +88,7 @@ public:
     void insertB2BOrigin(sequence_t seqnum, const string& origin);
     void eraseB2BOrigin(sequence_t seqnum);
 
-    void findTimedout(unsigned int max_ticks, std::list< sequence_t >& timedout_transactions);
+    void findTimedout(unsigned int max_ticks, std::list<sequence_t>& timedout_transactions);
 private:
     unordered_map<sequence_t,OutstandingTransaction> transactions;
     mutex transactions_mutex;

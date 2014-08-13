@@ -1,9 +1,7 @@
 # ifndef BROKER_HPP
 # define BROKER_HPP
 
-# include <list>
 # include <memory>
-# include <map>
 
 using std::shared_ptr;
 using std::dynamic_pointer_cast;
@@ -12,7 +10,6 @@ using std::dynamic_pointer_cast;
 # include "persistent.hpp"
 # include "message-relay.hpp"
 # include "ipc.hpp"
-# include "error.hpp"
 # include "transaction-maps.hpp"
 # include "user-cache.hpp"
 
@@ -67,6 +64,7 @@ private:
     void handleMessagerelayMessage(shared_ptr<MessageRelayResponse> msg);
     void handleBrokerMessage(shared_ptr<B2BIncoming> msg);
 
+    // Only used internally – there are more than one points at which a message has to be sent.
     template<typename SenderIteratorT, typename ReceiverIteratorT>
     void sendMessage(SenderIteratorT sender_begin, SenderIteratorT sender_end,
 					 ReceiverIteratorT recv_begin, ReceiverIteratorT recv_end,

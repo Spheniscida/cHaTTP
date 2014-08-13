@@ -15,7 +15,7 @@ class BrokerSettings;
 /// UDP port for broker2broker communication.
 const string message_broker_port = "27533";
 /// Enables extensive logging
-const bool debugging_mode = true;
+const bool debugging_mode = false;
 
 /// At least for how long should a transaction live in the cache before it is marked as "timed-out"? (in seconds) (Note: A transaction may live at most twice this interval)
 const unsigned int transaction_min_timeout = 10;
@@ -26,8 +26,8 @@ const unsigned int max_message_size = 16384;
 const unsigned int max_raw_message_size = 12288;
 
 /******* Just declarations ******/
+/// Global broker settings object
 extern const BrokerSettings global_broker_settings;
-
 /// Thread #. 0 is the main process.
 extern thread_local unsigned int thread_id;
 /// Time of start-up

@@ -2,7 +2,6 @@
 # define WEBAPP_PROTO_HPP
 
 # include <string>
-# include <sstream>
 
 # include "sequence-number.hpp"
 # include "receivable.hpp"

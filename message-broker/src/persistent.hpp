@@ -3,7 +3,6 @@
 
 # include <string>
 # include <vector>
-# include <sstream>
 
 # include <persistence.pb.h>
 
@@ -12,7 +11,6 @@
 
 using std::string;
 using std::vector;
-using std::istringstream;
 
 using chattp::PersistenceResponse;
 using chattp::PersistenceRequest;
